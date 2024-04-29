@@ -31,3 +31,8 @@ print('y_test')
 print(y_test)
 
 print('----------------------------------------------')
+
+from sklearn.impute import SimpleImputer
+imputer = SimpleImputer(missing_values=np.nan, strategy='mean')
+imputer.fit(x[:, 1:3]) #we are targeting the columns 1 and 2 (age, and salary)
+
