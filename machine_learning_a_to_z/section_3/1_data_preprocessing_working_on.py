@@ -34,9 +34,13 @@ print(y)
 
 print('----------------------------------------------')
 
+print('Taking care of missing data')
 from sklearn.impute import SimpleImputer
 imputer = SimpleImputer(missing_values=np.nan, strategy='mean')
-imputer.fit(x[:, 1:3]) #we are targeting the columns 1 and 2 (age, and salary)
+imputer.fit(x[:, 1:3])
+x[:, 1:3] = imputer.transform(x[:, 1:3]) #we are targeting the columns 1 and 2 (age, and salary)
+
+
 
 #----------------------------------------------
 print('Encoding categorical data')
@@ -105,10 +109,24 @@ print(y_test)
 
 print('----------------------------------------------')
 
+print('Feature Scaling')
+#Standardization: x_stand = ( x - mean(x) ) / standard_deviation(x)
+#  this one is good for most cases
+#  the range of the values will be between -3 and 3
 
+#Normalization: x_norm = ( x - min(x) ) / ( max(x) - min(x) )
+#  this one is good for when you have a normal distribution
+#  the range of the values will be between 0 and 1
 
+from sklearn.preprocessing import StandardScaler
+sc = StandardScaler()
 
-# from sklearn.preprocessing import StandardScaler
-# sc = StandardScaler()
-# X_train[:, 3:] = sc.fit_transform(X_train[:, 3:])
-# X_test[:, 3:] = sc.transform(X_test[:, 3:])
+# [:, 3:] -> [all rows, columns starting from 3 to the end]
+x_train[:, 3:] = sc.fit_transform(x_train[:, 3:])
+x_test[:, 3:] = sc.transform(x_test[:, 3:]) # we do not fit the test set, we only transform it
+
+print('x_train - after scaling')
+print(x_train)
+print('----')
+print('x_test - after scaling')
+print(x_test)
