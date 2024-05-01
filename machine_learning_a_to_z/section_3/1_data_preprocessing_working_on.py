@@ -110,20 +110,40 @@ print(y_test)
 print('----------------------------------------------')
 
 print('Feature Scaling')
-#Standardization: x_stand = ( x - mean(x) ) / standard_deviation(x)
-#  this one is good for most cases
-#  the range of the values will be between -3 and 3
-
 #Normalization: x_norm = ( x - min(x) ) / ( max(x) - min(x) )
-#  this one is good for when you have a normal distribution
+#  good when you don't have a normal distribution or when you are unsure if you have one
 #  the range of the values will be between 0 and 1
 
+
+#Standardization: x_stand = ( x - mean(x) ) / standard_deviation(x)
+#  "often a safe choice and works well in many cases. It's less sensitive to outliers compared to normalization, and it can be applied to a 
+#   wider range of datasets without assumptions about the distribution of the features."
+#  roughly the range can be expected to be between -3 and 3 (but realistically it can be any value)
+
+
+
+print('Normalization - MinMaxScaler')
+from sklearn.preprocessing import MinMaxScaler
+min_max_scaler = MinMaxScaler()
+x_train
+x_train[:, 3:] = min_max_scaler.fit_transform(x_train[:, 3:])
+x_test[:, 3:] = min_max_scaler.transform(x_test[:, 3:]) # we do not fit the test set, we only transform it
+
+print('x_train - after scaling')
+print(x_train)
+print('----')
+print('x_test - after scaling')
+print(x_test)
+
+
+print('----------------------------------------------')
+print('Standardization - StandardScaler')
 from sklearn.preprocessing import StandardScaler
-sc = StandardScaler()
+standard_scaler = StandardScaler()
 
 # [:, 3:] -> [all rows, columns starting from 3 to the end]
-x_train[:, 3:] = sc.fit_transform(x_train[:, 3:])
-x_test[:, 3:] = sc.transform(x_test[:, 3:]) # we do not fit the test set, we only transform it
+x_train[:, 3:] = standard_scaler.fit_transform(x_train[:, 3:]) #This means it calculates the mean and standard deviation of the data, then subtracts the mean and divides by the standard deviation for each value.
+x_test[:, 3:] = standard_scaler.transform(x_test[:, 3:]) #transforms the x_test data using the mean and standard deviation calculated from the x_train data. This is done to avoid data leakage, where information from the test set is used to scale the training set.
 
 print('x_train - after scaling')
 print(x_train)
