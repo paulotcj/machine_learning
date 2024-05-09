@@ -1,4 +1,5 @@
 print('Polynomial Regression')
+print(' facts: salary = $160,000 and experience = 6.5 years')
 
 # Importing the libraries
 
@@ -23,8 +24,8 @@ print('----------------------------------------------')
 
 print('Making a Linear Regression model with the whole dataset')
 from sklearn.linear_model import LinearRegression
-lin_reg = LinearRegression()
-lin_reg.fit(x, y) # x = training data, y = target date
+linear_regression = LinearRegression()
+linear_regression.fit(x, y) # x = training data, y = target date
 
 print('----------------------------------------------')
 
@@ -39,8 +40,8 @@ poly_reg = PolynomialFeatures(degree = 5) #we should use 4 for a good fit
 
 
 x_poly = poly_reg.fit_transform(x)
-lin_reg_poly = LinearRegression()
-lin_reg_poly.fit(x_poly, y) # x = training data, y = target date
+linear_regression_for_poly = LinearRegression()
+linear_regression_for_poly.fit(x_poly, y) # x = training data, y = target date
 
 print('x_poly:')
 print(x_poly)
@@ -53,7 +54,7 @@ print('----------------------------------------------')
 print('Creating the visualisation for the Linear Regression model')
 
 plt.scatter(x,y, color = 'red')
-plt.plot(x, lin_reg.predict(x), color = 'blue')
+plt.plot(x, linear_regression.predict(x), color = 'blue')
 
 plt.title('Truth or Bluff (Linear Regression)')
 
@@ -66,7 +67,7 @@ print('----------------------------------------------')
 
 print('Creating the visualisation for the Polynomial Regression model')
 plt.scatter(x, y, color = 'red')
-plt.plot(x, lin_reg_poly.predict( poly_reg.fit_transform(x) ) , color = 'blue')
+plt.plot(x, linear_regression_for_poly.predict( poly_reg.fit_transform(x) ) , color = 'blue')
 
 
 
@@ -80,13 +81,41 @@ plt.show()
 print('----------------------------------------------')
 
 
-# print('Visualising the Polynomial Regression results (for higher resolution and smoother curve)')
-# x_grid = np.arange(min(x), max(x), 0.1)
-# x_grid = x_grid.reshape((len(x_grid), 1))
+print('Visualising the Polynomial Regression results (for higher resolution and smoother curve)')
 
-# plt.scatter(x, y, color = 'red')
-# plt.plot(x_grid, lin_reg_poly.predict(poly_reg.fit_transform(x_grid)), color = 'blue')
-# plt.title('Truth or Bluff (Polynomial Regression)')
-# plt.xlabel('Position level')
-# plt.ylabel('Salary')
-# plt.show()
+#creates an array from the minimum value of x to the maximum value of x, with steps of 0.1
+x_grid = np.arange(np.min(x), np.max(x), 0.1) 
+
+print('x_grid:')
+print(x_grid)
+
+#reshapes the array to be a 2D array with 1 column -> (rows, columns)
+x_grid = x_grid.reshape( len(x_grid), 1 )  
+# print('----')
+# print('x_grid:')
+# print(x_grid)
+
+plt.scatter(x,y, color = 'red')
+plt.plot(x_grid, linear_regression_for_poly.predict( poly_reg.fit_transform(x_grid) ) , color = 'blue')
+
+
+
+plt.title('Truth or Bluff (Polynomial Regression)')
+plt.xlabel('Position level')
+plt.ylabel('Salary')
+plt.show()
+
+print('----------------------------------------------')
+print('facts: salary = $160,000 and experience = 6.5 years')
+print('----------------------------------------------')
+print('Predicting a new result with Linear Regression')
+linear_regression.predict([[6.5]])
+
+print( linear_regression.predict( [[6.5]]) )
+
+print('----------------------------------------------')
+print('Predicting a new result with Polynomial Regression')
+
+print( linear_regression_for_poly.predict( poly_reg.fit_transform( [[6.5]] ) ) )
+
+
