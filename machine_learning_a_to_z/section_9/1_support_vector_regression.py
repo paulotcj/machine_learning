@@ -49,15 +49,21 @@ print('y:')
 print(y)
 print('----------------------------------------------')
 
-print('Trai the SVR model on the whole dataset')
+print('Flatten the Y array as the SVR model expects a 1D array')
+y = y.flatten() #reshape y back to a 1D array
+print(y)
+print('----------------------------------------------')
+print('Train the SVR model on the whole dataset')
 
 # (RBF) Radial Basis Function. The RBF kernel is a popular choice because it is able to 
 #   create non-linear decision boundaries and can model complex relationships 
 #   between the input features and the target variable.
 
+
 from sklearn.svm import SVR
 regressor = SVR(kernel = 'rbf')
 regressor.fit(x,y)
+
 
 print('----------------------------------------------')
 

@@ -8,11 +8,17 @@ import pandas as pd
 
 print('----------------------------------------------')
 
-print('mport the dataset')
+print('Import the dataset')
 
 dataset = pd.read_csv('./Position_Salaries.csv')
 x = dataset.iloc[:,1:-1].values #all rows, starting from the second column minus the last column
 y = dataset.iloc[:,-1].values #all rows, last column
+
+print('x:')
+print(x)
+print('----')
+print('y:')
+print(y)
 
 
 print('----------------------------------------------')
@@ -23,6 +29,8 @@ print('Train the Decision Tree Regression model on the whole dataset')
 from sklearn.tree import DecisionTreeRegressor
 regressor = DecisionTreeRegressor(random_state = 0)
 regressor.fit(x,y)
+
+
 
 #random_state = 0 -> "determines the random number generation used to create 
 #   the decision tree. When you set a specific random_state, the decision tree 
