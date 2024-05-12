@@ -1,5 +1,6 @@
+print('----------------------------------------------')
 print('Simple Linear Regression')
-
+print('----------------------------------------------')
 print('Import the libraries')
 import numpy as np
 import matplotlib.pyplot as plt
@@ -45,29 +46,29 @@ print('Predicting the Test set results')
 y_pred = regressor.predict(x_test) #y_pred is the predicted salary
 print('y_pred - Predicted salary. Note y_pred should be close to/predict y_test.')
 print(y_pred)
-print('----------------------------------------------')
+# print('----------------------------------------------')
 
-print('Visualising the Training set results')
-plt.scatter(x_train, y_train, color = 'red') #this will be points using the data from the training set
-plt.plot(x_train, regressor.predict(x_train), color = 'blue') #this will be the line of best fit using the data from the training set
+# print('Visualising the Training set results')
+# plt.scatter(x_train, y_train, color = 'red') #this will be points using the data from the training set
+# plt.plot(x_train, regressor.predict(x_train), color = 'blue') #this will be the line of best fit using the data from the training set
 
-#labels
-plt.title('Salary vs Experience (Training set)')
-plt.xlabel('Years of Experience')
-plt.ylabel('Salary')
+# #labels
+# plt.title('Salary vs Experience (Training set)')
+# plt.xlabel('Years of Experience')
+# plt.ylabel('Salary')
 
-plt.show()
-print('----------------------------------------------')
+# plt.show()
+# print('----------------------------------------------')
 
-print('Visualising the Test set results')
-#Now we compare the predicted salary to the actual salary
-plt.scatter(x_test, y_test, color = 'red')
-plt.scatter(x_test, y_pred, color='green', marker='+')
+# print('Visualising the Test set results')
+# #Now we compare the predicted salary to the actual salary
+# plt.scatter(x_test, y_test, color = 'red')
+# plt.scatter(x_test, y_pred, color='green', marker='+')
 
 
-plt.plot(x_train, regressor.predict(x_train), color = 'blue')
-plt.title('Salary vs Experience (Test set)')
-plt.text(0.05, 0.9, 'red dots = actual data, green crosses = predicted data', transform=plt.gca().transAxes)
-plt.xlabel('Years of Experience')
-plt.ylabel('Salary')
-plt.show()
+# plt.plot(x_train, regressor.predict(x_train), color = 'blue')
+# plt.title('Salary vs Experience (Test set)')
+# plt.text(0.05, 0.9, 'red dots = actual data, green crosses = predicted data', transform=plt.gca().transAxes)
+# plt.xlabel('Years of Experience')
+# plt.ylabel('Salary')
+# plt.show()

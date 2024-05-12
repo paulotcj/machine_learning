@@ -1,3 +1,4 @@
+print('----------------------------------------------')
 print('Multiple Linear Regression')
 
 import numpy as np
@@ -6,7 +7,7 @@ import pandas as pd
 
 print('----------------------------------------------')
 
-print('import dataset')
+print('Import dataset')
 
 dataset = pd.read_csv('./50_Startups.csv')
 x = dataset.iloc[:, : -1].values #all the rows and all the columns except the last one
@@ -18,7 +19,7 @@ print('dependent variables')
 print(y)
 print('----------------------------------------------')
 
-print('encode categorical data')
+print('Encode categorical data')
 
 from sklearn.compose import ColumnTransformer
 from sklearn.preprocessing import OneHotEncoder

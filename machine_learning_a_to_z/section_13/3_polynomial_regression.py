@@ -1,14 +1,17 @@
+print('----------------------------------------------')
 print('Polynomial Regression')
+print('----------------------------------------------')
 print(' facts: salary = $160,000 and experience = 6.5 years')
+print('----------------------------------------------')
+print('Import the libraries')
 
-# Importing the libraries
 
 import numpy as np
 import matplotlib.pyplot as plt
 import pandas as pd
 
 print('----------------------------------------------')
-print('Importing the dataset')
+print('Import the dataset')
 
 dataset = pd.read_csv('./Position_Salaries.csv')
 x = dataset.iloc[:, 1:-1 ].values #the first column contains the positions names, and we don't need it
