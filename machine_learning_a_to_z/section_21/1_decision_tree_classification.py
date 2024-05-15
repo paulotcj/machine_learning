@@ -57,8 +57,6 @@ from sklearn.preprocessing import StandardScaler
 standard_scaler = StandardScaler()
 x_train = standard_scaler.fit_transform(x_train)
 x_test = standard_scaler.transform(x_test)
-print(x_train)
-print(x_test)
 
 print('x_train (sample 5 first rows):')
 print(x_train[0:5])
