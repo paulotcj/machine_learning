@@ -9,7 +9,7 @@ import pandas as pd
 
 print('----------------------------------------------')
 print('Import the dataset')
-dataset = pd.read_csv('ENTER_THE_NAME_OF_YOUR_DATASET_HERE.csv')
+dataset = pd.read_csv('Data.csv')
 x = dataset.iloc[:, :-1].values
 y = dataset.iloc[:, -1].values
 
@@ -37,4 +37,11 @@ from sklearn.metrics import confusion_matrix, accuracy_score
 y_pred = classifier.predict(x_test)
 cm_result = confusion_matrix(y_test, y_pred)
 print(cm_result)
-accuracy_score(y_test, y_pred)
+accuracy_score_result = accuracy_score(y_test, y_pred)
+
+print('----')
+print(f'    True Negatives: {cm_result[0][0]} - False Negatives: {cm_result[1][0]}')
+print(f'    True Positives: {cm_result[1][1]} - False Positives: {cm_result[0][1]}')
+print('----')
+print('Accuracy Score:')
+print(accuracy_score_result)
