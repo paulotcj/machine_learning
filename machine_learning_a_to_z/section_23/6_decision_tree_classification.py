@@ -9,6 +9,10 @@ import pandas as pd
 
 print('----------------------------------------------')
 print('Import the dataset')
+#this dataset is about medical records of patients, and cancer diagnosis
+# columns: Sample code number,Clump Thickness,Uniformity of Cell Size,Uniformity of Cell Shape,
+#  Marginal Adhesion,Single Epithelial Cell Size,Bare Nuclei,Bland Chromatin,Normal Nucleoli,
+#  Mitoses,Class
 dataset = pd.read_csv('Data.csv')
 x = dataset.iloc[:, :-1].values
 y = dataset.iloc[:, -1].values

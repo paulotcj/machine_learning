@@ -8,10 +8,14 @@ import matplotlib.pyplot as plt
 import pandas as pd
 
 print('----------------------------------------------')
+#this dataset is about medical records of patients, and cancer diagnosis
+# columns: Sample code number,Clump Thickness,Uniformity of Cell Size,Uniformity of Cell Shape,
+#  Marginal Adhesion,Single Epithelial Cell Size,Bare Nuclei,Bland Chromatin,Normal Nucleoli,
+#  Mitoses,Class
 print('Import the dataset')
 dataset = pd.read_csv('Data.csv')
-x = dataset.iloc[:, :-1].values
-y = dataset.iloc[:, -1].values
+x = dataset.iloc[:, :-1].values #get all rows, and all columns except the last one
+y = dataset.iloc[:, -1].values #get all rows and the last column
 
 print('----------------------------------------------')
 print('Split the dataset into the Training set and Test set')
