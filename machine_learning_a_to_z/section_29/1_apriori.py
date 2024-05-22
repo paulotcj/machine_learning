@@ -20,7 +20,10 @@ print('Data Preprocessing')
 dataset = pd.read_csv('Market_Basket_Optimisation.csv', header = None)
 
 
-transactions = [ [col for col in row] for row in dataset.values ]
+transactions = [ [ str(col) for col in row] for row in dataset.values ]
+# transactions = []
+# for i in range(0, 7501):
+#   transactions.append([str(dataset.values[i,j]) for j in range(0, 20)])
 
 print('transactions (sample 5 first rows):')
 print(transactions[0:5])
@@ -37,10 +40,9 @@ from apyori import apriori
 # min lift -> we want to find rules that are at least 3 times more likely to be true than false, so we use 3
 # min_length -> we want to find rules with at least 2 products
 # max_length -> we want to find rules with at most 2 products
-rules = apriori(transactions = transactions, min_support = 0.003, min_confidence = 0.2, min_lift = 3, min_lenght = 2, max_length = 2)
+rules = apriori(transactions = transactions, min_support = 0.003, min_confidence = 0.2, min_lift = 3, min_length = 2, max_length = 2)
 
-print(rules)
-exit()
+
 
 print('----------------------------------------------')
 print('Visualising the results')
@@ -48,12 +50,18 @@ print('Visualising the results')
 print('----------------------------------------------')
 print('Displaying the first results coming directly from the output of the apriori function')
 
+# print(rules)
 results = list(rules)
-# print(results)
-exit()
+for i in results:
+    print(i)
+    print()
+    
+
 
 print('----------------------------------------------')
 print('Putting the results well organised into a Pandas DataFrame')
+
+#----------------------------------------------
 def inspect(results):
     lhs         = [tuple(result[2][0][0])[0] for result in results]
     rhs         = [tuple(result[2][0][1])[0] for result in results]
@@ -61,12 +69,30 @@ def inspect(results):
     confidences = [result[2][0][2] for result in results]
     lifts       = [result[2][0][3] for result in results]
     return list(zip(lhs, rhs, supports, confidences, lifts))
-resultsinDataFrame = pd.DataFrame(inspect(results), columns = ['Left Hand Side', 'Right Hand Side', 'Support', 'Confidence', 'Lift'])
+#----------------------------------------------
+
+results_in_dataframe = pd.DataFrame(inspect(results), columns = ['Left Hand Side', 
+            'Right Hand Side', 'Support', 'Confidence', 'Lift'])
+
 
 print('----------------------------------------------')
 print('Displaying the results non sorted')
-resultsinDataFrame
+
+
+print('resultsinDataFrame:\n')
+print(results_in_dataframe)
+print('\nLegend: Left Hand Side: product bought.')
+print('Right Hand Side: product bought together with Right Hand Side')
+print('Support: number of times the product was bought in a week / total number of transactions (7501)')
+print('Confidence: number of times the products were bought together / number the Left Hand Side was bought')
+print('Lift: Lift(A -> B) = Support(A ∪ B) / (Support(A) * Support(B)). The higher the lift, the higher the value the more likely the rule is true')
+
+
 
 print('----------------------------------------------')
 print('Displaying the results sorted by descending lifts')
-resultsinDataFrame.nlargest(n = 10, columns = 'Lift')
+
+print(
+    results_in_dataframe.nlargest(n = 10, columns = 'Lift') # sort by descending lifts, get only the 10 first rows
+)
+
