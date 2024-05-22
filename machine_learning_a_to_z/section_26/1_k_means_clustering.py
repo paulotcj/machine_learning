@@ -43,17 +43,14 @@ print('wcss:')
 print(wcss)
 
 print('\nWhat is the best number of clusters?')
-prev_wcss = wcss[0] * 1.30
+prev_wcss = wcss[0] * 1.30 #random number to start
 for i, v in enumerate(wcss):
     # print(f'i:{i}, v:{v}, prev_wcss:{prev_wcss}, % prev_wcss:{v/prev_wcss}')
 
-    if v/prev_wcss >= 0.9:
+    if v/prev_wcss >= 0.9: # if the WCSS is 90% of the previous WCSS, then we are not improving much
         print(f'    A potential good number of clusters is {i}')
         break
     prev_wcss = v
-
-exit()
-
 
 
 
@@ -64,27 +61,51 @@ plt.xlabel('Number of clusters')
 plt.ylabel('WCSS')
 plt.show()
 
-exit()
+
 
 print('----------------------------------------------')
 print('Training the K-Means model on the dataset')
 
 kmeans = KMeans(n_clusters = 5 , init = 'k-means++', random_state = 42)
 y_kmeans = kmeans.fit_predict(x)
+print('Note: Each element in y_kmeans is the cluster number that the element in x belongs to')
+print('  So if we see that y_kmeans[0] = 2, it means that the first element in x belongs to cluster 2')
 print(y_kmeans)
-exit()
+
 
 print('----------------------------------------------')
 print('Visualising the clusters')
 
-plt.scatter(x[ y_kmeans == 0, 0], x[ y_kmeans == 0, 1], s = 100, c = 'red', label = 'Cluster 1')
+print('y_kmeans == 0')
+print(y_kmeans == 0)
+print('----')
+print('x[ y_kmeans == 0, 0]')
+print(x[ y_kmeans == 0, 0])
+print('----')
+print('centroids:')
+print(kmeans.cluster_centers_)
 
-plt.scatter(x[y_kmeans == 0, 0], x[y_kmeans == 0, 1], s = 100, c = 'red', label = 'Cluster 1')
-plt.scatter(x[y_kmeans == 1, 0], x[y_kmeans == 1, 1], s = 100, c = 'blue', label = 'Cluster 2')
-plt.scatter(x[y_kmeans == 2, 0], x[y_kmeans == 2, 1], s = 100, c = 'green', label = 'Cluster 3')
-plt.scatter(x[y_kmeans == 3, 0], x[y_kmeans == 3, 1], s = 100, c = 'cyan', label = 'Cluster 4')
-plt.scatter(x[y_kmeans == 4, 0], x[y_kmeans == 4, 1], s = 100, c = 'magenta', label = 'Cluster 5')
-plt.scatter(kmeans.cluster_centers_[:, 0], kmeans.cluster_centers_[:, 1], s = 300, c = 'yellow', label = 'Centroids')
+# All elements below will be shown in their correct postion, but we slice the data according 
+# to the cluster - so we can show the clusters in different colors
+
+# y_kmeans == 0 -> this means where y_kmeans is 0, it will return True, otherwise False
+# so for x[ y_kmeans == 0, 0] - this means we generate a mask with the same size of X
+# where each element is True or False. If it is True, we select the element in the same 
+# position in X
+# And with x[ y_kmeans == 0, 0] we select the first column
+
+# x[y_kmeans == 0, 0] means that we are selecting all the rows in x that belong to cluster 0
+# x[y_kmeans == 0, 1] means that we are selecting all the rows in x that belong to cluster 0
+# s = 100 is the size of the point, c is the color, label is the legend
+plt.scatter(x[ y_kmeans == 0, 0], x[ y_kmeans == 0, 1], s = 70, c = 'red', label = 'Cluster 1')
+plt.scatter(x[ y_kmeans == 1, 0], x[ y_kmeans == 1, 1], s = 70, c = 'blue', label = 'Cluster 2')
+plt.scatter(x[ y_kmeans == 2, 0], x[ y_kmeans == 2, 1], s = 70, c = 'green', label = 'Cluster 3')
+plt.scatter(x[ y_kmeans == 3, 0], x[ y_kmeans == 3, 1], s = 70, c = 'cyan', label = 'Cluster 4')
+plt.scatter(x[ y_kmeans == 4, 0], x[ y_kmeans == 4, 1], s = 70, c = 'magenta', label = 'Cluster 5')
+
+#get the coordinates of all centroids
+
+plt.scatter(kmeans.cluster_centers_[:, 0], kmeans.cluster_centers_[:, 1], s=40, c='yellow', edgecolors='black', label='Centroids')
 plt.title('Clusters of customers')
 plt.xlabel('Annual Income (k$)')
 plt.ylabel('Spending Score (1-100)')
