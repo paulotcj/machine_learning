@@ -25,6 +25,13 @@ print('Hierarchical Clustering')
 # Merging and Splitting Issues: Once a merge or split is made in hierarchical clustering, it cannot 
 #  be undone, which can lead to suboptimal clusters if early decisions are incorrect.
 #
+# Please note that an important aspect of how to calculate distances is the linkage and they can be:
+#  - closest points
+#  - furtherst points
+#  - average distance
+#  - distance between centroids
+
+#
 #--------------
 #
 # When to Use K-Means++:
