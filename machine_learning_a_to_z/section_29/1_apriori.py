@@ -62,7 +62,7 @@ print('----------------------------------------------')
 print('Putting the results well organised into a Pandas DataFrame')
 
 #----------------------------------------------
-def inspect(results):
+def local_format_results(results):
     lhs         = [tuple(result[2][0][0])[0] for result in results]
     rhs         = [tuple(result[2][0][1])[0] for result in results]
     supports    = [result[1] for result in results]
@@ -71,7 +71,7 @@ def inspect(results):
     return list(zip(lhs, rhs, supports, confidences, lifts))
 #----------------------------------------------
 
-results_in_dataframe = pd.DataFrame(inspect(results), columns = ['Left Hand Side', 
+results_in_dataframe = pd.DataFrame(local_format_results(results), columns = ['Left Hand Side', 
             'Right Hand Side', 'Support', 'Confidence', 'Lift'])
 
 
