@@ -82,7 +82,9 @@ print('wcss:')
 print(wcss)
 
 print('\nWhat is the best number of clusters?')
-prev_wcss = wcss[0] * 1.30 #random number to start
+
+#the previous WCSS when we start is undefined, so we start with a big number
+prev_wcss = float('inf')
 for i, v in enumerate(wcss):
     # print(f'i:{i}, v:{v}, prev_wcss:{prev_wcss}, % prev_wcss:{v/prev_wcss}')
 
@@ -92,7 +94,7 @@ for i, v in enumerate(wcss):
     prev_wcss = v
 
 
-
+exit()
 
 plt.plot(range(1, 11), wcss) #from 1 to 10 clusters and the WCSS associated with it
 plt.title('The Elbow Method')
