@@ -34,7 +34,7 @@ def UCB(dataset, sub_sample_size = None):
     #---
     total_reward = 0
     #--------------
-    for n in range(0, N): #loop through each round (0 - 9_999)
+    for n in range(0, N): #loop through each round (0 - 9_999 typically)
         max_upper_bound = 0 #keep track of the maximum upper bound - start at 0
         # we should select the ad that has the maximum upper confidence bound
         ad = 0
