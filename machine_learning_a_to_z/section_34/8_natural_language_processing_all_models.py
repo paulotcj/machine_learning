@@ -22,8 +22,8 @@ dataset = pd.read_csv('Restaurant_Reviews.tsv', delimiter = '\t', quoting = 3)
 # csv.QUOTE_NONNUMERIC (value is 2): Quote all fields that are not integers or floats. When used with the writer, non-numeric data will be quoted. When used with the reader, non-quoted data will be converted to floats.
 # csv.QUOTE_NONE (value is 3): Do not quote anything on output. When used with the reader, quote characters are treated as regular characters.
 
-print(f'Dataset first 5 rows')
-print(dataset[0:5])
+# print(f'Dataset first 5 rows')
+# print(dataset[0:5])
 
 print('----------------------------------------------')
 print('Natual Language Frameworks and Setup')
@@ -116,15 +116,16 @@ all_stopwords.remove("won't")
 all_stopwords.remove("wouldn")
 all_stopwords.remove("wouldn't")
 all_stopwords.append('wow')
-print('all_stopwords: ')
-print(all_stopwords)
+# print('all_stopwords: ')
+# print(all_stopwords)
 all_stop_words_set = set(all_stopwords)
+
 
 print('----------------------------------------------')
 print('Cleaning the texts')
 corpus = []
-print('dataset.shape[0]')
-print(dataset.shape[0])
+# print('dataset.shape[0]')
+# print(dataset.shape[0])
 
 for i in range(0, dataset.shape[0]): # dataset.shape[0] -> num of rows - in this case 1000
 
@@ -152,11 +153,11 @@ for i in range(0, dataset.shape[0]): # dataset.shape[0] -> num of rows - in this
 # end of for i in range(0, dataset.shape[0]):
 #--------------
 
-print('----')
-print('\ncorpus first 20 rows')
-for i in corpus[0:20]:
-    print(f'    {i}')
-print('----')
+# print('----')
+# print('\ncorpus first 20 rows')
+# for i in corpus[0:20]:
+#     print(f'    {i}')
+# print('----')
 
 
 print('----------------------------------------------')
@@ -164,16 +165,17 @@ print('Creating the Bag of Words model')
 
 from sklearn.feature_extraction.text import CountVectorizer
 
-print('checking how many words we have from all reviews')
-print('   you can disable this step, this is a demonstration only')
+# print('checking how many words we have from all reviews')
+# print('   you can disable this step, this is a demonstration only')
 count_vectorizer = CountVectorizer()
 x = count_vectorizer.fit_transform(corpus).toarray()
-print('corpus shape')
-print(len(corpus))
-print('x shape')
-print(x.shape)
-print(f'we have {x.shape[1]} unique words')
-print('now, let\'s do for real with 1500 words ')
+# print('corpus shape')
+# print(len(corpus))
+# print('x shape')
+# print(x.shape)
+# print(f'we have {x.shape[1]} unique words')
+# print('now, let\'s do for real with 1500 words ')
+
 print('----------------------------------------------')
 
 #note changing the max_features seems to have random effect under 500, and then onwards the effect
@@ -182,15 +184,15 @@ count_vectorizer = CountVectorizer(max_features = 1500)
 x = count_vectorizer.fit_transform(corpus).toarray()
 y = dataset.iloc[:, -1].values #all rows, only the last column - we don't transform because this is the answer we are looking for
 
-print('x shape')
-print(x.shape)
-print('x:')
-print(x)
-print('----')
-print('y shape')
-print(y.shape)
-print('y - first 20 elements')
-print(y[0:20])
+# print('x shape')
+# print(x.shape)
+# print('x:')
+# print(x)
+# print('----')
+# print('y shape')
+# print(y.shape)
+# print('y - first 20 elements')
+# print(y[0:20])
 
 
 print('----------------------------------------------')
@@ -204,8 +206,13 @@ print('Training the Naive Bayes model on the Training set')
 # classifier = GaussianNB()
 # classifier.fit(X_train, y_train)
 
-from sklearn.linear_model import LogisticRegression
-classifier = LogisticRegression(random_state = 0) # random_state = 0 -> get always the same results
+# from sklearn.svm import SVC
+# classifier = SVC(kernel = 'linear', random_state = 0)
+# classifier.fit(x_train, y_train)
+
+
+from sklearn.svm import SVC #support vector classification
+classifier = SVC(kernel = 'rbf', random_state = 0)
 classifier.fit(x_train, y_train)
 
 
@@ -213,14 +220,14 @@ print('----------------------------------------------')
 print('Predicting the Test set results')
 y_pred = classifier.predict(x_test)
 
-print('x_test')
-print(x_test)
-print('----')
-print('y_test')
-print(y_pred)
+# print('x_test')
+# print(x_test)
+# print('----')
+# print('y_test')
+# print(y_pred)
 
 
-print(np.concatenate((y_pred.reshape(len(y_pred),1), y_test.reshape(len(y_test),1)),1))
+# print(np.concatenate((y_pred.reshape(len(y_pred),1), y_test.reshape(len(y_test),1)),1))
 
 
 

@@ -204,33 +204,30 @@ print('Training the Naive Bayes model on the Training set')
 # classifier = GaussianNB()
 # classifier.fit(X_train, y_train)
 
-from sklearn.ensemble import RandomForestRegressor
-regressor = RandomForestRegressor(n_estimators = 10, random_state = 0)
-regressor.fit(x_train, y_train)
-
-print('x_train')
-print(x_train)
-print('----')
-print('y_train')
-print(y_train)
+from sklearn.svm import SVC
+classifier = SVC(kernel = 'linear', random_state = 0)
+classifier.fit(x_train, y_train)
 
 
 print('----------------------------------------------')
 print('Predicting the Test set results')
-y_pred = regressor.predict(x_test)
+y_pred = classifier.predict(x_test)
+
 print('x_test')
 print(x_test)
 print('----')
 print('y_test')
 print(y_pred)
-exit()
+
+
 print(np.concatenate((y_pred.reshape(len(y_pred),1), y_test.reshape(len(y_test),1)),1))
+
+
 
 print('----------------------------------------------')
 print('Making the Confusion Matrix')
 from sklearn.metrics import confusion_matrix, accuracy_score
 cm_result = confusion_matrix(y_test, y_pred)
-exit()
 print(cm_result)
 accuracy_score(y_test, y_pred)
 

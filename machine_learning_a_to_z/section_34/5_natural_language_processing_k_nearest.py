@@ -204,8 +204,8 @@ print('Training the Naive Bayes model on the Training set')
 # classifier = GaussianNB()
 # classifier.fit(X_train, y_train)
 
-from sklearn.linear_model import LogisticRegression
-classifier = LogisticRegression(random_state = 0) # random_state = 0 -> get always the same results
+from sklearn.neighbors import KNeighborsClassifier
+classifier = KNeighborsClassifier(n_neighbors = 5, metric = 'minkowski', p = 2)
 classifier.fit(x_train, y_train)
 
 

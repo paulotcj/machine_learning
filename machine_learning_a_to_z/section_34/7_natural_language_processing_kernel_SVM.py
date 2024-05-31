@@ -204,8 +204,13 @@ print('Training the Naive Bayes model on the Training set')
 # classifier = GaussianNB()
 # classifier.fit(X_train, y_train)
 
-from sklearn.linear_model import LogisticRegression
-classifier = LogisticRegression(random_state = 0) # random_state = 0 -> get always the same results
+# from sklearn.svm import SVC
+# classifier = SVC(kernel = 'linear', random_state = 0)
+# classifier.fit(x_train, y_train)
+
+
+from sklearn.svm import SVC #support vector classification
+classifier = SVC(kernel = 'rbf', random_state = 0)
 classifier.fit(x_train, y_train)
 
 

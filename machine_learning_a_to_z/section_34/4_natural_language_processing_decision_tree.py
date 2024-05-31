@@ -204,9 +204,10 @@ print('Training the Naive Bayes model on the Training set')
 # classifier = GaussianNB()
 # classifier.fit(X_train, y_train)
 
-from sklearn.linear_model import LogisticRegression
-classifier = LogisticRegression(random_state = 0) # random_state = 0 -> get always the same results
-classifier.fit(x_train, y_train)
+from sklearn.tree import DecisionTreeClassifier
+classifier = DecisionTreeClassifier(criterion = 'entropy', random_state = 0)
+classifier.fit(x_train, y_train) #try to fit with the independent variable and the dependent variables which we want to learn to predict
+
 
 
 print('----------------------------------------------')
