@@ -127,24 +127,24 @@ corpus = []
 
 for i in range(0, dataset.shape[0]): # dataset.shape[0] -> num of rows - in this case 1000
 
-  #replace anything that is not alphanumeric with spaces
-  #  use the Review column, at row 'i'
-  review = re.sub('[^a-zA-Z]', ' ', dataset['Review'][i])
+    #replace anything that is not alphanumeric with spaces
+    #  use the Review column, at row 'i'
+    review = re.sub('[^a-zA-Z]', ' ', dataset['Review'][i])
 
-  review = review.lower()
-  review_split = review.split()
+    review = review.lower()
+    review_split = review.split()
 
 
   
-  # add to review_split all words that are not included at the stop-words
-  #  also, stem each word (see PorterStemmer above)
-  review_split = [ ps.stem(word) #stem this word
-                  for word in review_split #word from word-array list
-                  if not word in all_stop_words_set #if this word is not listed at the stop_words
-                ]
-  
-  review = ' '.join(review_split)
-  corpus.append(review)
+    # add to review_split all words that are not included at the stop-words
+    #  also, stem each word (see PorterStemmer above)
+    review_split = [    ps.stem(word) #stem this word
+                        for word in review_split #word from word-array list
+                        if not word in all_stop_words_set #if this word is not listed at the stop_words
+                    ]
+
+    review = ' '.join(review_split)
+    corpus.append(review)
 
 # end of for i in range(0, dataset.shape[0]):
 #--------------
@@ -180,7 +180,7 @@ x_train, x_test, y_train, y_test = train_test_split(x, y, test_size = 0.20, rand
 
 print('----------------------------------------------')
 print('Training')
-accuracy_scores = {}
+accuracy_scores : dict[list] = {}
 
 from sklearn.metrics import confusion_matrix, accuracy_score
 
@@ -189,14 +189,14 @@ classifier_Kernel_SVC = SVC(kernel = 'rbf', random_state = 0)
 classifier_Kernel_SVC.fit(x_train, y_train)
 y_pred_Kernel_SVC = classifier_Kernel_SVC.predict(x_test)
 accuracy_score_result_Kernel_SVC = accuracy_score(y_test, y_pred_Kernel_SVC)
-accuracy_scores['Kernel_SVC'] = accuracy_score_result_Kernel_SVC
+accuracy_scores['Kernel_SVC'] = [accuracy_score_result_Kernel_SVC,y_pred_Kernel_SVC]
 
 # from sklearn.svm import SVC
 classifier_SVM = SVC(kernel = 'linear', random_state = 0)
 classifier_SVM.fit(x_train, y_train)
 y_pred_SVM = classifier_SVM.predict(x_test)
 accuracy_score_result_SVM = accuracy_score(y_test, y_pred_SVM)
-accuracy_scores['SVM'] = accuracy_score_result_SVM
+accuracy_scores['SVM'] = [accuracy_score_result_SVM,y_pred_SVM]
 
 
 from sklearn.neighbors import KNeighborsClassifier
@@ -204,7 +204,7 @@ classifier_KN = KNeighborsClassifier(n_neighbors = 5, metric = 'minkowski', p = 
 classifier_KN.fit(x_train, y_train)
 y_pred_KN = classifier_KN.predict(x_test)
 accuracy_score_result_KN = accuracy_score(y_test, y_pred_KN)
-accuracy_scores['KNeighbors'] = accuracy_score_result_KN
+accuracy_scores['KNeighbors'] = [accuracy_score_result_KN,y_pred_KN]
 
 
 from sklearn.tree import DecisionTreeClassifier
@@ -212,7 +212,7 @@ classifier_decision_tree = DecisionTreeClassifier(criterion = 'entropy', random_
 classifier_decision_tree.fit(x_train, y_train) 
 y_pred_decision_tree = classifier_decision_tree.predict(x_test)
 accuracy_score_result_tree = accuracy_score(y_test, y_pred_decision_tree)
-accuracy_scores['DecisionTree'] = accuracy_score_result_tree
+accuracy_scores['DecisionTree'] = [accuracy_score_result_tree,y_pred_decision_tree]
 
 
 from sklearn.ensemble import RandomForestClassifier
@@ -220,7 +220,7 @@ classifier_random_forest = RandomForestClassifier(n_estimators = 40, criterion =
 classifier_random_forest.fit(x_train, y_train)
 y_pred_random_forest = classifier_random_forest.predict(x_test)
 accuracy_score_result_random_forest = accuracy_score(y_test, y_pred_random_forest)
-accuracy_scores['RandomForest'] = accuracy_score_result_random_forest
+accuracy_scores['RandomForest'] = [accuracy_score_result_random_forest,y_pred_random_forest]
 
 
 from sklearn.linear_model import LogisticRegression
@@ -228,19 +228,53 @@ classifier_logistic_regression = LogisticRegression(random_state = 0) # random_s
 classifier_logistic_regression.fit(x_train, y_train)
 y_pred_logistic_regression = classifier_logistic_regression.predict(x_test)
 accuracy_score_result_logistic_regression = accuracy_score(y_test, y_pred_logistic_regression)
-accuracy_scores['LogisticRegression'] = accuracy_score_result_logistic_regression
+accuracy_scores['LogisticRegression'] = [accuracy_score_result_logistic_regression,y_pred_logistic_regression]
 
+print('----------------------------------------------')
+print('Current models\' accuracy')
 for key, value in accuracy_scores.items():
-  print(f'{key} - {value}')
-
-accuracy_scores = {key: value for key, value in accuracy_scores.items() if value >= 0.75}
-#---
-accuracy_scores = dict(sorted(accuracy_scores.items(), key=lambda item: item[1]))
-num_to_keep = len(accuracy_scores) // 2
-accuracy_scores = dict(list(accuracy_scores.items())[num_to_keep:])
-#---
+    print(f'{key} - {value[0]}')
 
 print('----------------------------------------------')
 print('filtering only models with accuracy >= 75%')
+accuracy_scores = {key: value for key, value in accuracy_scores.items() if value[0] >= 0.75}
+#---
+accuracy_scores = dict(sorted(accuracy_scores.items(), key=lambda item: item[1][0], reverse= True))
+
+# num_to_keep = len(accuracy_scores) // 2
+num_to_keep = round(len(accuracy_scores) * 0.3)
+
+print(f'    num of models to keep: {num_to_keep}')
+
+accuracy_scores = dict(list(accuracy_scores.items())[0:num_to_keep])
+
 for key, value in accuracy_scores.items():
-  print(f'{key} - {value}')
+    print(f'{key} - {value[0]}')
+#---
+
+
+print('----------------------------------------------')
+print('Use the models to vote')
+y_pred_final : list[int] = [0] * len(y_test)
+for i in range(len(y_pred_final)):
+    temp_y : int = 0
+    for key, value in accuracy_scores.items():
+        temp_y = temp_y + value[1][i]
+    temp_y = round(temp_y/len(accuracy_scores))
+
+    y_pred_final[i] = temp_y
+
+
+print('----------------------------------------------')
+print('Final accuracy score:')
+accuracy_score_result_VOTED = accuracy_score(y_test, y_pred_final)
+print(accuracy_score_result_VOTED)
+
+
+
+
+
+    
+
+
+   
