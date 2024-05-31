@@ -116,16 +116,14 @@ all_stopwords.remove("won't")
 all_stopwords.remove("wouldn")
 all_stopwords.remove("wouldn't")
 all_stopwords.append('wow')
-# print('all_stopwords: ')
-# print(all_stopwords)
+
 all_stop_words_set = set(all_stopwords)
 
 
 print('----------------------------------------------')
 print('Cleaning the texts')
 corpus = []
-# print('dataset.shape[0]')
-# print(dataset.shape[0])
+
 
 for i in range(0, dataset.shape[0]): # dataset.shape[0] -> num of rows - in this case 1000
 
@@ -136,9 +134,7 @@ for i in range(0, dataset.shape[0]): # dataset.shape[0] -> num of rows - in this
   review = review.lower()
   review_split = review.split()
 
-  # print('review_split:')
-  # print(review_split)
-  # exit()
+
   
   # add to review_split all words that are not included at the stop-words
   #  also, stem each word (see PorterStemmer above)
@@ -153,11 +149,7 @@ for i in range(0, dataset.shape[0]): # dataset.shape[0] -> num of rows - in this
 # end of for i in range(0, dataset.shape[0]):
 #--------------
 
-# print('----')
-# print('\ncorpus first 20 rows')
-# for i in corpus[0:20]:
-#     print(f'    {i}')
-# print('----')
+
 
 
 print('----------------------------------------------')
@@ -165,16 +157,10 @@ print('Creating the Bag of Words model')
 
 from sklearn.feature_extraction.text import CountVectorizer
 
-# print('checking how many words we have from all reviews')
-# print('   you can disable this step, this is a demonstration only')
+
 count_vectorizer = CountVectorizer()
 x = count_vectorizer.fit_transform(corpus).toarray()
-# print('corpus shape')
-# print(len(corpus))
-# print('x shape')
-# print(x.shape)
-# print(f'we have {x.shape[1]} unique words')
-# print('now, let\'s do for real with 1500 words ')
+
 
 print('----------------------------------------------')
 
@@ -184,15 +170,7 @@ count_vectorizer = CountVectorizer(max_features = 1500)
 x = count_vectorizer.fit_transform(corpus).toarray()
 y = dataset.iloc[:, -1].values #all rows, only the last column - we don't transform because this is the answer we are looking for
 
-# print('x shape')
-# print(x.shape)
-# print('x:')
-# print(x)
-# print('----')
-# print('y shape')
-# print(y.shape)
-# print('y - first 20 elements')
-# print(y[0:20])
+
 
 
 print('----------------------------------------------')
@@ -201,49 +179,68 @@ from sklearn.model_selection import train_test_split
 x_train, x_test, y_train, y_test = train_test_split(x, y, test_size = 0.20, random_state = 0)
 
 print('----------------------------------------------')
-print('Training the Naive Bayes model on the Training set')
-# from sklearn.naive_bayes import GaussianNB
-# classifier = GaussianNB()
-# classifier.fit(X_train, y_train)
+print('Training')
+accuracy_scores = {}
 
-# from sklearn.svm import SVC
-# classifier = SVC(kernel = 'linear', random_state = 0)
-# classifier.fit(x_train, y_train)
-
+from sklearn.metrics import confusion_matrix, accuracy_score
 
 from sklearn.svm import SVC #support vector classification
-classifier = SVC(kernel = 'rbf', random_state = 0)
-classifier.fit(x_train, y_train)
+classifier_Kernel_SVC = SVC(kernel = 'rbf', random_state = 0)
+classifier_Kernel_SVC.fit(x_train, y_train)
+y_pred_Kernel_SVC = classifier_Kernel_SVC.predict(x_test)
+accuracy_score_result_Kernel_SVC = accuracy_score(y_test, y_pred_Kernel_SVC)
+accuracy_scores['Kernel_SVC'] = accuracy_score_result_Kernel_SVC
 
+# from sklearn.svm import SVC
+classifier_SVM = SVC(kernel = 'linear', random_state = 0)
+classifier_SVM.fit(x_train, y_train)
+y_pred_SVM = classifier_SVM.predict(x_test)
+accuracy_score_result_SVM = accuracy_score(y_test, y_pred_SVM)
+accuracy_scores['SVM'] = accuracy_score_result_SVM
+
+
+from sklearn.neighbors import KNeighborsClassifier
+classifier_KN = KNeighborsClassifier(n_neighbors = 5, metric = 'minkowski', p = 2)
+classifier_KN.fit(x_train, y_train)
+y_pred_KN = classifier_KN.predict(x_test)
+accuracy_score_result_KN = accuracy_score(y_test, y_pred_KN)
+accuracy_scores['KNeighbors'] = accuracy_score_result_KN
+
+
+from sklearn.tree import DecisionTreeClassifier
+classifier_decision_tree = DecisionTreeClassifier(criterion = 'entropy', random_state = 0)
+classifier_decision_tree.fit(x_train, y_train) 
+y_pred_decision_tree = classifier_decision_tree.predict(x_test)
+accuracy_score_result_tree = accuracy_score(y_test, y_pred_decision_tree)
+accuracy_scores['DecisionTree'] = accuracy_score_result_tree
+
+
+from sklearn.ensemble import RandomForestClassifier
+classifier_random_forest = RandomForestClassifier(n_estimators = 40, criterion = 'entropy', random_state = 0)
+classifier_random_forest.fit(x_train, y_train)
+y_pred_random_forest = classifier_random_forest.predict(x_test)
+accuracy_score_result_random_forest = accuracy_score(y_test, y_pred_random_forest)
+accuracy_scores['RandomForest'] = accuracy_score_result_random_forest
+
+
+from sklearn.linear_model import LogisticRegression
+classifier_logistic_regression = LogisticRegression(random_state = 0) # random_state = 0 -> get always the same results
+classifier_logistic_regression.fit(x_train, y_train)
+y_pred_logistic_regression = classifier_logistic_regression.predict(x_test)
+accuracy_score_result_logistic_regression = accuracy_score(y_test, y_pred_logistic_regression)
+accuracy_scores['LogisticRegression'] = accuracy_score_result_logistic_regression
+
+for key, value in accuracy_scores.items():
+  print(f'{key} - {value}')
+
+accuracy_scores = {key: value for key, value in accuracy_scores.items() if value >= 0.75}
+#---
+accuracy_scores = dict(sorted(accuracy_scores.items(), key=lambda item: item[1]))
+num_to_keep = len(accuracy_scores) // 2
+accuracy_scores = dict(list(accuracy_scores.items())[num_to_keep:])
+#---
 
 print('----------------------------------------------')
-print('Predicting the Test set results')
-y_pred = classifier.predict(x_test)
-
-# print('x_test')
-# print(x_test)
-# print('----')
-# print('y_test')
-# print(y_pred)
-
-
-# print(np.concatenate((y_pred.reshape(len(y_pred),1), y_test.reshape(len(y_test),1)),1))
-
-
-
-print('----------------------------------------------')
-print('Making the Confusion Matrix')
-from sklearn.metrics import confusion_matrix, accuracy_score
-cm_result = confusion_matrix(y_test, y_pred)
-print(cm_result)
-accuracy_score(y_test, y_pred)
-
-
-accuracy_score_result = accuracy_score(y_test, y_pred)
-
-print('----')
-print(f'    True Negatives: {cm_result[0][0]} - False Negatives: {cm_result[1][0]}')
-print(f'    True Positives: {cm_result[1][1]} - False Positives: {cm_result[0][1]}')
-print('----')
-print('Accuracy Score:')
-print(accuracy_score_result)
+print('filtering only models with accuracy >= 75%')
+for key, value in accuracy_scores.items():
+  print(f'{key} - {value}')
