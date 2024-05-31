@@ -196,17 +196,22 @@ print(y[0:20])
 print('----------------------------------------------')
 print('Splitting the dataset into the Training set and Test set')
 from sklearn.model_selection import train_test_split
-X_train, X_test, y_train, y_test = train_test_split(x, y, test_size = 0.20, random_state = 0)
+x_train, x_test, y_train, y_test = train_test_split(x, y, test_size = 0.20, random_state = 0)
 
 print('----------------------------------------------')
 print('Training the Naive Bayes model on the Training set')
-from sklearn.naive_bayes import GaussianNB
-classifier = GaussianNB()
-classifier.fit(X_train, y_train)
+# from sklearn.naive_bayes import GaussianNB
+# classifier = GaussianNB()
+# classifier.fit(X_train, y_train)
+
+from sklearn.linear_model import LogisticRegression
+classifier = LogisticRegression(random_state = 0) # random_state = 0 -> get always the same results
+classifier.fit(x_train, y_train)
+
 
 print('----------------------------------------------')
 print('Predicting the Test set results')
-y_pred = classifier.predict(X_test)
+y_pred = classifier.predict(x_test)
 print(np.concatenate((y_pred.reshape(len(y_pred),1), y_test.reshape(len(y_test),1)),1))
 
 print('----------------------------------------------')
