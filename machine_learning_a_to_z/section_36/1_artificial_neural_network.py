@@ -6,25 +6,32 @@ print('Importing the libraries')
 
 import numpy as np
 import pandas as pd
-import tensorflow as tf
-exit()
+# import tensorflow as tf
 
+# print(tf.__version__)
 
-import numpy as np
-import pandas as pd
-import tensorflow as tf
-tf.__version__
 
 print('----------------------------------------------')
 print('Part 1 - Data Preprocessing')
 
 print('----------------------------------------------')
 print('Importing the dataset')
+
 dataset = pd.read_csv('Churn_Modelling.csv')
-X = dataset.iloc[:, 3:-1].values
-y = dataset.iloc[:, -1].values
-print(X)
-print(y)
+# the columns are: RowNumber,CustomerId,Surname,CreditScore,Geography,Gender,Age,Tenure,
+#   Balance,NumOfProducts,HasCrCard,IsActiveMember,EstimatedSalary,Exited
+x = dataset.iloc[:,3:-1].values #we want from col 3 (CreditScore) to the second last column (EstimatedSalary)
+y = dataset.iloc[:,-2].values #we want the last column (Exited)
+
+print(f'x shape: {x.shape}')
+print(f'x first 5 rows')
+print(x[0:5])
+print('----')
+print(f'y shape: {y.shape}')
+print(f'y first 5 rows')
+print(y[0:5])
+
+exit()
 
 print('----------------------------------------------')
 print('Encoding categorical data')
@@ -33,22 +40,22 @@ print('----------------------------------------------')
 print('Label Encoding the "Gender" column')
 from sklearn.preprocessing import LabelEncoder
 le = LabelEncoder()
-X[:, 2] = le.fit_transform(X[:, 2])
-print(X)
+x[:, 2] = le.fit_transform(x[:, 2])
+print(x)
 
 print('----------------------------------------------')
 print('One Hot Encoding the "Geography" column')
 from sklearn.compose import ColumnTransformer
 from sklearn.preprocessing import OneHotEncoder
 ct = ColumnTransformer(transformers=[('encoder', OneHotEncoder(), [1])], remainder='passthrough')
-X = np.array(ct.fit_transform(X))
-print(X)
+x = np.array(ct.fit_transform(x))
+print(x)
 
 
 print('----------------------------------------------')
 print('Splitting the dataset into the Training set and Test set')
 from sklearn.model_selection import train_test_split
-X_train, X_test, y_train, y_test = train_test_split(X, y, test_size = 0.2, random_state = 0)
+X_train, X_test, y_train, y_test = train_test_split(x, y, test_size = 0.2, random_state = 0)
 
 print('----------------------------------------------')
 print('Feature Scaling')
