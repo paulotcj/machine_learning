@@ -4,8 +4,11 @@ print('Convolutional Neural Network')
 print('----------------------------------------------')
 print('Importing the libraries')
 import tensorflow as tf
-from keras.preprocessing.image import ImageDataGenerator
-tf.__version__
+print("Num GPUs Available: ", len(tf.config.experimental.list_physical_devices('GPU')))
+exit()
+# from keras.preprocessing.image import ImageDataGenerator
+from tensorflow.keras.preprocessing.image import ImageDataGenerator
+print(tf.__version__)
 
 print('----------------------------------------------')
 print('Part 1 - Data Preprocessing')
