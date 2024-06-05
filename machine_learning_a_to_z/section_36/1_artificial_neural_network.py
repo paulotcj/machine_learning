@@ -218,7 +218,7 @@ print('Training the ANN on the Training set')
 
 ann.fit(x_train, y_train, batch_size = 32, epochs = 100)
 
-exit()
+
 
 print('----------------------------------------------')
 print('Part 4 - Making the predictions and evaluating the model')
@@ -226,41 +226,78 @@ print('Part 4 - Making the predictions and evaluating the model')
 print('----------------------------------------------')
 print('Predicting the result of a single observation')
 
-"""
-Homework:
-Use our ANN model to predict if the customer with the following informations will leave the bank: 
-Geography: France
-Credit Score: 600
-Gender: Male
-Age: 40 years old
-Tenure: 3 years
-Balance: $ 60000
-Number of Products: 2
-Does this customer have a credit card? Yes
-Is this customer an Active Member: Yes
-Estimated Salary: $ 50000
-So, should we say goodbye to that customer?
 
-Solution:
-"""
+# Use the ANN model to predict if the customer will leave the bank: 
+# Geography: France
+# Credit Score: 600
+# Gender: Male
+# Age: 40 years old
+# Tenure: 3 years
+# Balance: $ 60000
+# Number of Products: 2
+# Does this customer have a credit card? Yes
+# Is this customer an Active Member: Yes
+# Estimated Salary: $ 50000
 
-print(ann.predict(standard_scaler.transform([[1, 0, 0, 600, 1, 40, 3, 60000, 2, 1, 1, 50000]])) > 0.5)
+var_predict_this = [
+    [
+        1, #France - yes
+        0, #Spain - no
+        0, #Germany - no
+        600, #Credit Score
+        1, # Male (0 = female, 1 = male)
+        40, # Age
+        3, # Tenure (years)
+        60000, # Balance
+        2, # Number of Products
+        1, # Has Credit Card (0 = no, 1 = yes)
+        1, # Is Active Member (0 = no, 1 = yes)
+        50000 # Estimated Salary
+    ]
+]
 
-"""
-Therefore, our ANN model predicts that this customer stays in the bank!
-Important note 1: Notice that the values of the features were all input in a double pair of square brackets. That's because the "predict" method always expects a 2D array as the format of its inputs. And putting our values into a double pair of square brackets makes the input exactly a 2D array.
-Important note 2: Notice also that the "France" country was not input as a string in the last column but as "1, 0, 0" in the first three columns. That's because of course the predict method expects the one-hot-encoded values of the state, and as we see in the first row of the matrix of features X, "France" was encoded as "1, 0, 0". And be careful to include these values in the first three columns, because the dummy variables are always created in the first columns.
-"""
+var_prediction_result = ann.predict(
+    standard_scaler.transform(var_predict_this)    
+)
+
+print(f'var_predict_this: {var_prediction_result[0][0] * 100}% chance of leaving the bank')
+print(f'result = {var_prediction_result[0][0] > 0.5} - ( 0/False = stays , 1/True = leaves )')
+
 
 print('----------------------------------------------')
 print('Predicting the Test set results')
-y_pred = ann.predict(x_test)
-y_pred = (y_pred > 0.5)
+
+y_pred_chances = ann.predict(x_test)
+y_pred = (y_pred_chances > 0.5)
+
+print(f'y_pred_chances: % chance of leaving the bank')
+print(y_pred_chances[0:10])
+print('----')
+print(f'y_pred result = ( 0/False = stays , 1/True = leaves )')
+print(y_pred[0:10])
+print('----')
+print(f'[ prediction , actual ]')
 print(np.concatenate((y_pred.reshape(len(y_pred),1), y_test.reshape(len(y_test),1)),1))
+# y_pred = ann.predict(x_test)
+# y_pred = (y_pred > 0.5)
+
 
 print('----------------------------------------------')
 print('Making the Confusion Matrix')
+
 from sklearn.metrics import confusion_matrix, accuracy_score
-cm = confusion_matrix(y_test, y_pred)
-print(cm)
-accuracy_score(y_test, y_pred)
+# cm = confusion_matrix(y_test, y_pred)
+# print(cm)
+# accuracy_score(y_test, y_pred)
+
+cm_result = confusion_matrix(y_test, y_pred)
+print(cm_result)
+
+accuracy_score_result = accuracy_score(y_test, y_pred)
+
+print('----')
+print(f'    True Negatives: {cm_result[0][0]} - False Negatives: {cm_result[1][0]}')
+print(f'    True Positives: {cm_result[1][1]} - False Positives: {cm_result[0][1]}')
+print('----')
+print('Accuracy Score:')
+print(accuracy_score_result)
