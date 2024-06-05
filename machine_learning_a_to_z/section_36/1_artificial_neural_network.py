@@ -6,8 +6,7 @@ print('Importing the libraries')
 
 import numpy as np
 import pandas as pd
-import tensorflow as tf
-print(tf.__version__)
+
 
 
 
@@ -18,11 +17,12 @@ print('Part 1 - Data Preprocessing')
 print('----------------------------------------------')
 print('Importing the dataset')
 
+
 dataset = pd.read_csv('Churn_Modelling.csv')
 # the columns are: RowNumber,CustomerId,Surname,CreditScore,Geography,Gender,Age,Tenure,
 #   Balance,NumOfProducts,HasCrCard,IsActiveMember,EstimatedSalary,Exited
 x = dataset.iloc[:,3:-1].values #we want from col 3 (CreditScore) to the second last column (EstimatedSalary)
-y = dataset.iloc[:,-2].values #we want the last column (Exited)
+y = dataset.iloc[:,-1].values #we want the last column (Exited)
 
 print(f'x rows: {x.shape[0]}, x cols: {x.shape[1]}')
 print(f'x first 10 rows')
@@ -125,8 +125,8 @@ print('Part 2 - Building the ANN')
 print('----------------------------------------------')
 print('Initializing the ANN')
 
-# import tensorflow as tf
-# print(tf.__version__)
+import tensorflow as tf
+print(tf.__version__)
 
 # The Sequential model is a linear stack of layers. You can create a 
 #   Sequential model by passing a list of layer instances to the constructor, 
