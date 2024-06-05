@@ -5,7 +5,7 @@ print('----------------------------------------------')
 print('Importing the libraries')
 import tensorflow as tf
 print("Num GPUs Available: ", len(tf.config.experimental.list_physical_devices('GPU')))
-exit()
+
 # from keras.preprocessing.image import ImageDataGenerator
 from tensorflow.keras.preprocessing.image import ImageDataGenerator
 print(tf.__version__)
@@ -15,14 +15,20 @@ print('Part 1 - Data Preprocessing')
 
 print('----------------------------------------------')
 print('Preprocessing the Training set')
-train_datagen = ImageDataGenerator(rescale = 1./255,
+
+
+# Image Augmentation - we modify the original images so the CNN doesn't overlearn on
+#  the existing images
+
+train_datagen = ImageDataGenerator(rescale = 1./255, #this parameter refers to feature scalling - it will divide the value of each pixel by 255
                                    shear_range = 0.2,
                                    zoom_range = 0.2,
                                    horizontal_flip = True)
-training_set = train_datagen.flow_from_directory('dataset/training_set',
-                                                 target_size = (64, 64),
+
+training_set = train_datagen.flow_from_directory('dataset/training_set', #path
+                                                 target_size = (64, 64), # this will be 64x64 pixels - the size of the image sent to the CNN
                                                  batch_size = 32,
-                                                 class_mode = 'binary')
+                                                 class_mode = 'binary') #can be binary or categorical , but since we are deciding between cat and dog, it will be binary
 
 print('----------------------------------------------')
 print('Preprocessing the Test set')
@@ -30,7 +36,7 @@ test_datagen = ImageDataGenerator(rescale = 1./255)
 test_set = test_datagen.flow_from_directory('dataset/test_set',
                                             target_size = (64, 64),
                                             batch_size = 32,
-                                            class_mode = 'binary')
+                                            class_mode = 'binary') 
 
 print('----------------------------------------------')
 print('Part 2 - Building the CNN')
