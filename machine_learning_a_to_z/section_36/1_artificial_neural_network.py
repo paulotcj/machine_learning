@@ -6,7 +6,8 @@ print('Importing the libraries')
 
 import numpy as np
 import pandas as pd
-
+import tensorflow as tf
+print(tf.__version__)
 
 
 
@@ -124,8 +125,8 @@ print('Part 2 - Building the ANN')
 print('----------------------------------------------')
 print('Initializing the ANN')
 
-import tensorflow as tf
-print(tf.__version__)
+# import tensorflow as tf
+# print(tf.__version__)
 
 # The Sequential model is a linear stack of layers. You can create a 
 #   Sequential model by passing a list of layer instances to the constructor, 
