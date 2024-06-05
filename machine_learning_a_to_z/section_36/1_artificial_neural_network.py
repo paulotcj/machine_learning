@@ -116,7 +116,7 @@ print('-----')
 #     print(list_row)
 
 
-exit()
+
 
 print('----------------------------------------------')
 print('Part 2 - Building the ANN')
