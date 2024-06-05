@@ -59,7 +59,7 @@ ann.compile(optimizer = 'adam', loss = 'binary_crossentropy', metrics = ['accura
 
 # Training the ANN on the Training set
 ann.fit(X_train, y_train, batch_size = 32, epochs = 100)
-
+exit()
 # Part 4 - Making the predictions and evaluating the model
 
 # Predicting the result of a single observation

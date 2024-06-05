@@ -155,9 +155,9 @@ ann.add( tf.keras.layers.Dense(units = 6, activation = 'relu') )
 ann.add( tf.keras.layers.Dense(units = 6 , activation = 'relu') ) 
 
 
-# 6 neurons in this layer
-# The activation function we will use is the rectifier function 'relu'
-ann.add( tf.keras.layers.Dense(units = 6, activation = 'relu') )
+# # 6 neurons in this layer
+# # The activation function we will use is the rectifier function 'relu'
+# ann.add( tf.keras.layers.Dense(units = 6, activation = 'relu') )
 
 
 #note: You can try a different number of neurons in the hidden layers, experimentally the
@@ -166,20 +166,56 @@ ann.add( tf.keras.layers.Dense(units = 6, activation = 'relu') )
 print('----------------------------------------------')
 print('Adding the output layer')
 
-ann.add( tf.keras.layers.Dense(units = 1, activation = 'sigmoid') )
+ann.add( tf.keras.layers.Dense(units = 1 , activation = 'sigmoid') )
 
-exit()
+
+
+
 
 print('----------------------------------------------')
 print('Part 3 - Training the ANN')
 
 print('----------------------------------------------')
 print('Compiling the ANN')
-ann.compile(optimizer = 'adam', loss = 'binary_crossentropy', metrics = ['accuracy'])
+
+# optimizer = 'adam' means that the Adam optimization algorithm is used. Adam is a 
+#   popular choice because it combines the advantages of two other extensions of stochastic 
+#   gradient descent: AdaGrad and RMSProp.
+#
+# loss = 'binary_crossentropy' -> In binary classification, we are trying to predict two 
+#   possible outcomes, often denoted as 0 and 1. Cross-entropy is a measure of the difference 
+#   between the model's predictions and the actual values. In the case of binary classification, 
+#   we use binary cross-entropy as the loss function.
+# The binary cross-entropy loss function is defined mathematically as the negative average of 
+#   the log of the predicted probabilities for the actual classes. It is suitable for binary 
+#   classification problems, and it's used when the output of the model is a probability that 
+#   each input belongs to class 1.
+# In the context of neural networks, the loss function is what the model tries to minimize 
+#   during the training process. So, by specifying binary_crossentropy as the loss function, 
+#   we're telling the model to minimize the binary cross-entropy between the predictions and 
+#   the actual values.
+#
+# metrics parameter is optional and is used to specify the metric(s) that the model will 
+#   use to evaluate its performance during training and testing. In this case, 
+#   metrics = ['accuracy'] means that the model will use accuracy as its performance metric.
+
+ann.compile( optimizer = 'adam', loss = 'binary_crossentropy' , metrics = ['accuracy'] )
+
+
 
 print('----------------------------------------------')
 print('Training the ANN on the Training set')
+
+# batch_size = 32 (for Stochastic Gradient Descent) means that the model will use 32 training 
+#   examples at each step of the optimizer algorithm. This is a common choice for batch size, 
+#   as it's a balance between computational efficiency and model performance.
+#
+# epochs = 100 means that the learning algorithm will make 100 passes through the training 
+#   dataset.
+
 ann.fit(x_train, y_train, batch_size = 32, epochs = 100)
+
+exit()
 
 print('----------------------------------------------')
 print('Part 4 - Making the predictions and evaluating the model')
