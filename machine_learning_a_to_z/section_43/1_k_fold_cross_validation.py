@@ -40,18 +40,37 @@ print('----------------------------------------------')
 print('Making the Confusion Matrix')
 from sklearn.metrics import confusion_matrix, accuracy_score
 y_pred = classifier.predict(x_test)
-cm = confusion_matrix(y_test, y_pred)
-print(cm)
-accuracy_score(y_test, y_pred)
+# cm = confusion_matrix(y_test, y_pred)
+# print(cm)
+cm_result = confusion_matrix(y_test, y_pred)
+print(cm_result)
+
+accuracy_score_result = accuracy_score(y_test, y_pred)
+
+print('----')
+print(f'    True Negatives: {cm_result[0][0]} - False Negatives: {cm_result[1][0]}')
+print(f'    True Positives: {cm_result[1][1]} - False Positives: {cm_result[0][1]}')
+print('----')
+print('Accuracy Score:')
+print(accuracy_score_result)
 
 
 print('----------------------------------------------')
 print('Applying k-Fold Cross Validation')
+
+# Note: K-Fold Cross Validation is a technique used to evaluate the performance of a machine learning model.
+#     It is not doing any training, it is just evaluating the model.
+
 from sklearn.model_selection import cross_val_score
 
-# cv = 10 is the default value, and it means that we are going to use 10 folds
-# n_jobs=-1 means that we are going to use all the processors of the computer
-accuracies = cross_val_score(estimator = classifier, X = x_train, y = y_train, cv = 10, n_jobs=-1)
+
+accuracies = cross_val_score(
+    estimator = classifier, # the classifier model we want to evaluate
+    X = x_train, 
+    y = y_train, 
+    cv = 10, # 10 is the default value, and it means that we are going to use 10 folds
+    n_jobs=-1 #n_jobs=-1 means that we are going to use all the processors of the computer
+)
 
 
 print(f'\nAccuracies list: {accuracies}')
@@ -67,9 +86,22 @@ print('    - High accuracy and high standard deviation: the model is too sensiti
 print('    - High accuracy and low standard deviation: the model is just right. This means the result is hitting the target and is clustered together.\n\n')
 print('----------------------------------------------')
 
+y_pred = classifier.predict(x_test)
+# cm = confusion_matrix(y_test, y_pred)
+# print(cm)
+cm_result = confusion_matrix(y_test, y_pred)
+print(cm_result)
+
+accuracy_score_result = accuracy_score(y_test, y_pred)
+
+print('----')
+print(f'    True Negatives: {cm_result[0][0]} - False Negatives: {cm_result[1][0]}')
+print(f'    True Positives: {cm_result[1][1]} - False Positives: {cm_result[0][1]}')
+print('----')
+print('Accuracy Score:')
+print(accuracy_score_result)
 
 
-exit()
 
 print('----------------------------------------------')
 print('Visualising the Training set results')
