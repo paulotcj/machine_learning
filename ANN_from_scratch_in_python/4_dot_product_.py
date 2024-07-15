@@ -6,7 +6,7 @@ def dot_product_array(inputs, weights) -> int:
 
     return result
 
-# 1 neuron with 3 inputs
+# 1 neuron with 4 inputs
 
 #inputs won't change
 inputs = [1, 2, 3, 2.5]

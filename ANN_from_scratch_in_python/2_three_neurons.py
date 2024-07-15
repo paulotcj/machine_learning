@@ -1,8 +1,8 @@
 
-# 3 neuron with 3 inputs
+# 3 neuron with 4 inputs
 
 #inputs won't change
-inputs = [1,2,3, 2.5]
+inputs = [1, 2, 3, 2.5]
 
 #1 set of weights for each neuron
 weights1 = [0.2, 0.8, -0.5 , 1.0]
