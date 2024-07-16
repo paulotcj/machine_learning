@@ -35,9 +35,19 @@ biases = [ 2, 3, 0.5 ]
 
 # To achieve that we need to transpose something. And we will go with the weights of the hidden layer
 
-weights_transposed = np.array(weights).T
-output = np.dot(inputs, weights_transposed) + biases
 
+print('\n')
+print('----------------------------------------------')
+weights_transposed = np.array(weights).T
+print(f'weights (we have 4 inputs per neuron, and 3 neurons):')
+print(weights)
+print(f'weights transposed:')
+print(weights_transposed)
+# exit()
+print('----------------------------------------------')
+
+output = np.dot(inputs, weights_transposed) + biases
+print('output:')
 print(output)
 
 print("\nLets break down what this means")
