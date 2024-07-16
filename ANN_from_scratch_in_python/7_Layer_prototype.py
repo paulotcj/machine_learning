@@ -12,8 +12,8 @@ class Layer_Dense:
         self.weights = 0.10 * np.random.randn(n_inputs, n_neurons) #returns an array of shape (n_inputs, n_neurons) with random values
         self.biases = np.zeros((1, n_neurons)) #fills up an array of shape (1, n_neurons) with zeros
 
-    def forward(self):
-        self.output = np.dot( self.inputs, self.weights ) + self.biases
+    def forward(self, inputs):
+        self.output = np.dot( inputs, self.weights ) + self.biases
 
 
 #----------------------------------------------
@@ -34,7 +34,10 @@ print(f'layer2.weights: \n{layer2.weights}')
 print('----------------------------------------------')
 
 layer1.forward(X)
+# print(layer1.output)
+# exit()
 layer2.forward(layer1.output)
+print(layer2.output)
 
 
 
