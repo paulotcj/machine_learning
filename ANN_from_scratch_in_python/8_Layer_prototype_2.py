@@ -41,19 +41,7 @@ print('----------------------------------------------')
 
 
 
-# # layer1 = Layer_Dense(n_inputs=4, n_neurons=5)
-# layer2 = Layer_Dense(n_inputs=5, n_neurons=2)
 
-# print('----------------------------------------------')
-# print(f'layer1.weights: \n{layer1.weights}')
-# print(f'layer2.weights: \n{layer2.weights}')
-# print('----------------------------------------------')
-
-# layer1.forward(X)
-# # print(layer1.output)
-# # exit()
-# layer2.forward(layer1.output)
-# print(layer2.output)
 
 
 
