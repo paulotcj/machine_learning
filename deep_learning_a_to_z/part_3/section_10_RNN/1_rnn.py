@@ -12,8 +12,11 @@ import pandas as pd
 
 print('----------------------------------------------')
 print('import the training set\n')
-str_path = './deep_learning_a_to_z\part_3\section_10_RNN/'
-dataset_train = pd.read_csv( f'{str_path}Google_Stock_Price_Train.csv')
+# str_path = './deep_learning_a_to_z\part_3\section_10_RNN/'
+str_path = ''
+
+# this stock price contains the range from 2012-01-03 to 2016-12-30
+dataset_train = pd.read_csv( f'{str_path}Google_Stock_Price_Train.csv') #tabs: Date, Open, High, Low, Close, Volume
 training_set = dataset_train.iloc[:, 1:2].values
 
 print(f'first 10 rows of training_set: \n{training_set[0:10]}')
@@ -64,6 +67,9 @@ from keras.layers import Dense
 from keras.layers import LSTM
 from keras.layers import Dropout
 
+
+
+
 print('----------------------------------------------')
 
 print('Initialising the RNN')
@@ -104,7 +110,22 @@ regressor.compile( optimizer = 'adam', loss = 'mean_squared_error' )
 
 print('----------------------------------------------')
 print('Fitting the RNN to the Training set')
-regressor.fit( x_train , y_train , epochs = 100 , batch_size = 32 )
+# regressor.fit( x_train , y_train , epochs = 100 , batch_size = 32 )
+
+
+# Check if the model file exists
+import os
+from keras.models import load_model
+model_path = 'rnn_model.h5'
+
+if os.path.exists(model_path):
+    print('Loading the existing model...')
+    regressor = load_model(model_path)
+else:
+    print('Training the model...')
+    regressor.fit(x_train, y_train, epochs=100, batch_size=32)
+    print('Saving the model...')
+    regressor.save(model_path)
 
 
 print('----------------------------------------------')
@@ -113,33 +134,68 @@ print('Part 3 - Making the predictions and visualising the results')
 print('----------------------------------------------')
 print('Getting the real stock price of 2017')
 dataset_test = pd.read_csv(f'{str_path}Google_Stock_Price_Test.csv')
-real_stock_price = dataset_test.iloc[:, 1:2].values
+real_stock_price = dataset_test.iloc[:, 1:2].values #column 1, and all rows
+
+print(f'first 10 rows of real_stock_price: \n{real_stock_price[0:10]}')
+
 
 print('----------------------------------------------')
 print('Getting the predicted stock price of 2017')
-dataset_total = pd.concat( (dataset_train['Open'], dataset_test['Open']), axis = 0 )
-#--------------------------------
 
-# Part 3 - Making the predictions and visualising the results
+# dataset_train contains the stock price ranging from 2012-01-03 to 2016-12-30
+#dataset_test contains the stock price ranging from 2017-01-03 to 2017-01-31 (1 month)
+dataset_total = pd.concat( (dataset_train['Open'], dataset_test['Open']), axis = 0 ) #'Open' is the column name
+print(f'first 10 rows of dataset_total: \n{dataset_total[0:10]}')
 
-# Getting the real stock price of 2017
-# dataset_test = pd.read_csv('Google_Stock_Price_Test.csv')
-# real_stock_price = dataset_test.iloc[:, 1:2].values
+print('----------------------------------------------')
+print(f'len of dataset_total: {len(dataset_total)}')
+print(f'len of dataset_test: {len(dataset_test)}')
+print(f'len(dataset_total) - len(dataset_test): {len(dataset_total) - len(dataset_test)}')
+print(f'len(dataset_total) - len(dataset_test) - 60: {len(dataset_total) - len(dataset_test) - 60}')
 
-# Getting the predicted stock price of 2017
-dataset_total = pd.concat((dataset_train['Open'], dataset_test['Open']), axis = 0)
-inputs = dataset_total[len(dataset_total) - len(dataset_test) - 60:].values
+#slice the dataset_total, get from the index 1198 to the end (about 80 rows)
+inputs = dataset_total[ len(dataset_total) - len(dataset_test) - 60 :  ].values
+
+print(f'len of inputs: {len(inputs)}')
+print('----------------------------------------------')
+print(f'first 10 rows of inputs: \n{inputs[0:10]}')
+
+print('----------------------------------------------')
+# -1 means infer this dimension from the length of the array, and 1 means we want to reshape it to have 1 column
+#  so the input will be a 2D array, with n rows and 1 column, or n arrays of 1 element each,
+#  as opposed to a 1D array with n elements
+print(f'first 10 rows of inputs before reshape: \n{inputs[0:10]}')
+print(f'inputs.shape: {inputs.shape}')
 inputs = inputs.reshape(-1,1)
-inputs = sc.transform(inputs)
-X_test = []
-for i in range(60, 80):
-    X_test.append(inputs[i-60:i, 0])
-X_test = np.array(X_test)
-X_test = np.reshape(X_test, (X_test.shape[0], X_test.shape[1], 1))
-predicted_stock_price = regressor.predict(X_test)
-predicted_stock_price = sc.inverse_transform(predicted_stock_price)
+print(f'first 10 rows of inputs after reshape: \n{inputs[0:10]}')
+print(f'inputs.shape: {inputs.shape}')
 
-# Visualising the results
+
+inputs = sc.transform(inputs)
+
+print('----------------------------------------------')
+
+x_test = []
+for i in range(60, 80): #starting at 60 to offset the 60 timesteps slice going to 79
+    # ranging from rows 0 to 59, selects 60 rows at a time, and select column 0
+    x_test.append( inputs[ i - 60 : i, 0 ] )
+
+x_test = np.array(x_test)
+print(f'first 10 rows of x_test: \n{x_test[0:10]}')
+x_test = np.reshape( x_test, (x_test.shape[0], x_test.shape[1], 1) ) #transforming to 3D array
+
+
+print('----------------------------------------------')
+print('Make a prediction')
+predicted_stock_price = regressor.predict(x_test) #predicted stock price ranging from 0 to 1
+print(f'first 10 rows of predicted_stock_price: \n{predicted_stock_price[0:10]}')
+predicted_stock_price = sc.inverse_transform(predicted_stock_price) #transform the stock price back to actual values
+print('----')
+print(f'first 10 rows of predicted_stock_price: \n{predicted_stock_price[0:10]}')
+print('----------------------------------------------')
+
+
+print('Visualising the results')
 plt.plot(real_stock_price, color = 'red', label = 'Real Google Stock Price')
 plt.plot(predicted_stock_price, color = 'blue', label = 'Predicted Google Stock Price')
 plt.title('Google Stock Price Prediction')
@@ -147,3 +203,8 @@ plt.xlabel('Time')
 plt.ylabel('Google Stock Price')
 plt.legend()
 plt.show()
+
+exit()
+#--------------------------------
+
+
