@@ -1,17 +1,19 @@
 print('Recurrent Neural Network')
 print('----------------------------------------------')
 
+print('==============================================')
 print('Part 1 - Data Preprocessing')
-print('----------------------------------------------')
+print('==============================================')
 
 print('import the libraries')
 
 import numpy as np
 import matplotlib.pyplot as plt
 import pandas as pd
+from sklearn.preprocessing import MinMaxScaler
 
 print('----------------------------------------------')
-print('import the training set\n')
+print('import the training set')
 # str_path = './deep_learning_a_to_z\part_3\section_10_RNN/'
 str_path = ''
 
@@ -23,8 +25,8 @@ print(f'first 10 rows of training_set: \n{training_set[0:10]}')
 # print(training_set[0:10])
 
 print('----------------------------------------------')
-print('feature scaling\n')
-from sklearn.preprocessing import MinMaxScaler
+print('feature scaling')
+
 sc = MinMaxScaler(feature_range = (0,1))
 training_set_scaled = sc.fit_transform(training_set)
 print(f'first 10 rows of training_set_scaled: \n{training_set_scaled[0:10]}')
@@ -55,11 +57,12 @@ x_train = np.reshape( x_train , (x_train.shape[0], x_train.shape[1], 1) ) #just 
 print(f'x_train.shape: {x_train.shape}')
 # print(f'first 10 rows of x_train: \n{x_train[0:10]}')
 
-print('----------------------------------------------')
+print('==============================================')
 print('Part 2 - Building the RNN')
+print('==============================================')
 
 
-print('----------------------------------------------')
+
 print('Importing the Keras libraries and packages')
 
 from keras.models import Sequential
@@ -128,10 +131,11 @@ else:
     regressor.save(model_path)
 
 
-print('----------------------------------------------')
+print('==============================================')
 print('Part 3 - Making the predictions and visualising the results')
+print('==============================================')
 
-print('----------------------------------------------')
+
 print('Getting the real stock price of 2017')
 dataset_test = pd.read_csv(f'{str_path}Google_Stock_Price_Test.csv')
 real_stock_price = dataset_test.iloc[:, 1:2].values #column 1, and all rows
