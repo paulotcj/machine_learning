@@ -56,7 +56,30 @@ print(f'By:{by}\n')
 
 print(f'Yt: not available at this stage\n')
 print('----------------------------------------------')
+print(f'Initializing the input to the network and making a prediction')
+x = np.array([1, 2, 3])
+# Reshape the input to the required sample_size x time_steps x features 
+x_input = np.reshape(x , (1, 3, 1))
+print(f'x_input shape: {x_input.shape}')
+print(f'x_input: {x_input}')
 
-# print(f'wx = {wx}, wh = {wh}, bh = {bh}, wy = {wy}, by = {by}')
+y_pred_model = demo_model.predict(x_input)
+
+print('----------------------------------------------')
+print(f'Manual computation of the output')
+print(f'  We will compute 3 hidden states, so  we will have the initial hidden state h0, plus h1, h2, h3')
+print(f'  Note: We will be using x (1D array on len 3) in the calculations, not x_input\n')
+m = 2
+h0 = np.zeros(m)
+h1 = np.dot(x[0], wx) + np.dot(h0,wh) + bh
+h2 = np.dot(x[1], wx) + np.dot(h1,wh) + bh
+h3 = np.dot(x[2], wx) + np.dot(h2,wh) + bh
+o3 = np.dot(h3, wy) + by
+
+print(f'  size of hidden units (m):{m}')
+print(f'  h0:{h0} - h1:{h1} -  h2:{h2} -  h3:{h3}')
+
+print("  Prediction from network ", y_pred_model)
+print("  Prediction from our computation ", o3)
 
 exit()
