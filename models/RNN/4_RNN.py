@@ -85,6 +85,7 @@ print("  Prediction from our computation ", o3)
 print('----------------------------------------------')
 
 
+#-------------------------------------------------------------------------
 # Parameter split_percent defines the ratio of training examples
 def get_train_test_local(file = 'monthly-sunspots.csv', split_percent=0.8):
     data_frame = read_csv(f'./{file}', usecols=[1], engine='python')
@@ -102,7 +103,7 @@ def get_train_test_local(file = 'monthly-sunspots.csv', split_percent=0.8):
     test_data = data[split:]
 
     return train_data, test_data, data
-
+#-------------------------------------------------------------------------
 
 train_data, test_data, data = get_train_test_local()
 
@@ -120,6 +121,7 @@ print('-----')
 print('----------------------------------------------')
 
 
+#-------------------------------------------------------------------------
 # Prepare the input X and target Y
 def get_xy(param_data, time_steps = 12):
     
@@ -137,23 +139,24 @@ def get_xy(param_data, time_steps = 12):
     #we are trying to predict the result of every th time_step, so we know y_data is the results we are trying
     # to predict, therefore the relevant data in x should be chunks of time_steps (default 12)
     
-    # print(range(time_steps*rows_y))
-    
     x = param_data[range(time_steps*rows_y)]
-    # print(f'len of x: {len(x)}')
-    # print(f'rows_y: {rows_y}')
+
 
     #In the example we would have x with 2244 elements, y_rows with 187, and time_steps = 12 . 
     # So rows_y * time_steps * 1 = 187 * 1 = 187 * 12 * 1 = 2244
     # We have a 3D array, with 187 samples, with 12 rows, and 1 column
+    # To quote the source material: "The input array should be shaped as: total_samples x time_steps 
+    #  x features."
     x = np.reshape(x, (rows_y, time_steps, 1))   
-    # print(f'x shape: {x.shape}')
-    # print('----')
-    # print(x) 
     return x, y_data
-
+#-------------------------------------------------------------------------
 
 time_steps = 12
-train_x, train_y = get_xy(train_data, time_steps)
+train_x, train_y = get_xy( train_data, time_steps )
+test_x , test_y  = get_xy( test_data , time_steps )
 
-test_x, test_y = get_xy(test_data, time_steps)
+print('-----')
+print(f'len of train_x : {len(train_x)} - len of train_y : {len(train_y)}')
+print('-----')
+print(f'len of test_x : {len(test_x)} - len of test_y : {len(test_y)}')
+print('-----')
