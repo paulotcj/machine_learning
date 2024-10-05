@@ -8,7 +8,6 @@ import math
 import matplotlib.pyplot as plt
 
 #based on: https://machinelearningmastery.com/understanding-simple-recurrent-neural-networks-in-keras/
-
                         
 #-------------------------------------------------------------------------
 def create_RNN(hidden_units, dense_units, input_shape, activation):
@@ -189,3 +188,78 @@ model = create_RNN(hidden_units=3, dense_units=1, input_shape=(time_steps,1),
 #  weights will be updated after each sample.
 model.fit(train_x, train_y, epochs=20, batch_size=1, verbose=2)
 
+print('----------------------------------------------')
+
+#-------------------------------------------------------------------------
+def print_error(trainY, testY, train_predict, test_predict):    
+    # Error of predictions
+    train_rmse = math.sqrt(mean_squared_error(trainY, train_predict))
+    test_rmse = math.sqrt(mean_squared_error(testY, test_predict))
+    # Print RMSE
+    print('Train RMSE: %.3f RMSE' % (train_rmse))
+    print('Test RMSE: %.3f RMSE' % (test_rmse))  
+#-------------------------------------------------------------------------  
+
+
+
+# make predictions
+train_predict = model.predict(train_x)
+test_predict = model.predict(test_x)
+
+print('======================')
+print('Inputting the training data and trying to make a prediction we get...:\n')
+
+print(f'train_predict shape: {train_predict.shape}')
+print(f'train_y shape      : {train_y.shape}\n')
+
+
+print('    train_predict  |  train_y')
+print('    ____________________________')
+#     '    0.12345678     |  0.12345678
+for i in range(5):
+
+    print(f'    {train_predict[i][0]:.8f}     |  {train_y[i]:.8f}')
+
+
+
+print('\n======================')
+print('Inputting the test data and trying to make a prediction we get...:\n')
+
+print(f'test_predict shape: {test_predict.shape}')
+print(f'test_y shape      : {test_y.shape}\n')
+
+print('    test_predict  |  test_y')
+print('    ___________________________')
+#     '    0.12345678    |  0.12345678
+for i in range(5):
+    print(f'    {test_predict[i][0]:.8f}    |  {test_y[i]:.8f}')
+
+
+print('\n======================')
+
+
+# Mean square error
+print_error(train_y, test_y, train_predict, test_predict)
+
+print('----------------------------------------------')
+
+#-------------------------------------------------------------------------
+# Plot the result
+def plot_result(trainY, testY, train_predict, test_predict):
+    
+    actual = np.append(trainY, testY)
+    predictions = np.append(train_predict, test_predict)
+    rows = len(actual)
+    plt.figure(figsize=(15, 6), dpi=80)
+    plt.plot(range(rows), actual)
+    plt.plot(range(rows), predictions)
+    plt.axvline(x=len(trainY), color='r')
+    plt.legend(['Actual', 'Predictions'])
+    plt.xlabel('Observation number after given time steps')
+    plt.ylabel('Sunspots scaled')
+    plt.title('Actual and Predicted Values. The Red Line Separates The Training And Test Examples')
+    plt.show()
+#-------------------------------------------------------------------------    
+
+
+plot_result(train_y, test_y, train_predict, test_predict)

@@ -7,6 +7,8 @@ from sklearn.metrics import mean_squared_error
 import math
 import matplotlib.pyplot as plt
 
+#based on: https://machinelearningmastery.com/understanding-simple-recurrent-neural-networks-in-keras/
+
                         
 #-------------------------------------------------------------------------
 def create_RNN(hidden_units, dense_units, input_shape, activation):

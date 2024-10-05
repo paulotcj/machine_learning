@@ -8,7 +8,6 @@ import math
 import matplotlib.pyplot as plt
 
 #based on: https://machinelearningmastery.com/understanding-simple-recurrent-neural-networks-in-keras/
-
                         
 #-------------------------------------------------------------------------
 def create_RNN(hidden_units, dense_units, input_shape, activation):
@@ -19,6 +18,80 @@ def create_RNN(hidden_units, dense_units, input_shape, activation):
     model.compile(loss='mean_squared_error', optimizer='adam')
     return model
 #-------------------------------------------------------------------------
+#-------------------------------------------------------------------------
+# Parameter split_percent defines the ratio of training examples
+def get_train_test_local(file = 'monthly-sunspots.csv', split_percent=0.8):
+    data_frame = read_csv(f'./{file}', usecols=[1], engine='python')
+
+    data = np.array(data_frame.values.astype('float32'))
+
+    scaler = MinMaxScaler(feature_range=(0, 1))
+    data = scaler.fit_transform(data).flatten()
+
+    len_data = len(data)
+    # Point for splitting data into train and test
+    split = int(len_data * split_percent)
+
+    train_data = data[range(split)] #range return like this will slice the array
+    test_data = data[split:]
+
+    return train_data, test_data, data
+#-------------------------------------------------------------------------
+#-------------------------------------------------------------------------
+# Prepare the input X and target Y
+def get_xy(param_data, time_steps = 12):
+    
+    #Generate an array of indices, start at time_steps, increment by time_steps, and end at len(param_data)
+    # so in an example with time_steps = 12: 12, 24, 36, 48, ... 
+    y_indexes = np.arange(time_steps, len(param_data), time_steps)
+
+    y_data = param_data[y_indexes]
+
+    rows_y = len(y_data)
+
+    #-----------
+    # Prepare X
+
+    #we are trying to predict the result of every th time_step, so we know y_data is the results we are trying
+    # to predict, therefore the relevant data in x should be chunks of time_steps (default 12)
+    
+    x_data = param_data[range(time_steps*rows_y)]
+
+
+    #In the example we would have x_data with 2244 elements, y_rows with 187, and time_steps = 12 . 
+    # So rows_y * time_steps * 1 = 187 * 1 = 187 * 12 * 1 = 2244
+    # We have a 3D array, with 187 samples, with 12 rows, and 1 column
+    # To quote the source material: "The input array should be shaped as: total_samples x time_steps 
+    #  x features."
+    x_data = np.reshape(x_data, (rows_y, time_steps, 1))   
+    return x_data, y_data
+#-------------------------------------------------------------------------
+#-------------------------------------------------------------------------
+def print_error(trainY, testY, train_predict, test_predict):    
+    # Error of predictions
+    train_rmse = math.sqrt(mean_squared_error(trainY, train_predict))
+    test_rmse = math.sqrt(mean_squared_error(testY, test_predict))
+    # Print RMSE
+    print('Train RMSE: %.3f RMSE' % (train_rmse))
+    print('Test RMSE: %.3f RMSE' % (test_rmse))  
+#-------------------------------------------------------------------------  
+#-------------------------------------------------------------------------  
+# Plot the result
+def plot_result(trainY, testY, train_predict, test_predict):
+    
+    actual = np.append(trainY, testY)
+    predictions = np.append(train_predict, test_predict)
+    rows = len(actual)
+    plt.figure(figsize=(15, 6), dpi=80)
+    plt.plot(range(rows), actual)
+    plt.plot(range(rows), predictions)
+    plt.axvline(x=len(trainY), color='r')
+    plt.legend(['Actual', 'Predictions'])
+    plt.xlabel('Observation number after given time steps')
+    plt.ylabel('Sunspots scaled')
+    plt.title('Actual and Predicted Values. The Red Line Separates The Training And Test Examples')
+    plt.show()
+#-------------------------------------------------------------------------  
 
 
 #input_shape = (time_steps, features)
@@ -87,25 +160,7 @@ print("  Prediction from our computation ", o3)
 print('----------------------------------------------')
 
 
-#-------------------------------------------------------------------------
-# Parameter split_percent defines the ratio of training examples
-def get_train_test_local(file = 'monthly-sunspots.csv', split_percent=0.8):
-    data_frame = read_csv(f'./{file}', usecols=[1], engine='python')
 
-    data = np.array(data_frame.values.astype('float32'))
-
-    scaler = MinMaxScaler(feature_range=(0, 1))
-    data = scaler.fit_transform(data).flatten()
-
-    len_data = len(data)
-    # Point for splitting data into train and test
-    split = int(len_data * split_percent)
-
-    train_data = data[range(split)] #range return like this will slice the array
-    test_data = data[split:]
-
-    return train_data, test_data, data
-#-------------------------------------------------------------------------
 
 train_data, test_data, data = get_train_test_local()
 
@@ -131,35 +186,7 @@ print('----------------------------------------------')
 # and discard 70 because even though we could pair 60 and 70 we don't have a data to predict 
 # and compare the results.
 
-#-------------------------------------------------------------------------
-# Prepare the input X and target Y
-def get_xy(param_data, time_steps = 12):
-    
-    #Generate an array of indices, start at time_steps, increment by time_steps, and end at len(param_data)
-    # so in an example with time_steps = 12: 12, 24, 36, 48, ... 
-    y_indexes = np.arange(time_steps, len(param_data), time_steps)
 
-    y_data = param_data[y_indexes]
-
-    rows_y = len(y_data)
-
-    #-----------
-    # Prepare X
-
-    #we are trying to predict the result of every th time_step, so we know y_data is the results we are trying
-    # to predict, therefore the relevant data in x should be chunks of time_steps (default 12)
-    
-    x_data = param_data[range(time_steps*rows_y)]
-
-
-    #In the example we would have x_data with 2244 elements, y_rows with 187, and time_steps = 12 . 
-    # So rows_y * time_steps * 1 = 187 * 1 = 187 * 12 * 1 = 2244
-    # We have a 3D array, with 187 samples, with 12 rows, and 1 column
-    # To quote the source material: "The input array should be shaped as: total_samples x time_steps 
-    #  x features."
-    x_data = np.reshape(x_data, (rows_y, time_steps, 1))   
-    return x_data, y_data
-#-------------------------------------------------------------------------
 
 time_steps = 12
 train_x, train_y = get_xy( train_data, time_steps )
@@ -189,3 +216,55 @@ model = create_RNN(hidden_units=3, dense_units=1, input_shape=(time_steps,1),
 #  weights will be updated after each sample.
 model.fit(train_x, train_y, epochs=20, batch_size=1, verbose=2)
 
+print('----------------------------------------------')
+
+
+
+
+
+# make predictions
+train_predict = model.predict(train_x)
+test_predict = model.predict(test_x)
+
+print('======================')
+print('Inputting the training data and trying to make a prediction we get...:\n')
+
+print(f'train_predict shape: {train_predict.shape}')
+print(f'train_y shape      : {train_y.shape}\n')
+
+
+print('    train_predict  |  train_y')
+print('    ____________________________')
+#     '    0.12345678     |  0.12345678
+for i in range(5):
+
+    print(f'    {train_predict[i][0]:.8f}     |  {train_y[i]:.8f}')
+
+
+
+print('\n======================')
+print('Inputting the test data and trying to make a prediction we get...:\n')
+
+print(f'test_predict shape: {test_predict.shape}')
+print(f'test_y shape      : {test_y.shape}\n')
+
+print('    test_predict  |  test_y')
+print('    ___________________________')
+#     '    0.12345678    |  0.12345678
+for i in range(5):
+    print(f'    {test_predict[i][0]:.8f}    |  {test_y[i]:.8f}')
+
+
+print('\n======================')
+
+
+# Mean square error
+print_error(train_y, test_y, train_predict, test_predict)
+
+print('----------------------------------------------')
+
+
+    
+
+
+plot_result(train_y, test_y, train_predict, test_predict)
