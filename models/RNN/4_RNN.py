@@ -120,6 +120,14 @@ print('-----')
 
 print('----------------------------------------------')
 
+# The idea in this section is to slice the data into non-overlapping chunks of time_steps
+# suppose the data = [0, 10, 20, 30, 40, 50, 60, 70] - and we want a time_step of 2 and to predict
+# the 3rd value in the sequence. So at:
+# t [0, 1] -> x = [0, 10] -> predict t2 [20]
+# t [2, 3] -> x = [20, 30] -> predict t4 [40]
+# t [4, 5] -> x = [40, 50] -> predict t6 [60]
+# and discard 70 because even though we could pair 60 and 70 we don't have a data to predict 
+# and compare the results.
 
 #-------------------------------------------------------------------------
 # Prepare the input X and target Y
@@ -139,24 +147,44 @@ def get_xy(param_data, time_steps = 12):
     #we are trying to predict the result of every th time_step, so we know y_data is the results we are trying
     # to predict, therefore the relevant data in x should be chunks of time_steps (default 12)
     
-    x = param_data[range(time_steps*rows_y)]
+    x_data = param_data[range(time_steps*rows_y)]
 
 
-    #In the example we would have x with 2244 elements, y_rows with 187, and time_steps = 12 . 
+    #In the example we would have x_data with 2244 elements, y_rows with 187, and time_steps = 12 . 
     # So rows_y * time_steps * 1 = 187 * 1 = 187 * 12 * 1 = 2244
     # We have a 3D array, with 187 samples, with 12 rows, and 1 column
     # To quote the source material: "The input array should be shaped as: total_samples x time_steps 
     #  x features."
-    x = np.reshape(x, (rows_y, time_steps, 1))   
-    return x, y_data
+    x_data = np.reshape(x_data, (rows_y, time_steps, 1))   
+    return x_data, y_data
 #-------------------------------------------------------------------------
 
 time_steps = 12
 train_x, train_y = get_xy( train_data, time_steps )
 test_x , test_y  = get_xy( test_data , time_steps )
 
+
+print(f'len of train_x : {len(train_x)} - shape of train_x: {train_x.shape}')
+print(f'len of train_y : {len(train_y)} - shape of train_y: {train_y.shape}')
 print('-----')
-print(f'len of train_x : {len(train_x)} - len of train_y : {len(train_y)}')
+print(f'len of test_x : {len(test_x)} - shape of train_y: {test_x.shape}')
+print(f'len of test_y : {len(test_y)} - shape of train_y: {test_y.shape}')
 print('-----')
-print(f'len of test_x : {len(test_x)} - len of test_y : {len(test_y)}')
-print('-----')
+# print(f'train_x first 5 rows : {train_x[0:5]}')
+# print(f'train_y first 5 rows : {train_y[0:5]}')
+# print(f'test_x first 5 rows : {test_x[0:5]}')
+# print(f'test_y first 5 rows : {test_y[0:5]}')
+
+
+
+print('----------------------------------------------')
+print('Create the RNN model and train it')
+model = create_RNN(hidden_units=3, dense_units=1, input_shape=(time_steps,1), 
+                   activation=['tanh', 'tanh'])
+
+# batch_size=1: This parameter defines the number of samples that will be propagated through 
+#  the model before updating the model's weights. A batch size of 1 means that the model's 
+#  weights will be updated after each sample, which is also known as online learning.
+model.fit(train_x, train_y, epochs=20, batch_size=1, verbose=2)
+
+print('----------------------------------------------')
