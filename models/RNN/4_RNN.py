@@ -86,23 +86,6 @@ print('----------------------------------------------')
 
 
 # Parameter split_percent defines the ratio of training examples
-def get_train_test(url, split_percent=0.8):
-    df = read_csv(url, usecols=[1], engine='python')
-    data = np.array(df.values.astype('float32'))
-
-    scaler = MinMaxScaler(feature_range=(0, 1))
-    data = scaler.fit_transform(data).flatten()
-
-    n = len(data)
-    # Point for splitting data into train and test
-    split = int(n*split_percent)
-
-    train_data = data[range(split)]
-    test_data = data[split:]
-
-    return train_data, test_data, data
-
-# Parameter split_percent defines the ratio of training examples
 def get_train_test_local(file = 'monthly-sunspots.csv', split_percent=0.8):
     data_frame = read_csv(f'./{file}', usecols=[1], engine='python')
 
@@ -120,8 +103,6 @@ def get_train_test_local(file = 'monthly-sunspots.csv', split_percent=0.8):
 
     return train_data, test_data, data
 
-# sunspots_url = 'https://raw.githubusercontent.com/jbrownlee/Datasets/master/monthly-sunspots.csv'
-# train_data, test_data, data = get_train_test(sunspots_url)
 
 train_data, test_data, data = get_train_test_local()
 
@@ -133,3 +114,19 @@ print('-----')
 print(f'data first 5 rows : {data[0:5]}')
 print('-----')
 
+print('----------------------------------------------')
+
+# Prepare the input X and target Y
+def get_XY(dat, time_steps):
+    # Indices of target array
+    Y_ind = np.arange(time_steps, len(dat), time_steps)
+    Y = dat[Y_ind]
+    # Prepare X
+    rows_x = len(Y)
+    X = dat[range(time_steps*rows_x)]
+    X = np.reshape(X, (rows_x, time_steps, 1))    
+    return X, Y
+
+time_steps = 12
+trainX, trainY = get_XY(train_data, time_steps)
+testX, testY = get_XY(test_data, time_steps)
