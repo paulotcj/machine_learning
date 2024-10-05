@@ -107,26 +107,53 @@ def get_train_test_local(file = 'monthly-sunspots.csv', split_percent=0.8):
 train_data, test_data, data = get_train_test_local()
 
 print('-----')
+print(f'len of train_data : {len(train_data)}')
 print(f'train_data first 5 rows : {train_data[0:5]}')
 print('-----')
+print(f'len of test_data : {len(test_data)}')
 print(f'test_data first 5 rows : {test_data[0:5]}')
 print('-----')
+print(f'len of data : {len(data)}')
 print(f'data first 5 rows : {data[0:5]}')
 print('-----')
 
 print('----------------------------------------------')
 
+
 # Prepare the input X and target Y
-def get_XY(dat, time_steps):
-    # Indices of target array
-    Y_ind = np.arange(time_steps, len(dat), time_steps)
-    Y = dat[Y_ind]
+def get_xy(param_data, time_steps = 12):
+    
+    #Generate an array of indices, start at time_steps, increment by time_steps, and end at len(param_data)
+    # so in an example with time_steps = 12: 12, 24, 36, 48, ... 
+    y_indexes = np.arange(time_steps, len(param_data), time_steps)
+
+    y_data = param_data[y_indexes]
+
+    rows_y = len(y_data)
+
+    #-----------
     # Prepare X
-    rows_x = len(Y)
-    X = dat[range(time_steps*rows_x)]
-    X = np.reshape(X, (rows_x, time_steps, 1))    
-    return X, Y
+
+    #we are trying to predict the result of every th time_step, so we know y_data is the results we are trying
+    # to predict, therefore the relevant data in x should be chunks of time_steps (default 12)
+    
+    # print(range(time_steps*rows_y))
+    
+    x = param_data[range(time_steps*rows_y)]
+    # print(f'len of x: {len(x)}')
+    # print(f'rows_y: {rows_y}')
+
+    #In the example we would have x with 2244 elements, y_rows with 187, and time_steps = 12 . 
+    # So rows_y * time_steps * 1 = 187 * 1 = 187 * 12 * 1 = 2244
+    # We have a 3D array, with 187 samples, with 12 rows, and 1 column
+    x = np.reshape(x, (rows_y, time_steps, 1))   
+    # print(f'x shape: {x.shape}')
+    # print('----')
+    # print(x) 
+    return x, y_data
+
 
 time_steps = 12
-trainX, trainY = get_XY(train_data, time_steps)
-testX, testY = get_XY(test_data, time_steps)
+train_x, train_y = get_xy(train_data, time_steps)
+
+test_x, test_y = get_xy(test_data, time_steps)
