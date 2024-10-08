@@ -39,7 +39,7 @@ def random_sum_pairs(n_examples, n_numbers, largest):
 	return x, y
 #-------------------------------------------------------------------------
 
-n_examples, n_numbers , largest = 100, 2, 100
+n_examples, n_numbers , largest = 10_000, 2, 100
 n_epoch, n_batch = 100, 1
 
 x, y = random_sum_pairs(n_examples=n_examples, n_numbers=n_numbers, largest=largest)
@@ -76,9 +76,9 @@ x, y = None, None
 
 for _ in range(n_epoch):
 	x, y = random_sum_pairs(n_examples=n_examples, n_numbers=n_numbers, largest=largest)
-	print(f'x first 5 rows: {x[:5]}')
-	print('--------')
-	print(f'y first 5 rows: {y[:5]}')
+	# print(f'x first 5 rows: {x[:5]}')
+	# print('--------')
+	# print(f'y first 5 rows: {y[:5]}')
 	x = x.reshape(n_examples, n_numbers, 1) #set the appropriate dimension, usually 100, 2, 1
 	model.fit(x, y, epochs=1, batch_size=n_batch, verbose=2)
 
