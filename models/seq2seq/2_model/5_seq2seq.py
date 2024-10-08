@@ -1,12 +1,7 @@
 from random import seed
 from random import randint
 import numpy as np
-# from numpy import array
-# from keras.models import Sequential
-# from keras.layers import Dense
-# from keras.layers import LSTM
-# from math import sqrt
-# from sklearn.metrics import mean_squared_error
+
 
 #-------------------------------------------------------------------------
 def normalize_values(value : np.array, n_numbers : int, largest : int):
