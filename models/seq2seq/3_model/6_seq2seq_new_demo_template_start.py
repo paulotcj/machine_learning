@@ -3,6 +3,7 @@ from random import randint
 import numpy as np
 import math
 
+# based on: https://machinelearningmastery.com/learn-add-numbers-seq2seq-recurrent-neural-networks/
 #-------------------------------------------------------------------------
 def normalize_values(value : np.array, n_numbers : int, largest : int):
     # In this working script we are generating random integer between 1 and 100, so the

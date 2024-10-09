@@ -3,6 +3,7 @@ from random import randint
 import numpy as np
 import math
 
+# based on: https://machinelearningmastery.com/learn-add-numbers-seq2seq-recurrent-neural-networks/
 
 #-------------------------------------------------------------------------
 def normalize_values(value : np.array, n_numbers : int, largest : int):
@@ -214,4 +215,6 @@ model.add(LSTM(units = 100, input_shape=(5, 11)))
 
 
 model.add(LSTM(50, return_sequences=True))
+
+# Dense without TimeDistributed computes per Batch, TimeDistributed with Dense computes per Timestep
 model.add(TimeDistributed(Dense(11, activation='softmax')))
