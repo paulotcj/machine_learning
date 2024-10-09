@@ -217,4 +217,8 @@ model.add(LSTM(units = 100, input_shape=(5, 11)))
 model.add(LSTM(50, return_sequences=True))
 
 # Dense without TimeDistributed computes per Batch, TimeDistributed with Dense computes per Timestep
+# "In keras - while building a sequential model - usually the second dimension (one after sample dimension)
+#  - is related to a time dimension. This means that if for example, your data is 5-dim with 
+# (sample, time, width, length, channel) you could apply a convolutional layer using TimeDistributed 
+# (which is applicable to 4-dim with (sample, width, length, channel))" - https://stackoverflow.com/questions/47305618/what-is-the-role-of-timedistributed-layer-in-keras
 model.add(TimeDistributed(Dense(11, activation='softmax')))
