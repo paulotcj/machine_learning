@@ -209,11 +209,28 @@ from keras.layers import LSTM
 from keras.layers import TimeDistributed
 from keras.layers import RepeatVector
 
-model = Sequential()
-# for input shape: 2 digits integer + 1 signal + 2 digits integer = 5, then the alphabet size is (typically) 11
-model.add(LSTM(units = 100, input_shape=(5, 11))) 
 
-# The code below would not run and here's some explanation:
+seed(1)
+# n_samples = 1
+n_samples = 10_000
+n_numbers = 2
+# largest = 10
+largest = 999
+# generate pairs
+
+alphabet = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '+', ' ']
+
+n_batch = 10
+n_epoch = 30
+
+model = Sequential()
+
+# for input shape: 2 digits integer + 1 signal + 2 digits integer = 5, then the alphabet size is (typically) 11
+model.add(LSTM(100, input_shape=(5, 11)))
+
+
+model.add(RepeatVector(2))
+
 # The first LSTM layer is defined with input_shape=(5, 11), which means it expects input 
 #  sequences of length 5 (timesteps) and each input at every timestep has 11 features.
 #
@@ -226,7 +243,6 @@ model.add(LSTM(units = 100, input_shape=(5, 11)))
 #  last hidden state (shape (batch_size, 100)), the input to the second LSTM will not be a 
 #  sequence, which will cause a mismatch in input shape and an error.
 model.add(LSTM(50, return_sequences=True))
-exit()
 
 # Dense without TimeDistributed computes per Batch, TimeDistributed with Dense computes per Timestep
 # "In keras - while building a sequential model - usually the second dimension (one after sample dimension)
@@ -234,3 +250,19 @@ exit()
 # (sample, time, width, length, channel) you could apply a convolutional layer using TimeDistributed 
 # (which is applicable to 4-dim with (sample, width, length, channel))" - https://stackoverflow.com/questions/47305618/what-is-the-role-of-timedistributed-layer-in-keras
 model.add(TimeDistributed(Dense(11, activation='softmax')))
+model.compile(loss='categorical_crossentropy', optimizer='adam', metrics=['accuracy'])
+print('----------------------------------------------')
+print(model.summary())
+
+print('----------------------------------------------')
+
+# evaluate on some new patterns
+x, y = generate_data(n_samples, n_numbers, largest, alphabet)
+exit()
+result = model.predict(x, batch_size=n_batch, verbose=0)
+# calculate error
+expected = [invert_one_hot_encode(x, alphabet) for x in y]
+predicted = [invert_one_hot_encode(x, alphabet) for x in result]
+# show some examples
+for i in range(20):
+	print('Expected=%s, Predicted=%s' % (expected[i], predicted[i]))
