@@ -238,8 +238,8 @@ model.add(RepeatVector(2))
 #  will return only the last hidden state (a vector of size 100) after processing the entire 
 #  sequence. This output will have the shape (batch_size, 100).
 #
-# The second LSTM layer, however, has return_sequences=True, which means it expects to receive a 
-#  sequence, not just a single hidden state. But since the first LSTM layer returns only the 
+# The second LSTM layer, however, has return_sequences=True, which means IT EXPECTS TO RECEIVE A 
+#  SEQUENCE, not just a single hidden state. But since the first LSTM layer returns only the 
 #  last hidden state (shape (batch_size, 100)), the input to the second LSTM will not be a 
 #  sequence, which will cause a mismatch in input shape and an error.
 model.add(LSTM(50, return_sequences=True))
