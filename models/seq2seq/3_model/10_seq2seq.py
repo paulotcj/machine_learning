@@ -231,6 +231,7 @@ model.add(LSTM(100, input_shape=(5, 11)))
 
 model.add(RepeatVector(2))
 
+
 # The first LSTM layer is defined with input_shape=(5, 11), which means it expects input 
 #  sequences of length 5 (timesteps) and each input at every timestep has 11 features.
 #
@@ -239,7 +240,9 @@ model.add(RepeatVector(2))
 #  sequence. This output will have the shape (batch_size, 100).
 #
 # The second LSTM layer, however, has return_sequences=True, which means IT EXPECTS TO RECEIVE A 
-#  SEQUENCE, not just a single hidden state. But since the first LSTM layer returns only the 
+#  SEQUENCE, not just a single hidden state. At minimum then (batch_size, sequence, features)
+#  or considering the example (batch_size , 2 , 11) or most likely (None, 2, 11)
+# But since the first LSTM layer returns only the 
 #  last hidden state (shape (batch_size, 100)), the input to the second LSTM will not be a 
 #  sequence, which will cause a mismatch in input shape and an error.
 model.add(LSTM(50, return_sequences=True))
@@ -255,10 +258,10 @@ print('----------------------------------------------')
 print(model.summary())
 
 print('----------------------------------------------')
-
+exit()
 # evaluate on some new patterns
 x, y = generate_data(n_samples, n_numbers, largest, alphabet)
-exit()
+
 result = model.predict(x, batch_size=n_batch, verbose=0)
 # calculate error
 expected = [invert_one_hot_encode(x, alphabet) for x in y]
