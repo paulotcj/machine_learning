@@ -147,60 +147,61 @@ def invert_one_hot_encode(seq, alphabet):
     strings.append(string)
     return ''.join(strings)
 #-------------------------------------------------------------------------
+#-------------------------------------------------------------------------
+def start_test1():
+    seed(1)
+    # n_samples = 1
+    n_samples = 10_000
+    n_numbers = 2
+    # largest = 10
+    largest = 999
+    # generate pairs
 
 
-# seed(1)
-# # n_samples = 1
-# n_samples = 10_000
-# n_numbers = 2
-# # largest = 10
-# largest = 999
-# # generate pairs
+    # x, y = random_sum_pairs(n_samples, n_numbers, largest)
 
+    x, y = random_sum_pairs(n_examples=n_samples, n_numbers=n_numbers, largest=largest)
 
-# # x, y = random_sum_pairs(n_samples, n_numbers, largest)
+    print(f'x len: {len(x)}')
+    print(f'x first 5 rows: {x[:5]}')
+    print('--------')
+    print(f'y len: {len(y)}')
+    print(f'y first 5 rows: {y[:5]}')
+    print('----------------------------------------------')
 
-# x, y = random_sum_pairs(n_examples=n_samples, n_numbers=n_numbers, largest=largest)
-
-# print(f'x len: {len(x)}')
-# print(f'x first 5 rows: {x[:5]}')
-# print('--------')
-# print(f'y len: {len(y)}')
-# print(f'y first 5 rows: {y[:5]}')
-# print('----------------------------------------------')
-
-# x, y = to_string(x, y, n_numbers, largest)
-# print(f'x len: {len(x)}')
-# print(f'x first 5 rows: {x[:5]}')
-# print('--------')
-# print(f'y len: {len(y)}')
-# print(f'y first 5 rows: {y[:5]}')
-# print('----------------------------------------------')
+    x, y = to_string(x, y, n_numbers, largest)
+    print(f'x len: {len(x)}')
+    print(f'x first 5 rows: {x[:5]}')
+    print('--------')
+    print(f'y len: {len(y)}')
+    print(f'y first 5 rows: {y[:5]}')
+    print('----------------------------------------------')
 
 
 
-# # integer encode
-# alphabet = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '+', ' ']
+    # integer encode
+    alphabet = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '+', ' ']
 
-# print(f'Encoding alphabet')
-# x, y = integer_encode(x, y, alphabet)
+    print(f'Encoding alphabet')
+    x, y = integer_encode(x, y, alphabet)
 
-# print(f'x len: {len(x)}')
-# print(f'x first 5 rows: \n{x[:5]}')
-# print('--------')
-# print(f'y len: {len(y)}')
-# print(f'y first 5 rows: \n{y[:5]}')
-# print('----------------------------------------------')
+    print(f'x len: {len(x)}')
+    print(f'x first 5 rows: \n{x[:5]}')
+    print('--------')
+    print(f'y len: {len(y)}')
+    print(f'y first 5 rows: \n{y[:5]}')
+    print('----------------------------------------------')
 
-# print(f'One hot encode')
-# x_backup = x
-# y_backup = y
-# x, y = one_hot_encode(x, y, len(alphabet))
-# print(f'x len: {len(x)}')
-# print(f'x first 5 rows: \n{x[:5]}')
-# print('--------')
-# print(f'y len: {len(y)}')
-# print(f'y first 5 rows: \n{y[:5]}')
+    print(f'One hot encode')
+    x_backup = x
+    y_backup = y
+    x, y = one_hot_encode(x, y, len(alphabet))
+    print(f'x len: {len(x)}')
+    print(f'x first 5 rows: \n{x[:5]}')
+    print('--------')
+    print(f'y len: {len(y)}')
+    print(f'y first 5 rows: \n{y[:5]}')
+#-------------------------------------------------------------------------
 
 
 from keras.models import Sequential
@@ -258,11 +259,12 @@ print('----------------------------------------------')
 print(model.summary())
 
 print('----------------------------------------------')
-exit()
+
 # evaluate on some new patterns
 x, y = generate_data(n_samples, n_numbers, largest, alphabet)
 
 result = model.predict(x, batch_size=n_batch, verbose=0)
+exit()
 # calculate error
 expected = [invert_one_hot_encode(x, alphabet) for x in y]
 predicted = [invert_one_hot_encode(x, alphabet) for x in result]
