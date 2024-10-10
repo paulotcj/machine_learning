@@ -314,5 +314,4 @@ print(model.summary())
 # train LSTM
 for i in range(n_epoch):
 	x, y = generate_data(n_samples = n_samples, n_numbers = n_numbers, largest = largest, alphabet = alphabet)
-	print(i)
 	model.fit(x, y, epochs=1, batch_size=n_batch)
