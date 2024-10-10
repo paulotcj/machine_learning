@@ -212,13 +212,15 @@ from keras.layers import RepeatVector
 
 
 seed(1)
-# n_samples = 1
-n_samples = 10_000
-n_numbers = 2
-# largest = 10
-largest = 999
-# generate pairs
+n_samples = 1
+# n_samples = 10_000
 
+n_numbers = 2
+
+largest = 10
+# largest = 999
+
+#            1    2    3    4    5    6    7    8    9    10   11   12
 alphabet = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '+', ' ']
 
 n_batch = 10
@@ -226,8 +228,8 @@ n_epoch = 30
 
 model = Sequential()
 
-# for input shape: 2 digits integer + 1 signal + 2 digits integer = 5, then the alphabet size is (typically) 11
-model.add(LSTM(100, input_shape=(5, 11)))
+# for input shape: 2 digits integer + 1 signal + 2 digits integer = 5, then the alphabet size is (typically) 12
+model.add(LSTM(100, input_shape=(5, 12)))
 
 
 model.add(RepeatVector(2))
@@ -253,7 +255,7 @@ model.add(LSTM(50, return_sequences=True))
 #  - is related to a time dimension. This means that if for example, your data is 5-dim with 
 # (sample, time, width, length, channel) you could apply a convolutional layer using TimeDistributed 
 # (which is applicable to 4-dim with (sample, width, length, channel))" - https://stackoverflow.com/questions/47305618/what-is-the-role-of-timedistributed-layer-in-keras
-model.add(TimeDistributed(Dense(11, activation='softmax')))
+model.add(TimeDistributed(Dense(12, activation='softmax')))
 model.compile(loss='categorical_crossentropy', optimizer='adam', metrics=['accuracy'])
 print('----------------------------------------------')
 print(model.summary())
@@ -261,13 +263,20 @@ print(model.summary())
 print('----------------------------------------------')
 
 # evaluate on some new patterns
-x, y = generate_data(n_samples, n_numbers, largest, alphabet)
+x, y = generate_data(n_samples = n_samples, n_numbers = n_numbers, largest = largest, alphabet = alphabet)
+
+print(f'x shape: {x.shape}')
+print(f'y shape: {y.shape}')
 
 result = model.predict(x, batch_size=n_batch, verbose=0)
-exit()
+
 # calculate error
 expected = [invert_one_hot_encode(x, alphabet) for x in y]
 predicted = [invert_one_hot_encode(x, alphabet) for x in result]
+
+print(f'Expected: {expected}')
+print(f'Predicted: {predicted}')
+exit()
 # show some examples
 for i in range(20):
 	print('Expected=%s, Predicted=%s' % (expected[i], predicted[i]))
