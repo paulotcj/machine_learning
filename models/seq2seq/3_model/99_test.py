@@ -97,9 +97,9 @@ def invert(seq, alphabet):
 print('----------------------------------------------')
 print('define dataset')
 seed(1)
-n_samples = 10_000
+n_samples = 100_000
 n_numbers = 2
-largest = 99
+largest = 999
 alphabet = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '+', ' ']
 n_chars = len(alphabet)
 n_in_seq_length = n_numbers * ceil(log10(largest+1)) + n_numbers - 1
