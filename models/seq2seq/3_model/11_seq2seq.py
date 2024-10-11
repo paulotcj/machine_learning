@@ -280,17 +280,20 @@ def start_test2_comments_may_be_relevant():
         print('Expected=%s, Predicted=%s' % (expected[i], predicted[i]))
 #-------------------------------------------------------------------------
 
+print('----------------------------------------------')
+print('Defining parameters')
 seed(1)
-n_samples = 1000
+n_samples = 10_000
 n_numbers = 2
-largest = 10
+largest = 99
 alphabet = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '+', ' ']
 n_chars = len(alphabet)
 n_in_seq_length = n_numbers * math.ceil(math.log10(largest+1)) + n_numbers - 1
 n_out_seq_length = math.ceil(math.log10(n_numbers * (largest+1)))
 
 
-
+print('----------------------------------------------')
+print('Defining model (LSTM)')
 from keras.models import Sequential
 from keras.layers import Dense
 from keras.layers import LSTM
@@ -310,8 +313,27 @@ model.add(TimeDistributed(Dense(n_chars, activation='softmax')))
 
 model.compile(loss='categorical_crossentropy', optimizer='adam', metrics=['accuracy'])
 print(model.summary())
-
+print('----------------------------------------------')
+print('Training the LSTM model')
 # train LSTM
 for i in range(n_epoch):
-	x, y = generate_data(n_samples = n_samples, n_numbers = n_numbers, largest = largest, alphabet = alphabet)
-	model.fit(x, y, epochs=1, batch_size=n_batch)
+    x, y = generate_data(n_samples = n_samples, n_numbers = n_numbers, largest = largest, alphabet = alphabet)
+    model.fit(x, y, epochs=1, batch_size=n_batch)
+
+print('----------------------------------------------')
+print('Check the results')
+
+x, y = generate_data(n_samples = n_samples, n_numbers = n_numbers, largest = largest, 
+                     alphabet = alphabet )
+result = model.predict(x, batch_size = n_batch, verbose = 2 )
+
+# calculate error
+expected = [ invert_one_hot_encode(i, alphabet) for i in y ]
+predicted = [ invert_one_hot_encode(i, alphabet) for i in result ]
+
+# show some examples
+print('    Expected  |  Predicted  |  Wrong?')
+#          12345678  |  12345678   |  True
+print('    __________________________________')
+for k,v in enumerate(expected):
+    print(f'    {expected[k]:<8}  |  {predicted[k]:<8}   |  {"True" if expected[k] != predicted[k] else "."}')

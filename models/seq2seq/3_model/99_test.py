@@ -93,7 +93,9 @@ def invert(seq, alphabet):
 		strings.append(string)
 	return ''.join(strings)
 
-# define dataset
+
+print('----------------------------------------------')
+print('define dataset')
 seed(1)
 n_samples = 1000
 n_numbers = 2
@@ -102,7 +104,9 @@ alphabet = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '+', ' ']
 n_chars = len(alphabet)
 n_in_seq_length = n_numbers * ceil(log10(largest+1)) + n_numbers - 1
 n_out_seq_length = ceil(log10(n_numbers * (largest+1)))
-# define LSTM configuration
+
+print('----------------------------------------------')
+print('define LSTM configuration')
 n_batch = 10
 n_epoch = 30
 # create LSTM
@@ -113,18 +117,26 @@ model.add(LSTM(50, return_sequences=True))
 model.add(TimeDistributed(Dense(n_chars, activation='softmax')))
 model.compile(loss='categorical_crossentropy', optimizer='adam', metrics=['accuracy'])
 print(model.summary())
-# train LSTM
-for i in range(n_epoch):
-	X, y = generate_data(n_samples, n_numbers, largest, alphabet)
-	print(i)
-	model.fit(X, y, epochs=1, batch_size=n_batch)
 
-# evaluate on some new patterns
-X, y = generate_data(n_samples, n_numbers, largest, alphabet)
-result = model.predict(X, batch_size=n_batch, verbose=0)
+print('----------------------------------------------')
+print('train LSTM')
+for i in range(n_epoch):
+	x, y = generate_data(n_samples, n_numbers, largest, alphabet)
+	print(i)
+	model.fit(x, y, epochs=1, batch_size=n_batch)
+
+print('----------------------------------------------')
+print('evaluate on some new patterns')
+x, y = generate_data(n_samples, n_numbers, largest, alphabet)
+result = model.predict(x, batch_size=n_batch, verbose=0)
 # calculate error
-expected = [invert(x, alphabet) for x in y]
-predicted = [invert(x, alphabet) for x in result]
+expected = [invert(i, alphabet) for i in y]
+predicted = [invert(i, alphabet) for i in result]
+
+
 # show some examples
-for i in range(20):
-	print('Expected=%s, Predicted=%s' % (expected[i], predicted[i]))
+print('    Expected  |  Predicted  |  Wrong?')
+#          12345678  |  12345678   |  True
+print('    __________________________________')
+for k,v in enumerate(expected):
+    print(f'    {expected[k]:<8}  |  {predicted[k]:<8}   |  {"True" if expected[k] != predicted[k] else "."}')
