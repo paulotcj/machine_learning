@@ -144,7 +144,7 @@ def invert_one_hot_encode(seq, alphabet):
         #argmax returns the index of the max value - so what we are doing is to get the index of the 1 in the one hot encoded vector
         # and then we are getting the char that represents that index
         string = int_to_char[np.argmax(pattern)] 
-    strings.append(string)
+        strings.append(string)
     return ''.join(strings)
 #-------------------------------------------------------------------------
 #-------------------------------------------------------------------------
@@ -279,13 +279,12 @@ def start_test2_comments_may_be_relevant():
     for i in range(20):
         print('Expected=%s, Predicted=%s' % (expected[i], predicted[i]))
 #-------------------------------------------------------------------------
-
 print('----------------------------------------------')
 print('Defining parameters')
 seed(1)
-n_samples = 10_000
+n_samples = 300_000
 n_numbers = 2
-largest = 99
+largest = 999
 alphabet = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '+', ' ']
 n_chars = len(alphabet)
 n_in_seq_length = n_numbers * math.ceil(math.log10(largest+1)) + n_numbers - 1
@@ -305,20 +304,39 @@ n_epoch = 30
 # create LSTM
 model = Sequential()
 model.add(LSTM(100, input_shape=(n_in_seq_length, n_chars)))
+
 model.add(RepeatVector(n_out_seq_length))
 model.add(LSTM(50, return_sequences=True))
+
 model.add(TimeDistributed(Dense(n_chars, activation='softmax')))
-
-
-
 model.compile(loss='categorical_crossentropy', optimizer='adam', metrics=['accuracy'])
 print(model.summary())
+
 print('----------------------------------------------')
 print('Training the LSTM model')
 # train LSTM
-for i in range(n_epoch):
-    x, y = generate_data(n_samples = n_samples, n_numbers = n_numbers, largest = largest, alphabet = alphabet)
-    model.fit(x, y, epochs=1, batch_size=n_batch)
+# for i in range(n_epoch):
+#     x, y = generate_data(n_samples = n_samples, n_numbers = n_numbers, largest = largest, alphabet = alphabet)
+#     model.fit(x, y, epochs=1, batch_size=n_batch)
+
+import os
+from keras.models import load_model
+
+model_path = 'seq2seq_model.h5'
+
+if os.path.exists(model_path):
+    print('Loading the existing model...')
+    model = load_model(model_path)
+else:
+    print('Training the model...')
+
+    for i in range(n_epoch):
+        x, y = generate_data(n_samples, n_numbers, largest, alphabet)
+        model.fit(x, y, epochs=1, batch_size=n_batch)
+
+
+    print('Saving the model...')
+    model.save(model_path)
 
 print('----------------------------------------------')
 print('Check the results')
@@ -331,9 +349,24 @@ result = model.predict(x, batch_size = n_batch, verbose = 2 )
 expected = [ invert_one_hot_encode(i, alphabet) for i in y ]
 predicted = [ invert_one_hot_encode(i, alphabet) for i in result ]
 
+wrong_count = 0
+wrongs_array = []
 # show some examples
 print('    Expected  |  Predicted  |  Wrong?')
 #          12345678  |  12345678   |  True
 print('    __________________________________')
 for k,v in enumerate(expected):
-    print(f'    {expected[k]:<8}  |  {predicted[k]:<8}   |  {"True" if expected[k] != predicted[k] else "."}')
+    if expected[k] != predicted[k]:
+        wrong_count += 1
+        wrong = "True"
+        wrongs_array.append([expected[k], predicted[k]])
+    else:
+        wrong = "."
+
+    print(f'    {expected[k]:<8}  |  {predicted[k]:<8}   |  {wrong}')
+print('----------------------------------------------')
+print('Wrongs list:')
+for n  in wrongs_array:
+    print(f'Expected: {n[0]} - Predicted: {n[1]}')
+print('----------------------------------------------')
+print(f'Total samples: {len(expected)} - Wrong samples: {wrong_count} - Accuracy: {100 - (wrong_count/len(expected)*100):.2f}%')
