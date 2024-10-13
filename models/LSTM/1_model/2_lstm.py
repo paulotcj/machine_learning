@@ -2,6 +2,8 @@ import numpy as np
 
 # Set seed such that we always get the same dataset
 np.random.seed(42)
+#-------------------------------------------------------------------------
+
 
 def generate_dataset(num_sequences=100):
     """
@@ -14,23 +16,28 @@ def generate_dataset(num_sequences=100):
     """
     samples = []
     
-    for _ in range(num_sequences): 
-        num_tokens = np.random.randint(1, 10)
+    for _ in range(num_sequences):  
+        num_tokens = np.random.randint(1, 10) # pick a number of tokens to be generated
+        # generate an equal number of 'a's and 'b's, followed by an 'EOS' token, e.g.: ['a', 'a', 'a', 'b', 'b', 'b', 'EOS']
         sample = ['a'] * num_tokens + ['b'] * num_tokens + ['EOS']
         samples.append(sample)
         
     return samples
 
-
+#-------------------------------------------------------------------------
+print('Generating dataset of sequences')
 sequences = generate_dataset()
 
 print('A single sample from the generated dataset:')
 print(sequences[0])
-
+print('----------------------------------------------')
 
 
 from collections import defaultdict
-
+#-------------------------------------------------------------------------
+def sequence_to_dict(sequences):
+    pass
+print('----------------------------------------------')
 def sequences_to_dicts(sequences):
     """
     Creates word_to_idx and idx_to_word dictionaries for a list of sequences.
@@ -70,6 +77,7 @@ def sequences_to_dicts(sequences):
         idx_to_word[idx] = word
 
     return word_to_idx, idx_to_word, num_sentences, vocab_size
+#-------------------------------------------------------------------------
 
 
 word_to_idx, idx_to_word, num_sequences, vocab_size = sequences_to_dicts(sequences)
