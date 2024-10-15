@@ -36,7 +36,7 @@ print('----------------------------------------------')
 from collections import defaultdict
 #-------------------------------------------------------------------------
 def sequence_to_dict(sequences):
-    pass
+    flatten = lambda l : [  ]
 print('----------------------------------------------')
 def sequences_to_dicts(sequences):
     """
