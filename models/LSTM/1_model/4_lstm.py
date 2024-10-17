@@ -9,14 +9,14 @@ import numpy as np
 np.random.seed(42)
 #-------------------------------------------------------------------------
 def generate_dataset(num_sequences=100):
-    """
-    Generates a number of sequences as our dataset.
-    
-    Args:
-     `num_sequences`: the number of sequences to be generated.
-     
-    Returns a list of sequences.
-    """
+
+    # Generates a number of sequences as our dataset.
+    #
+    # Args:
+    # `num_sequences`: the number of sequences to be generated.
+    #     
+    #Returns a list of sequences.
+
     samples = []
     
     for _ in range(num_sequences):  
@@ -42,9 +42,8 @@ print('----------------------------------------------')
 from collections import defaultdict
 #-------------------------------------------------------------------------
 def sequences_to_dicts(sequences):
-    """
-    Creates word_to_idx and idx_to_word dictionaries for a list of sequences.
-    """
+    # Creates word_to_idx and idx_to_word dictionaries for a list of sequences.
+    
     # A bit of Python-magic to flatten a nested list 'list_param'
     flatten = lambda list_param: [
         item 
@@ -173,17 +172,16 @@ print(f'The word corresponding to index 1 is \'{idx_to_word[1]}\'')
 ##
 ##########################################################################
 
-
+#-------------------------------------------------------------------------    
 def one_hot_encode(idx, vocab_size):
-    """
-    One-hot encodes a single word given its index and the size of the vocabulary.
-    
-    Args:
-     `idx`: the index of the given word
-     `vocab_size`: the size of the vocabulary
-    
-    Returns a 1-D numpy array of length `vocab_size`.
-    """
+    # One-hot encodes a single word given its index and the size of the vocabulary.
+    #    
+    # Args:
+    #  `idx`: the index of the given word
+    #  `vocab_size`: the size of the vocabulary
+    #
+    # Returns a 1-D numpy array of length `vocab_size`.
+
     # Initialize the encoded array
     one_hot = np.zeros(vocab_size)
     
@@ -191,18 +189,20 @@ def one_hot_encode(idx, vocab_size):
     one_hot[idx] = 1.0
 
     return one_hot
-
-
+#-------------------------------------------------------------------------
 def one_hot_encode_sequence(sequence, vocab_size):
-    """
-    One-hot encodes a sequence of words given a fixed vocabulary size.
-    
-    Args:
-     `sentence`: a list of words to encode
-     `vocab_size`: the size of the vocabulary
-     
-    Returns a 3-D numpy array of shape (num words, vocab size, 1).
-    """
+    encoding = np.array( word for word in sequence )
+#-------------------------------------------------------------------------    
+def one_hot_encode_sequence(sequence, vocab_size):
+
+    # One-hot encodes a sequence of words given a fixed vocabulary size.
+    #
+    # Args:
+    #  `sentence`: a list of words to encode
+    #  `vocab_size`: the size of the vocabulary
+    #     
+    # Returns a 3-D numpy array of shape (num words, vocab size, 1).
+
     # Encode each word in the sentence
     encoding = np.array([one_hot_encode(word_to_idx[word], vocab_size) for word in sequence])
 
@@ -210,7 +210,7 @@ def one_hot_encode_sequence(sequence, vocab_size):
     encoding = encoding.reshape(encoding.shape[0], encoding.shape[1], 1)
     
     return encoding
-
+#-------------------------------------------------------------------------    
 
 test_word = one_hot_encode(word_to_idx['a'], vocab_size)
 print(f'Our one-hot encoding of \'a\' has shape {test_word.shape}.')
