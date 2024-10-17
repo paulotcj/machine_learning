@@ -234,8 +234,16 @@ vocab_size  = len(word_to_idx) # Size of the vocabulary used
 
 #-------------------------------------------------------------------------  
 def init_orthogonal(param):
+    if param.ndim < 2: raise ValueError("Only 2 dimensions and up are supported")
+    rows, cols = param.shape
+    new_param = np.random.randn(rows, cols)
+    if rows < cols: new_param = new_param.T
+    q, r = np.linalg.qr(new_param)
+
+#---
+def init_orthogonal(param):
     
-    # Initializes weight parameters orthogonally.
+    # Initializes weight parameters orthogonally. (Meaning orthogonal matrix, i.e.: a square matrix)
     #    Refer to this paper for an explanation of this initialization:
     #    https://arxiv.org/abs/1312.6120
     
@@ -244,10 +252,10 @@ def init_orthogonal(param):
 
     rows, cols = param.shape
     
-    new_param = np.random.randn(rows, cols)
+    new_param = np.random.randn(rows, cols) #randn -> sample(s) standard normal distribution in the shape of rows x cols
     
     if rows < cols:
-        new_param = new_param.T
+        new_param = new_param.T #transpose the matrix, if 3x2 -> 2x3
     
     # Compute QR factorization
     q, r = np.linalg.qr(new_param)
