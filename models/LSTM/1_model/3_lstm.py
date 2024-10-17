@@ -1,10 +1,13 @@
 import numpy as np
 
+##########################################################################
+##
+##  PART 1
+##
+##########################################################################
 # Set seed such that we always get the same dataset
 np.random.seed(42)
 #-------------------------------------------------------------------------
-
-
 def generate_dataset(num_sequences=100):
     """
     Generates a number of sequences as our dataset.
@@ -32,7 +35,11 @@ print('A single sample from the generated dataset:')
 print(sequences[0])
 print('----------------------------------------------')
 
-
+##########################################################################
+##
+##  PART 2
+##
+##########################################################################
 from collections import defaultdict
 #-------------------------------------------------------------------------
 def sequences_to_dicts(sequences):
@@ -81,6 +88,86 @@ def sequences_to_dicts(sequences):
 
     return word_to_idx, idx_to_word, num_sentences, vocab_size
 #-------------------------------------------------------------------------
+
+##########################################################################
+##
+##  PART 3
+##
+##########################################################################
+from torch.utils import data
+#-------------------------------------------------------------------------
+class Dataset(data.Dataset):
+    def __init__(self, inputs, targets):
+        self.inputs = inputs # x
+        self.targets = targets # y
+
+    def __len__(self):
+        # Return the size of the dataset
+        return len(self.targets)
+
+    def __getitem__(self, index):
+        # Retrieve inputs and targets at the given index
+        x = self.inputs[index]
+        y = self.targets[index]
+
+        return x, y
+#-------------------------------------------------------------------------
+#-------------------------------------------------------------------------
+def create_dataset(sequences, dataset_class, p_train = 0.8, p_val = 0.1, p_test = 0.1):
+    num_train = int( len(sequences)*p_train )
+    num_val = int( len(sequences)*p_val )
+    num_test = int( len(sequences)*p_test )
+
+    sequences_train = sequences[:num_train]
+    sequences_val = sequences[num_train: num_train + num_val]
+    sequences_test = sequences[-num_test:]
+    #----------
+    def 
+    #----------
+#-------------------------------------------------------------------------
+def create_datasets(sequences, dataset_class, p_train=0.8, p_val=0.1, p_test=0.1):
+    # Define partition sizes
+    num_train = int( len(sequences)*p_train ) #typically 80% of the data
+    num_val = int( len(sequences)*p_val )     #typically 10% of the data
+    num_test = int( len(sequences)*p_test )   #typically 10% of the data
+
+    # Split sequences into partitions
+    sequences_train = sequences[:num_train]
+    sequences_val = sequences[num_train:num_train+num_val]
+    sequences_test = sequences[-num_test:]
+
+    #----------
+    def get_inputs_targets_from_sequences(sequences):
+        # Define empty lists
+        inputs, targets = [], []
+        
+        # Append inputs and targets s.t. both lists contain L-1 words of a sentence of length L
+        # but targets are shifted right by one so that we can predict the next word
+        for sequence in sequences:
+            inputs.append(sequence[:-1])
+            targets.append(sequence[1:])
+            
+        return inputs, targets
+    #----------
+
+    # Get inputs and targets for each partition
+    inputs_train, targets_train = get_inputs_targets_from_sequences(sequences_train)
+    inputs_val, targets_val = get_inputs_targets_from_sequences(sequences_val)
+    inputs_test, targets_test = get_inputs_targets_from_sequences(sequences_test)
+
+    # Create datasets
+    training_set = dataset_class(inputs_train, targets_train)
+    validation_set = dataset_class(inputs_val, targets_val)
+    test_set = dataset_class(inputs_test, targets_test)
+
+    return training_set, validation_set, test_set
+#-------------------------------------------------------------------------    
+
+training_set, validation_set, test_set = create_datasets(sequences, Dataset)
+
+print(f'We have {len(training_set)} samples in the training set.')
+print(f'We have {len(validation_set)} samples in the validation set.')
+print(f'We have {len(test_set)} samples in the test set.')
 
 
 word_to_idx, idx_to_word, num_sequences, vocab_size = sequences_to_dicts(sequences)
