@@ -165,3 +165,10 @@ word_to_idx, idx_to_word, num_sequences, vocab_size = sequences_to_dicts(sequenc
 print(f'We have {num_sequences} sentences and {len(word_to_idx)} unique tokens in our dataset (including UNK).\n')
 print('The index of \'b\' is', word_to_idx['b'])
 print(f'The word corresponding to index 1 is \'{idx_to_word[1]}\'')
+
+
+##########################################################################
+##
+##  PART 4
+##
+##########################################################################
