@@ -26,7 +26,6 @@ def generate_dataset(num_sequences=100):
         samples.append(sample)
         
     return samples
-
 #-------------------------------------------------------------------------
 print('Generating dataset of sequences')
 sequences = generate_dataset()
@@ -113,51 +112,42 @@ class Dataset(data.Dataset):
         return x, y
 #-------------------------------------------------------------------------
 #-------------------------------------------------------------------------
-def create_dataset(sequences, dataset_class, p_train = 0.8, p_val = 0.1, p_test = 0.1):
-    num_train = int( len(sequences)*p_train )
-    num_val = int( len(sequences)*p_val )
-    num_test = int( len(sequences)*p_test )
-
-    sequences_train = sequences[:num_train]
-    sequences_val = sequences[num_train: num_train + num_val]
-    sequences_test = sequences[-num_test:]
-    #----------
-    def 
-    #----------
+def get_inputs_targets_from_sequences(sequences):
+    # Define empty lists
+    inputs, targets = [], []
+    
+    # Append inputs and targets such that both lists contain L-1 words of a sentence of length L
+    # but targets are shifted right by one so that we can predict the next word
+    # example: 'The quick brown fox jumps'
+    #    Inputs:  ["The", "quick", "brown", "fox"]
+    #    Targets: ["quick", "brown", "fox", "jumps"]
+    # The idea is to predict the next word based on the input words, so the model learns to predict 
+    # "quick" given "The", "brown" given "quick", and so on.
+    for sequence in sequences:
+        inputs.append(sequence[:-1]) # take everything except the last word -> ["The", "quick", "brown", "fox"]
+        targets.append(sequence[1:]) # take everything except the first word -> ["quick", "brown", "fox", "jumps"]
+        
+    return inputs, targets
 #-------------------------------------------------------------------------
 def create_datasets(sequences, dataset_class, p_train=0.8, p_val=0.1, p_test=0.1):
     # Define partition sizes
     num_train = int( len(sequences)*p_train ) #typically 80% of the data
-    num_val = int( len(sequences)*p_val )     #typically 10% of the data
+    num_validation = int( len(sequences)*p_val )     #typically 10% of the data
     num_test = int( len(sequences)*p_test )   #typically 10% of the data
 
     # Split sequences into partitions
     sequences_train = sequences[:num_train]
-    sequences_val = sequences[num_train:num_train+num_val]
+    sequences_validation = sequences[num_train:num_train+num_validation]
     sequences_test = sequences[-num_test:]
-
-    #----------
-    def get_inputs_targets_from_sequences(sequences):
-        # Define empty lists
-        inputs, targets = [], []
-        
-        # Append inputs and targets s.t. both lists contain L-1 words of a sentence of length L
-        # but targets are shifted right by one so that we can predict the next word
-        for sequence in sequences:
-            inputs.append(sequence[:-1])
-            targets.append(sequence[1:])
-            
-        return inputs, targets
-    #----------
 
     # Get inputs and targets for each partition
     inputs_train, targets_train = get_inputs_targets_from_sequences(sequences_train)
-    inputs_val, targets_val = get_inputs_targets_from_sequences(sequences_val)
+    inputs_validation, targets_validation = get_inputs_targets_from_sequences(sequences_validation)
     inputs_test, targets_test = get_inputs_targets_from_sequences(sequences_test)
 
     # Create datasets
     training_set = dataset_class(inputs_train, targets_train)
-    validation_set = dataset_class(inputs_val, targets_val)
+    validation_set = dataset_class(inputs_validation, targets_validation)
     test_set = dataset_class(inputs_test, targets_test)
 
     return training_set, validation_set, test_set
