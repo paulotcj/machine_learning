@@ -395,3 +395,61 @@ def softmax(x, derivative = False ):
 ##  PART 7
 ##
 ##########################################################################
+#-------------------------------------------------------------------------
+def forward_pass(inputs, hidden_state, params):
+    # Computes the forward pass of a vanilla RNN.
+    # Args:
+    #  `inputs`: sequence of inputs to be processed
+    #  `hidden_state`: an already initialized hidden state
+    #  `params`: the parameters of the RNN
+
+    # First we unpack our parameters
+    #   U - weight input to hidden state, V - weight matrix recurrent computation,
+    #   W - weight matrix hidden state to output, bias_hidden shape, bias_out
+    U, V, W, b_hidden, b_out = params
+    
+    # Create a list to store outputs and hidden states
+    outputs, hidden_states = [], []
+    
+    # For each element in input sequence
+    for t in range(len(inputs)): # t as the notation for time-step
+        # Compute new hidden state
+        temp_hidden_state = np.dot(U, inputs[t]) + np.dot(V, hidden_state) + b_hidden
+        hidden_state = tanh(temp_hidden_state)
+
+        # Compute output
+        temp_out = np.dot(W, hidden_state) + b_out
+        out = softmax(temp_out)
+        
+        # Save results and continue
+        outputs.append(out)
+        hidden_states.append(hidden_state.copy())
+    
+    return outputs, hidden_states
+#-------------------------------------------------------------------------
+print(f'training_set len: {len(training_set)}')
+print(f'training_set[0]: \n{training_set[0][0]}\n{training_set[0][1]}')
+# test_input_sequence, test_target_sequence = training_set[0]
+exit()
+#-------
+# Get first sequence in training set
+test_input_sequence, test_target_sequence = training_set[0]
+
+# One-hot encode input and target sequence
+test_input = one_hot_encode_sequence(test_input_sequence, vocab_size)
+test_target = one_hot_encode_sequence(test_target_sequence, vocab_size)
+
+# Initialize hidden state as zeros
+hidden_state = np.zeros((hidden_size, 1))
+
+# Now let's try out our new function
+outputs, hidden_states = forward_pass(test_input, hidden_state, params)
+
+print('Input sequence:')
+print(test_input_sequence)
+
+print('\nTarget sequence:')
+print(test_target_sequence)
+
+print('\nPredicted sequence:')
+print([idx_to_word[np.argmax(output)] for output in outputs])
