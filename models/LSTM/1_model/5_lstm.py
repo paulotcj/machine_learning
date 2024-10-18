@@ -234,16 +234,8 @@ vocab_size  = len(word_to_idx) # Size of the vocabulary used
 
 #-------------------------------------------------------------------------  
 def init_orthogonal(param):
-    if param.ndim < 2: raise ValueError("Only 2 dimensions and up are supported")
-    rows, cols = param.shape
-    new_param = np.random.randn(rows, cols)
-    if rows < cols: new_param = new_param.T
-    q, r = np.linalg.qr(new_param)
-
-#---
-def init_orthogonal(param):
     
-    # Initializes weight parameters orthogonally. (Meaning orthogonal matrix, i.e.: a square matrix)
+    # Initializes weight parameters orthogonally. (Meaning orthogonal matrix)
     #    Refer to this paper for an explanation of this initialization:
     #    https://arxiv.org/abs/1312.6120
     
@@ -261,9 +253,21 @@ def init_orthogonal(param):
     q, r = np.linalg.qr(new_param)
     
     # Make Q uniform according to https://arxiv.org/pdf/math-ph/0609050.pdf
+    # consider:
+    # r = np.array([[0, 1, 2],
+    #               [3, 4, 5],
+    #               [6, 7, 8]])
+    # np.diag(r, 0) -> [0 4 8]    np.diag(r, 1) -> [1 5]    np.diag(r, -1) -> [3 7]
     d = np.diag(r, 0)
+
+    # np.sign(d): This function returns an array of the same shape as d, where each element is the sign of the corresponding element in d.
+    #   If an element in d is positive, the corresponding element in ph will be 1.
+    #   If an element in d is negative, the corresponding element in ph will be -1.
+    #   If an element in d is zero, the corresponding element in ph will be 0.
+    # Consider: d = np.array([4, -5, 0]) -> ph = np.sign(d) -> [1 -1 0]
     ph = np.sign(d)
-    q *= ph
+
+    q *= ph # multiplies each column of q by each element in ph, ensuring that the orthogonal matrix q has the desired properties
 
     if rows < cols:
         q = q.T
@@ -271,34 +275,29 @@ def init_orthogonal(param):
     new_param = q
     
     return new_param
-#-------------------------------------------------------------------------  
-#-------------------------------------------------------------------------  
+#-------------------------------------------------------------------------
+#-------------------------------------------------------------------------
 def init_rnn(hidden_size, vocab_size):
 
     # Initializes our recurrent neural network.
-    
+    #
     # Args:
     #  `hidden_size`: the dimensions of the hidden state
     #  `vocab_size`: the dimensions of our vocabulary
 
     # Weight matrix (input to hidden state)
-    # YOUR CODE HERE!
     U = np.zeros((hidden_size, vocab_size))
 
     # Weight matrix (recurrent computation)
-    # YOUR CODE HERE!
     V = np.zeros((hidden_size, hidden_size))
 
     # Weight matrix (hidden state to output)
-    # YOUR CODE HERE!
     W = np.zeros((vocab_size, hidden_size))
 
     # Bias (hidden state)
-    # YOUR CODE HERE!
     b_hidden = np.zeros((hidden_size, 1))
 
     # Bias (output)
-    # YOUR CODE HERE!
     b_out = np.zeros((vocab_size, 1))
     
     # Initialize weights
