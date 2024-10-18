@@ -310,3 +310,15 @@ def init_rnn(hidden_size, vocab_size):
 #-------------------------------------------------------------------------  
 
 params = init_rnn(hidden_size=hidden_size, vocab_size=vocab_size)
+print('----------------------------------------------')
+print(f'U (weight input to hidden state) shape: {params[0].shape}') # U
+print(f'V (weight matrix recurrent computation) shape: {params[1].shape}') # V
+print(f'W (weight matrix hidden state to output) shape: {params[2].shape}') # W
+print(f'bias_hidden shape: {params[3].shape}') # b_hidden
+print(f'bias_out shape: {params[4].shape}') # b_out
+print('----------------------------------------------')
+print(f'U first 5 rows:\n------------\n{params[0][:5]}\n------------\n')
+print(f'V first 2 rows:\n------------\n{params[1][:2]}\n------------\n')
+print(f'W first 5 rows:\n------------\n{params[2][:2]}\n------------\n')
+print(f'bias_hidden first 5 rows:{params[3]}')
+print(f'bias_out :{params[4]}')
