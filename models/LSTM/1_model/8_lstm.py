@@ -468,9 +468,6 @@ print('----------------------------------------------')
 ##########################################################################
 
 #-------------------------------------------------------------------------
-def clip_gradient_norm(grads, max_norm-0.25):
-    
-#-----
 def clip_gradient_norm(grads, max_norm=0.25):
     # Clips gradients to have a maximum norm of `max_norm`.
     # This is to prevent the exploding gradients problem.
@@ -498,8 +495,16 @@ def clip_gradient_norm(grads, max_norm=0.25):
 #-------------------------------------------------------------------------
 #-------------------------------------------------------------------------
 def backward_pass(inputs, outputs, hidden_states, targets, params):
+    u, v, w, b_hidden, b_out = params
+    d_u, d_v, d_w = np.zeros_like(u), np.zeros_like(v), np.zeros_like(w)
+    d_b_hidden, d_b_out = np.zeros_like(b_hidden), np.zeros_like(b_out)
+    d_h_next = np.zeros_like(hidden_states[0])
+    loss = 0
+    for i in reversed( range( len(outputs) ) ):
+
+
+def backward_pass(inputs, outputs, hidden_states, targets, params):
     # Computes the backward pass of a vanilla RNN.
-    
     # Args:
     #  `inputs`: sequence of inputs to be processed
     #  `outputs`: sequence of outputs from the forward pass
@@ -511,7 +516,7 @@ def backward_pass(inputs, outputs, hidden_states, targets, params):
     U, V, W, b_hidden, b_out = params
     
     # Initialize gradients as zero
-    d_U, d_V, d_W = np.zeros_like(U), np.zeros_like(V), np.zeros_like(W)
+    d_U, d_V, d_W = np.zeros_like(U), np.zeros_like(V), np.zeros_like(W) # np.zeros_like(var) generates a new array of zeros with the same shape and type as the array 'var'
     d_b_hidden, d_b_out = np.zeros_like(b_hidden), np.zeros_like(b_out)
     
     # Keep track of hidden state derivative and loss
@@ -520,7 +525,7 @@ def backward_pass(inputs, outputs, hidden_states, targets, params):
     
     # For each element in output sequence
     # NB: We iterate backwards s.t. t = N, N-1, ... 1, 0
-    for t in reversed(range(len(outputs))):
+    for t in reversed( range( len(outputs) ) ):
 
         # Compute cross-entropy loss (as a scalar)
         loss += -np.mean(np.log(outputs[t]+1e-12) * targets[t])
