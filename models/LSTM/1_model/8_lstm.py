@@ -466,3 +466,99 @@ print('----------------------------------------------')
 ##  PART 8
 ##
 ##########################################################################
+
+#-------------------------------------------------------------------------
+def clip_gradient_norm(grads, max_norm-0.25):
+    
+#-----
+def clip_gradient_norm(grads, max_norm=0.25):
+    # Clips gradients to have a maximum norm of `max_norm`.
+    # This is to prevent the exploding gradients problem.
+
+    # Set the maximum of the norm to be of type float
+    max_norm = float(max_norm)
+    total_norm = 0
+    
+    # Calculate the L2 norm squared for each gradient and add them to the total norm
+    for grad in grads:
+        grad_norm = np.sum(np.power(grad, 2))
+        total_norm += grad_norm
+    
+    total_norm = np.sqrt(total_norm)
+    
+    # Calculate clipping coeficient
+    clip_coef = max_norm / (total_norm + 1e-6)
+    
+    # If the total norm is larger than the maximum allowable norm, then clip the gradient
+    if clip_coef < 1:
+        for grad in grads:
+            grad *= clip_coef
+    
+    return grads
+#-------------------------------------------------------------------------
+#-------------------------------------------------------------------------
+def backward_pass(inputs, outputs, hidden_states, targets, params):
+    # Computes the backward pass of a vanilla RNN.
+    
+    # Args:
+    #  `inputs`: sequence of inputs to be processed
+    #  `outputs`: sequence of outputs from the forward pass
+    #  `hidden_states`: sequence of hidden_states from the forward pass
+    #  `targets`: sequence of targets
+    #  `params`: the parameters of the RNN
+
+    # First we unpack our parameters
+    U, V, W, b_hidden, b_out = params
+    
+    # Initialize gradients as zero
+    d_U, d_V, d_W = np.zeros_like(U), np.zeros_like(V), np.zeros_like(W)
+    d_b_hidden, d_b_out = np.zeros_like(b_hidden), np.zeros_like(b_out)
+    
+    # Keep track of hidden state derivative and loss
+    d_h_next = np.zeros_like(hidden_states[0])
+    loss = 0
+    
+    # For each element in output sequence
+    # NB: We iterate backwards s.t. t = N, N-1, ... 1, 0
+    for t in reversed(range(len(outputs))):
+
+        # Compute cross-entropy loss (as a scalar)
+        loss += -np.mean(np.log(outputs[t]+1e-12) * targets[t])
+        
+        # Backpropagate into output (derivative of cross-entropy)
+        # if you're confused about this step, see this link for an explanation:
+        # http://cs231n.github.io/neural-networks-case-study/#grad
+        d_o = outputs[t].copy()
+        d_o[np.argmax(targets[t])] -= 1
+        
+        # Backpropagate into W
+        d_W += np.dot(d_o, hidden_states[t].T)
+        d_b_out += d_o
+        
+        # Backpropagate into h
+        d_h = np.dot(W.T, d_o) + d_h_next
+        
+        # Backpropagate through non-linearity
+        d_f = tanh(hidden_states[t], derivative=True) * d_h
+        d_b_hidden += d_f
+        
+        # Backpropagate into U
+        d_U += np.dot(d_f, inputs[t].T)
+        
+        # Backpropagate into V
+        d_V += np.dot(d_f, hidden_states[t-1].T)
+        d_h_next = np.dot(V.T, d_f)
+    
+    # Pack gradients
+    grads = d_U, d_V, d_W, d_b_hidden, d_b_out    
+    
+    # Clip gradients
+    grads = clip_gradient_norm(grads)
+    
+    return loss, grads
+#-------------------------------------------------------------------------
+
+loss, grads = backward_pass(test_input, outputs, hidden_states, test_target, params)
+
+print('We get a loss of:')
+print(loss)
