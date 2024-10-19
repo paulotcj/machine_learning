@@ -495,15 +495,6 @@ def clip_gradient_norm(grads, max_norm=0.25):
 #-------------------------------------------------------------------------
 #-------------------------------------------------------------------------
 def backward_pass(inputs, outputs, hidden_states, targets, params):
-    u, v, w, b_hidden, b_out = params
-    d_u, d_v, d_w = np.zeros_like(u), np.zeros_like(v), np.zeros_like(w)
-    d_b_hidden, d_b_out = np.zeros_like(b_hidden), np.zeros_like(b_out)
-    d_h_next = np.zeros_like(hidden_states[0])
-    loss = 0
-    for i in reversed( range( len(outputs) ) ):
-
-
-def backward_pass(inputs, outputs, hidden_states, targets, params):
     # Computes the backward pass of a vanilla RNN.
     # Args:
     #  `inputs`: sequence of inputs to be processed
@@ -525,16 +516,30 @@ def backward_pass(inputs, outputs, hidden_states, targets, params):
     
     # For each element in output sequence
     # NB: We iterate backwards s.t. t = N, N-1, ... 1, 0
+    #----
     for t in reversed( range( len(outputs) ) ):
-
+        #------------------
         # Compute cross-entropy loss (as a scalar)
-        loss += -np.mean(np.log(outputs[t]+1e-12) * targets[t])
+        #  Remember we can have targets shape as (14, 4, 1) and outputs shape as (14, 4, 1), so what we do here
+        #    is outputs[0]->(4,1) , targets[0]->(4,1)  
+        #       
+        # Formula: Loss += -(1/N) * SUM(i->n)[ y * log(y_hat + E) ] 
+        #  note that 1/N*SUM(i->n) is the same as np.mean()
+        loss += -np.mean( np.log( outputs[t]+1e-12 ) * targets[t] )
+        
+        # print(f'outputs[t]: {outputs[t]}')
+        # print(f'targets[t]: {targets[t]}')
+        # print(f'np.log( outputs[t]): {np.log( outputs[t] )}')
+        # print(f'np.log( outputs[t]+1e-12 ) * targets[t]: { np.log( outputs[t]+1e-12 ) * targets[t] }')
+        # print(f'np.mean( np.log( outputs[t]+1e-12 ) * targets[t] ): {np.mean( np.log( outputs[t]+1e-12 ) * targets[t] )}')
+        # print('--------')
+        #------------------
         
         # Backpropagate into output (derivative of cross-entropy)
         # if you're confused about this step, see this link for an explanation:
         # http://cs231n.github.io/neural-networks-case-study/#grad
         d_o = outputs[t].copy()
-        d_o[np.argmax(targets[t])] -= 1
+        d_o[ np.argmax(targets[t]) ] -= 1
         
         # Backpropagate into W
         d_W += np.dot(d_o, hidden_states[t].T)
@@ -563,7 +568,14 @@ def backward_pass(inputs, outputs, hidden_states, targets, params):
     return loss, grads
 #-------------------------------------------------------------------------
 
-loss, grads = backward_pass(test_input, outputs, hidden_states, test_target, params)
+# print(f'targets shape: {test_target.shape}') # shape: (14, 4, 1)
+# print(f'targets:\n{test_target}')
+# print('-----')
+# print(f'inputs shape: {test_input.shape}') # shape: (14, 4, 1)
+# print(f'outputs:\n{outputs}')
+# print('----------------------------------------------')
+loss, grads = backward_pass(inputs = test_input, outputs = outputs, 
+                            hidden_states = hidden_states, targets = test_target, params = params)
 
 print('We get a loss of:')
 print(loss)
