@@ -427,17 +427,21 @@ def forward_pass(inputs, hidden_state, params):
     
     return outputs, hidden_states
 #-------------------------------------------------------------------------
+print('----------------------------------------------')
+print('about the inputs and targets remember:')
+print('  example: \'The quick brown fox jumps\'')
+print('      Inputs:  ["The", "quick", "brown", "fox"]')
+print('      Targets: ["quick", "brown", "fox", "jumps"]')
 print(f'training_set len: {len(training_set)}')
-print(f'training_set[0]: \n{training_set[0][0]}\n{training_set[0][1]}')
-# test_input_sequence, test_target_sequence = training_set[0]
-exit()
-#-------
+print(f'training_set[0][0] (inputs)\ntraining_set[0][1] (targets):\n{training_set[0][0]}\n{training_set[0][1]}')
+print('----------------------------------------------')
+
 # Get first sequence in training set
 test_input_sequence, test_target_sequence = training_set[0]
 
 # One-hot encode input and target sequence
-test_input = one_hot_encode_sequence(test_input_sequence, vocab_size)
-test_target = one_hot_encode_sequence(test_target_sequence, vocab_size)
+test_input = one_hot_encode_sequence(sequence = test_input_sequence, vocab_size = vocab_size, param_word_to_idx = word_to_idx)
+test_target = one_hot_encode_sequence(sequence = test_target_sequence, vocab_size = vocab_size, param_word_to_idx = word_to_idx)
 
 # Initialize hidden state as zeros
 hidden_state = np.zeros((hidden_size, 1))
@@ -453,3 +457,5 @@ print(test_target_sequence)
 
 print('\nPredicted sequence:')
 print([idx_to_word[np.argmax(output)] for output in outputs])
+print('Note: At this stage the predictions are random, as the model has not been trained yet.')
+print('----------------------------------------------')
