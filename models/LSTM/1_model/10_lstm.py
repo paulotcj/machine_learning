@@ -761,7 +761,6 @@ def freestyle(params, sentence = '', num_generate = 4 , param_hidden_size = 50):
     word = idx_to_word[np.argmax(outputs[-1])]    
     output_sentence.append(word)
     
-    #-----------
     # Forward pass
     for i in range(num_generate):
 
@@ -773,7 +772,9 @@ def freestyle(params, sentence = '', num_generate = 4 , param_hidden_size = 50):
         output = output.reshape(1, output.shape[0], output.shape[1])
     
         # Forward pass
-        outputs, hidden_states = forward_pass(output, hidden_state, params)
+        outputs, hidden_states = forward_pass(
+            inputs = output, hidden_state = hidden_state, params = params
+        )
         
         # Compute the index the most likely word and look up the corresponding word
         word = idx_to_word[np.argmax(outputs)]
@@ -784,5 +785,5 @@ def freestyle(params, sentence = '', num_generate = 4 , param_hidden_size = 50):
 #------------------------------------------------------------------------- 
 
 # Perform freestyle
-print('Example:')
-print(freestyle(params, sentence='a a a a a b'))
+result_freestyle = freestyle(params, sentence='a a a a a b')
+print(f'Result freestyle\n:{result_freestyle}')
