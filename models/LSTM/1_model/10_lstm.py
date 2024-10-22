@@ -9,13 +9,12 @@ import numpy as np
 np.random.seed(42)
 #-------------------------------------------------------------------------
 def generate_dataset(num_sequences=100):
-
-    # Generates a number of sequences as our dataset.
-    #
-    # Args:
-    # `num_sequences`: the number of sequences to be generated.
-    #     
-    #Returns a list of sequences.
+    """
+    Generates a number of sequences as our dataset.
+    Args:
+     `num_sequences`: the number of sequences to be generated.
+    Returns a list of sequences.
+    """
 
     samples = []
     
@@ -42,7 +41,11 @@ print('----------------------------------------------')
 from collections import defaultdict
 #-------------------------------------------------------------------------
 def sequences_to_dicts(sequences):
-    # Creates word_to_idx and idx_to_word dictionaries for a list of sequences.
+    """
+    Creates word_to_idx and idx_to_word dictionaries for a list of sequences.
+    Args:
+        `sequences`: a list of sequences
+    """
     
     # A bit of Python-magic to flatten a nested list 'list_param'
     flatten = lambda list_param: [
@@ -174,13 +177,15 @@ print(f'The word corresponding to index 1 is \'{idx_to_word[1]}\'')
 
 #-------------------------------------------------------------------------    
 def one_hot_encode(idx, vocab_size):
-    # One-hot encodes a single word given its index and the size of the vocabulary.
-    #    
-    # Args:
-    #  `idx`: the index of the given word
-    #  `vocab_size`: the size of the vocabulary
-    #
-    # Returns a 1-D numpy array of length `vocab_size`.
+    """
+    One-hot encodes a single word given its index and the size of the vocabulary.
+       
+    Args:
+     `idx`: the index of the given word
+     `vocab_size`: the size of the vocabulary
+    
+    Returns a 1-D numpy array of length `vocab_size`.
+    """
 
     # Initialize the encoded array
     one_hot = np.zeros(vocab_size)
@@ -192,14 +197,15 @@ def one_hot_encode(idx, vocab_size):
 #-------------------------------------------------------------------------
 #-------------------------------------------------------------------------    
 def one_hot_encode_sequence(sequence, vocab_size, param_word_to_idx):
-
-    # One-hot encodes a sequence of words given a fixed vocabulary size.
-    #
-    # Args:
-    #  `sentence`: a list of words to encode
-    #  `vocab_size`: the size of the vocabulary
-    #     
-    # Returns a 3-D numpy array of shape (num words, vocab size, 1).
+    """
+    One-hot encodes a sequence of words given a fixed vocabulary size.
+    
+    Args:
+     `sentence`: a list of words to encode
+     `vocab_size`: the size of the vocabulary
+        
+    Returns a 3-D numpy array of shape (num words, vocab size, 1).
+    """
 
     # Encode each word in the sentence. From each word in a sentence, we send the index of the word and vocab_size
     #  we expect to receive back the one-hot encoding of the word, something like [0,0,0,1,0,0,0,...]
@@ -234,10 +240,11 @@ vocab_size  = len(word_to_idx) # Size of the vocabulary used
 
 #-------------------------------------------------------------------------  
 def init_orthogonal(param):
-    
-    # Initializes weight parameters orthogonally. (Meaning orthogonal matrix)
-    #    Refer to this paper for an explanation of this initialization:
-    #    https://arxiv.org/abs/1312.6120
+    """    
+    Initializes weight parameters orthogonally. (Meaning orthogonal matrix)
+       Refer to this paper for an explanation of this initialization:
+       https://arxiv.org/abs/1312.6120
+    """
     
     if param.ndim < 2:
         raise ValueError("Only parameters with 2 or more dimensions are supported.")
@@ -278,12 +285,13 @@ def init_orthogonal(param):
 #-------------------------------------------------------------------------
 #-------------------------------------------------------------------------
 def init_rnn(hidden_size, vocab_size):
-
-    # Initializes our recurrent neural network.
-    #
-    # Args:
-    #  `hidden_size`: the dimensions of the hidden state
-    #  `vocab_size`: the dimensions of our vocabulary
+    """
+    Initializes our recurrent neural network.
+    
+    Args:
+     `hidden_size`: the dimensions of the hidden state
+     `vocab_size`: the dimensions of our vocabulary
+    """
 
     # Weight matrix (input to hidden state)
     U = np.zeros((hidden_size, vocab_size))
@@ -331,12 +339,13 @@ print('----------------------------------------------')
 
 #-------------------------------------------------------------------------
 def sigmoid(x, derivative = False):
+    """    
+    Computes the element-wise sigmoid activation function for an array x.
     
-    # Computes the element-wise sigmoid activation function for an array x.
-    #
-    # Args:
-    #  `x`: the array where the function is applied
-    #  `derivative`: if set to True will return the derivative instead of the forward pass
+    Args:
+     `x`: the array where the function is applied
+     `derivative`: if set to True will return the derivative instead of the forward pass
+    """
     
     x_safe = x + 1e-12 # this is a low-low value
     f = 1 / (1 + np.exp(-x_safe))
@@ -350,12 +359,12 @@ def sigmoid(x, derivative = False):
 #-------------------------------------------------------------------------
 #-------------------------------------------------------------------------
 def tanh(x, derivative = False):
-
-    # Computes the element-wise tanh activation function for an array x.
-
-    # Args:
-    #  `x`: the array where the function is applied
-    #  `derivative`: if set to True will return the derivative instead of the forward pass
+    """
+    Computes the element-wise tanh activation function for an array x.
+    Args:
+     `x`: the array where the function is applied
+     `derivative`: if set to True will return the derivative instead of the forward pass
+    """
     #-----
     # tanh function: f(x) = (e^x - e^(-x)) / (e^x + e^(-x))   ALSO: f(x) = sinh(x) / cosh(x)
     # derivative of tanh: f'(x) = 1 - f(x)^2                  OR f'(x) = 1 - tanh^2(x)
@@ -370,12 +379,12 @@ def tanh(x, derivative = False):
 #-------------------------------------------------------------------------
 #-------------------------------------------------------------------------
 def softmax(x, derivative = False ):
-
-    # Computes the softmax for an array x.
-    #
-    # Args:
-    #  `x`: the array where the function is applied
-    #  `derivative`: if set to True will return the derivative instead of the forward pass
+    """
+    Computes the softmax for an array x.
+    Args:
+     `x`: the array where the function is applied
+     `derivative`: if set to True will return the derivative instead of the forward pass\
+    """
     #-----
     # softmax function: f(x) = e^x / sum(e^x)
     # derivative of softmax: "The derivative of the softmax function is a bit more complicated because softmax depends on all the elements of the input vector x ."
@@ -397,11 +406,13 @@ def softmax(x, derivative = False ):
 ##########################################################################
 #-------------------------------------------------------------------------
 def forward_pass(inputs, hidden_state, params):
-    # Computes the forward pass of a vanilla RNN.
-    # Args:
-    #  `inputs`: sequence of inputs to be processed
-    #  `hidden_state`: an already initialized hidden state
-    #  `params`: the parameters of the RNN
+    """
+    Computes the forward pass of a vanilla RNN.
+    Args:
+     `inputs`: sequence of inputs to be processed
+     `hidden_state`: an already initialized hidden state
+     `params`: the parameters of the RNN
+    """
 
     # First we unpack our parameters
     #   U - weight input to hidden state, V - weight matrix recurrent computation,
@@ -469,8 +480,10 @@ print('----------------------------------------------')
 
 #-------------------------------------------------------------------------
 def clip_gradient_norm(grads, max_norm=0.25):
-    # Clips gradients to have a maximum norm of `max_norm`.
-    # This is to prevent the exploding gradients problem.
+    """
+    Clips gradients to have a maximum norm of `max_norm`.
+    This is to prevent the exploding gradients problem.
+    """
 
     # Set the maximum of the norm to be of type float
     max_norm = float(max_norm)
@@ -495,13 +508,15 @@ def clip_gradient_norm(grads, max_norm=0.25):
 #-------------------------------------------------------------------------
 #-------------------------------------------------------------------------
 def backward_pass(inputs, outputs, hidden_states, targets, params):
-    # Computes the backward pass of a vanilla RNN.
-    # Args:
-    #  `inputs`: sequence of inputs to be processed
-    #  `outputs`: sequence of outputs from the forward pass
-    #  `hidden_states`: sequence of hidden_states from the forward pass
-    #  `targets`: sequence of targets
-    #  `params`: the parameters of the RNN
+    """
+    Computes the backward pass of a vanilla RNN.
+    Args:
+     `inputs`: sequence of inputs to be processed
+     `outputs`: sequence of outputs from the forward pass
+     `hidden_states`: sequence of hidden_states from the forward pass
+     `targets`: sequence of targets
+     `params`: the parameters of the RNN
+    """
 
     # First we unpack our parameters
     U, V, W, b_hidden, b_out = params
@@ -695,8 +710,13 @@ print(inputs)
 print('\nTarget sequence:')
 print(targets)
 
+
 print('\nPredicted sequence:')
-print([idx_to_word[np.argmax(output)] for output in outputs])
+translated_output = [idx_to_word[np.argmax(output)] for output in outputs]
+print(translated_output)
+
+
+print(f'Is the target sequence equal to the predicted sequence? {targets == translated_output}')
 
 # Plot training and validation loss
 epoch = np.arange(len(training_loss))
@@ -706,3 +726,63 @@ plt.plot(epoch, validation_loss, 'b', label='Validation loss')
 plt.legend()
 plt.xlabel('Epoch'), plt.ylabel('NLL')
 plt.show()
+
+##########################################################################
+##
+##  PART 10
+##
+##########################################################################
+exit()
+#-------------------------------------------------------------------------
+def freestyle(params, sentence = '', num_generate = 4 , param_hidden_size = 50):
+    """
+    Takes in a sentence as a string and outputs a sequence
+    based on the predictions of the RNN.
+    Args:
+     `params`: the parameters of the network
+     `sentence`: string with whitespace-separated tokens
+     `num_generate`: the number of tokens to generate
+    """
+
+    sentence = sentence.split(' ')
+    
+    sentence_one_hot = one_hot_encode_sequence(sentence = sentence, vocab_size = vocab_size, param_word_to_idx = word_to_idx)
+    
+    # Initialize hidden state as zeros
+    hidden_state = np.zeros((param_hidden_size, 1))
+
+    # Generate hidden state for sentence
+    outputs, hidden_states = forward_pass(inputs= sentence_one_hot, hidden_state =  hidden_state, params = params)
+    
+    # Output sentence
+    output_sentence = sentence
+    
+    # Append first prediction
+    word = idx_to_word[np.argmax(outputs[-1])]    
+    output_sentence.append(word)
+    
+    #-----------
+    # Forward pass
+    for i in range(num_generate):
+
+        # Get the latest prediction and latest hidden state
+        output = outputs[-1]
+        hidden_state = hidden_states[-1]
+    
+        # Reshape our output to match the input shape of our forward pass
+        output = output.reshape(1, output.shape[0], output.shape[1])
+    
+        # Forward pass
+        outputs, hidden_states = forward_pass(output, hidden_state, params)
+        
+        # Compute the index the most likely word and look up the corresponding word
+        word = idx_to_word[np.argmax(outputs)]
+        
+        output_sentence.append(word)
+        
+    return output_sentence
+#------------------------------------------------------------------------- 
+
+# Perform freestyle
+print('Example:')
+print(freestyle(params, sentence='a a a a a b'))
