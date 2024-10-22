@@ -1,5 +1,5 @@
 import numpy as np
-
+# original reference: https://github.com/CaptainE/RNN-LSTM-in-numpy
 # Set seed such that we always get the same dataset
 np.random.seed(42)
 #-------------------------------------------------------------------------

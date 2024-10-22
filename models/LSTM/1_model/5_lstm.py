@@ -1,5 +1,5 @@
 import numpy as np
-
+# original reference: https://github.com/CaptainE/RNN-LSTM-in-numpy
 ##########################################################################
 ##
 ##  PART 1
