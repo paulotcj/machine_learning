@@ -357,16 +357,16 @@ def sigmoid(x, derivative = False):
      `x`: the array where the function is applied
      `derivative`: if set to True will return the derivative instead of the forward pass
     """
-    
     x_safe = x + 1e-12 # this is a low-low value
-    f = 1 / (1 + np.exp(-x_safe))
+    f_x = 1 / (1 + np.exp(-x_safe))
     
     #sigmoid function: f(x) = 1 / (1 + e^(-x))
     #derivative of sigmoid: f'(x) = f(x) * (1 - f(x))
     if derivative: # Return the derivative of the function evaluated at x
-        return f * (1 - f)
+        d_f_x = f_x * (1 - f_x)
+        return d_f_x
     else: # Return the forward pass of the function at x
-        return f
+        return f_x
 #-------------------------------------------------------------------------
 #-------------------------------------------------------------------------
 def tanh(x, derivative = False):
@@ -381,12 +381,13 @@ def tanh(x, derivative = False):
     # derivative of tanh: f'(x) = 1 - f(x)^2                  OR f'(x) = 1 - tanh^2(x)
 
     x_safe = x + 1e-12 # this is a low-low value
-    f = (np.exp(x_safe)-np.exp(-x_safe))/(np.exp(x_safe)+np.exp(-x_safe))
+    f_x = (np.exp(x_safe)-np.exp(-x_safe))/(np.exp(x_safe)+np.exp(-x_safe))
     
     if derivative: # Return the derivative of the function evaluated at x
-        return 1 - f**2
+        d_f_x = 1 - f_x**2
+        return d_f_x
     else: # Return the forward pass of the function at x
-        return f
+        return f_x
 #-------------------------------------------------------------------------
 #-------------------------------------------------------------------------
 def softmax(x, derivative = False ):
@@ -401,12 +402,12 @@ def softmax(x, derivative = False ):
     # derivative of softmax: "The derivative of the softmax function is a bit more complicated because softmax depends on all the elements of the input vector x ."
 
     x_safe = x + 1e-12 # this is a low-low value
-    f = np.exp(x_safe) / np.sum(np.exp(x_safe))
+    f_x = np.exp(x_safe) / np.sum(np.exp(x_safe))
     
     if derivative: # Return the derivative of the function evaluated at x
-        pass # We will not need this one
+        pass # We will not need this one (truth is the derivative of softmax is very hard)
     else: # Return the forward pass of the function at x
-        return f
+        return f_x
 #-------------------------------------------------------------------------
 
 
