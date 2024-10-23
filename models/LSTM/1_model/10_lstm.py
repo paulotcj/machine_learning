@@ -758,7 +758,7 @@ def freestyle(params, sentence = '', num_generate = 4 , param_hidden_size = 50):
     output_sentence = sentence
     
     # Append first prediction
-    word = idx_to_word[np.argmax(outputs[-1])]    
+    word = idx_to_word[np.argmax(outputs[-1])]  #return the index of the max value in the array 
     output_sentence.append(word)
     
     # Forward pass
@@ -785,5 +785,5 @@ def freestyle(params, sentence = '', num_generate = 4 , param_hidden_size = 50):
 #------------------------------------------------------------------------- 
 
 # Perform freestyle
-result_freestyle = freestyle(params, sentence='a a a a a b')
+result_freestyle = freestyle(params = params, sentence='a a a a a b')
 print(f'Result freestyle\n:{result_freestyle}')
