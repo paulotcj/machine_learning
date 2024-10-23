@@ -132,6 +132,7 @@ def get_inputs_targets_from_sequences(sequences):
         
     return inputs, targets
 #-------------------------------------------------------------------------
+#-------------------------------------------------------------------------
 def create_datasets(sequences, dataset_class, p_train=0.8, p_val=0.1, p_test=0.1):
     # Define partition sizes
     num_train = int( len(sequences)*p_train ) #typically 80% of the data
@@ -142,6 +143,10 @@ def create_datasets(sequences, dataset_class, p_train=0.8, p_val=0.1, p_test=0.1
     sequences_train = sequences[:num_train]
     sequences_validation = sequences[num_train:num_train+num_validation]
     sequences_test = sequences[-num_test:]
+
+    # In the next step we split this into inputs and targets. So far we have sequences for: 
+    #   Training, Validation, and Test. After that we will have:
+    #   Training (Inputs, Targets), Validation (Inputs, Targets), and Test (Inputs, Targets)
 
     # Get inputs and targets for each partition
     inputs_train, targets_train = get_inputs_targets_from_sequences(sequences_train)
@@ -294,6 +299,9 @@ def init_rnn(hidden_size, vocab_size):
      `vocab_size`: the dimensions of our vocabulary
     """
 
+    #---------------------------------------
+    # Part 1
+    # Initialize the weights with zeros
     # Weight matrix (input to hidden state)
     U = np.zeros((hidden_size, vocab_size))
 
@@ -308,11 +316,13 @@ def init_rnn(hidden_size, vocab_size):
 
     # Bias (output)
     b_out = np.zeros((vocab_size, 1))
-    
-    # Initialize weights
+    #---------------------------------------
+    # Part 2
+    # Orthogonal initialization of the weight matrices
     U = init_orthogonal(U)
     V = init_orthogonal(V)
     W = init_orthogonal(W)
+    #---------------------------------------
     
     # Return parameters as a tuple
     return U, V, W, b_hidden, b_out
