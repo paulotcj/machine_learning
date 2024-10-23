@@ -459,6 +459,7 @@ print(f'training_set len: {len(training_set)}')
 print(f'training_set[0][0] (inputs)\ntraining_set[0][1] (targets):\n{training_set[0][0]}\n{training_set[0][1]}')
 print('----------------------------------------------')
 
+#-------------------
 # Get first sequence in training set
 test_input_sequence, test_target_sequence = training_set[0]
 
@@ -471,7 +472,7 @@ hidden_state = np.zeros((hidden_size, 1))
 
 # Now let's try out our new function
 outputs, hidden_states = forward_pass(test_input, hidden_state, params)
-
+#-------------------
 print('Input sequence:')
 print(test_input_sequence)
 
@@ -482,7 +483,7 @@ print('\nPredicted sequence:')
 print([idx_to_word[np.argmax(output)] for output in outputs])
 print('Note: At this stage the predictions are random, as the model has not been trained yet.')
 print('----------------------------------------------')
-
+#-------------------
 
 ##########################################################################
 ##
