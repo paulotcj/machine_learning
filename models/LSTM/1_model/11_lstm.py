@@ -570,11 +570,16 @@ def clip_gradient_norm(grads, max_norm=0.25):
     
     # Calculate clipping coeficient
     clip_coef = max_norm / (total_norm + 1e-6)
+
+    # print(f'total_norm: {total_norm}') #from the example this should be around 28.2843
+    # print(f'clip_coef: {clip_coef}') #from the example this would be around 0.008835
     
+    #------------------
     # If the total norm is larger than the maximum allowable norm, then clip the gradient
     if clip_coef < 1:
         for grad in grads:
             grad *= clip_coef
+    #------------------
     
     return grads
 #-------------------------------------------------------------------------
