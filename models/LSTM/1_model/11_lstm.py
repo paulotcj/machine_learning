@@ -536,12 +536,29 @@ print('----------------------------------------------')
 
 #-------------------------------------------------------------------------
 def clip_gradient_norm(grads, max_norm=0.25):
-    # Clips gradients to have a maximum norm of `max_norm`.
-    # This is to prevent the exploding gradients problem.
+    {
+    """
+    Clips gradients to have a maximum norm of `max_norm`.
+    This is to prevent the exploding gradients problem.
+    """
+    # rememnber: grads = d_U, d_V, d_W, d_b_hidden, d_b_out  
+    #   U - weight input to hidden state
+    #   V - weight matrix recurrent computation
+    #   W - weight matrix hidden state to output
+    #   bias_hidden shape
+    #   bias_out
+    # print(f'grads[0] U shape: {grads[0].shape}')
+    # print(f'grads[1] V shape: {grads[1].shape}')
+    # print(f'grads[2] W shape: {grads[2].shape}')
+    # print(f'grads[3] b_hidden shape: {grads[3].shape}')
+    # print(f'grads[4] b_out shape: {grads[4].shape}')
+    }
+
 
     # Set the maximum of the norm to be of type float
     max_norm = float(max_norm)
     total_norm = 0
+
     
     # Calculate the L2 norm squared for each gradient and add them to the total norm
     for grad in grads:
@@ -549,6 +566,7 @@ def clip_gradient_norm(grads, max_norm=0.25):
         total_norm += grad_norm
     
     total_norm = np.sqrt(total_norm)
+    
     
     # Calculate clipping coeficient
     clip_coef = max_norm / (total_norm + 1e-6)
