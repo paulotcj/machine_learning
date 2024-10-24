@@ -580,17 +580,27 @@ def clip_gradient_norm(grads, max_norm=0.25):
 #-------------------------------------------------------------------------
 #-------------------------------------------------------------------------
 def backward_pass(inputs, outputs, hidden_states, targets, params):
-    # Computes the backward pass of a vanilla RNN.
-    # Args:
-    #  `inputs`: sequence of inputs to be processed
-    #  `outputs`: sequence of outputs from the forward pass
-    #  `hidden_states`: sequence of hidden_states from the forward pass
-    #  `targets`: sequence of targets
-    #  `params`: the parameters of the RNN
-
+    {"""
+    Computes the backward pass of a vanilla RNN.
+    Args:
+     `inputs`: sequence of inputs to be processed
+     `outputs`: sequence of outputs from the forward pass
+     `hidden_states`: sequence of hidden_states from the forward pass
+     `targets`: sequence of targets
+     `params`: the parameters of the RNN (U, V, W, b_hidden, b_out)
+    """
+    }
+    #-------------------
     # First we unpack our parameters
     U, V, W, b_hidden, b_out = params
     
+    {# print(f'U shape: {U.shape}')
+    # print(f'V shape: {V.shape}')
+    # print(f'W shape: {W.shape}')
+    # print(f'b_hidden shape: {b_hidden.shape}')
+    # print(f'b_out shape: {b_out.shape}')
+    }
+    #-------------------
     # Initialize gradients as zero
     d_U, d_V, d_W = np.zeros_like(U), np.zeros_like(V), np.zeros_like(W) # np.zeros_like(var) generates a new array of zeros with the same shape and type as the array 'var'
     d_b_hidden, d_b_out = np.zeros_like(b_hidden), np.zeros_like(b_out)
@@ -598,31 +608,47 @@ def backward_pass(inputs, outputs, hidden_states, targets, params):
     # Keep track of hidden state derivative and loss
     d_h_next = np.zeros_like(hidden_states[0])
     loss = 0
-    
+    {
+    #-------------------
     # For each element in output sequence
     # NB: We iterate backwards s.t. t = N, N-1, ... 1, 0
-    #----
-    for t in reversed( range( len(outputs) ) ):
-        #------------------
+    #-------------------
+    # len_outputs = len(outputs)
+    # print(f'len(outputs): {len_outputs}')
+    # print(f'range(len(outputs)): {range(len_outputs)}')
+    # print(f'reversed( range( len(outputs) ) ): {reversed( range( len(outputs) ) )}')
+    }
+    for t in reversed( range( len(outputs) ) ): #for a sequence of 14 elements, this will be 13, 12, 11, ..., 0
         # Compute cross-entropy loss (as a scalar)
+        {
         #  Remember we can have targets shape as (14, 4, 1) and outputs shape as (14, 4, 1), so what we do here
         #    is outputs[0]->(4,1) , targets[0]->(4,1)  
         #       
         # Formula: Loss += -(1/N) * SUM(i->n)[ y * log(y_hat + E) ] 
         #  note that 1/N*SUM(i->n) is the same as np.mean()
+        }
         loss += -np.mean( np.log( outputs[t]+1e-12 ) * targets[t] )
         
+        {
         # print(f'outputs[t]: {outputs[t]}')
         # print(f'targets[t]: {targets[t]}')
         # print(f'np.log( outputs[t]): {np.log( outputs[t] )}')
         # print(f'np.log( outputs[t]+1e-12 ) * targets[t]: { np.log( outputs[t]+1e-12 ) * targets[t] }')
         # print(f'np.mean( np.log( outputs[t]+1e-12 ) * targets[t] ): {np.mean( np.log( outputs[t]+1e-12 ) * targets[t] )}')
         # print('--------')
-        #------------------
+        #-------------------
+        }
         
         # Backpropagate into output (derivative of cross-entropy)
+        {
         # if you're confused about this step, see this link for an explanation:
         # http://cs231n.github.io/neural-networks-case-study/#grad
+        #   Suppose outputs[t] is [0.1, 0.7, 0.2] and targets[t] is [0, 1, 0] (one-hot encoded)
+        # The code would execute as follows:
+        #     d_o = outputs[t].copy() results in d_o = [0.1, 0.7, 0.2].
+        #     np.argmax(targets[t]) returns 1 (the index of the maximum value in targets[t]).
+        #     d_o[1] -= 1 modifies d_o to [0.1, -0.3, 0.2].
+        }
         d_o = outputs[t].copy()
         d_o[ np.argmax(targets[t]) ] -= 1
         
