@@ -579,7 +579,7 @@ def clip_gradient_norm(grads, max_norm=0.25):
     return grads
 #-------------------------------------------------------------------------
 #-------------------------------------------------------------------------
-def backward_pass(inputs, outputs, hidden_states, targets, params):
+def backward_pass(inputs, outputs, hidden_states, targets, params_U_V_W_bhidden_bout):
     {"""
     Computes the backward pass of a vanilla RNN.
     Args:
@@ -592,8 +592,8 @@ def backward_pass(inputs, outputs, hidden_states, targets, params):
     }
     #-------------------
     # First we unpack our parameters
-    U, V, W, b_hidden, b_out = params
-    
+    U, V, W, b_hidden, b_out = params_U_V_W_bhidden_bout
+
     {# print(f'U shape: {U.shape}')
     # print(f'V shape: {V.shape}')
     # print(f'W shape: {W.shape}')
@@ -652,24 +652,24 @@ def backward_pass(inputs, outputs, hidden_states, targets, params):
         d_o = outputs[t].copy()
         d_o[ np.argmax(targets[t]) ] -= 1
         
-        # Backpropagate into W
+        # Backpropagate into W (W - weight matrix hidden state to output)
         d_W += np.dot(d_o, hidden_states[t].T)
         d_b_out += d_o
         
-        # Backpropagate into h
+        # Backpropagate into h (hidden state)
         d_h = np.dot(W.T, d_o) + d_h_next
         
         # Backpropagate through non-linearity
         d_f = tanh(hidden_states[t], derivative=True) * d_h
         d_b_hidden += d_f
         
-        # Backpropagate into U
+        # Backpropagate into U (U - weight input to hidden state)
         d_U += np.dot(d_f, inputs[t].T)
         
-        # Backpropagate into V
+        # Backpropagate into V (V - weight matrix recurrent computation)
         d_V += np.dot(d_f, hidden_states[t-1].T)
         d_h_next = np.dot(V.T, d_f)
-    
+    #-------------------
     # Pack gradients
     grads = d_U, d_V, d_W, d_b_hidden, d_b_out    
     
@@ -686,7 +686,7 @@ def backward_pass(inputs, outputs, hidden_states, targets, params):
 # print(f'outputs:\n{outputs}')
 # print('----------------------------------------------')
 loss, grads = backward_pass(inputs = test_input, outputs = outputs, 
-                            hidden_states = hidden_states, targets = test_target, params = params)
+                            hidden_states = hidden_states, targets = test_target, params_U_V_W_bhidden_bout = params)
 
 print('We get a loss of:')
 print(loss)
@@ -743,7 +743,7 @@ for i in range(num_epochs):
 
         # Backward pass - returns loss and grads ( _ )
         loss, _ = backward_pass(inputs = inputs_one_hot, outputs = outputs, 
-            hidden_states = hidden_states, targets = targets_one_hot, params = params
+            hidden_states = hidden_states, targets = targets_one_hot, params_U_V_W_bhidden_bout = params
         )
         
         # Update loss
@@ -766,7 +766,7 @@ for i in range(num_epochs):
         # Backward pass
         loss, grads = backward_pass(
             inputs = inputs_one_hot, outputs = outputs, hidden_states = hidden_states, 
-            targets = targets_one_hot, params = params
+            targets = targets_one_hot, params_U_V_W_bhidden_bout = params
         )
         
         if np.isnan(loss): #not a number
