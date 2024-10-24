@@ -528,7 +528,6 @@ print([idx_to_word[np.argmax(output)] for output in global_outputs])
 print('Note: At this stage the predictions are random, as the model has not been trained yet.')
 print('----------------------------------------------')
 #-------------------
-exit()
 ##########################################################################
 ##
 ##  PART 8
@@ -589,7 +588,11 @@ def backward_pass(inputs, outputs, hidden_states, targets, params_U_V_W_bhidden_
     # For each element in output sequence
     # NB: We iterate backwards s.t. t = N, N-1, ... 1, 0
     #-------------------
-    for t in reversed( range( len(outputs) ) ):
+    # len_outputs = len(outputs)
+    # print(f'len(outputs): {len_outputs}')
+    # print(f'range(len(outputs)): {range(len_outputs)}')
+    # print(f'reversed( range( len(outputs) ) ): {reversed( range( len(outputs) ) )}')
+    for t in reversed( range( len(outputs) ) ): #for a sequence of 14 elements, this will be 13, 12, 11, ..., 0
         #-------------------
         # Compute cross-entropy loss (as a scalar)
         #  Remember we can have targets shape as (14, 4, 1) and outputs shape as (14, 4, 1), so what we do here
@@ -640,12 +643,16 @@ def backward_pass(inputs, outputs, hidden_states, targets, params_U_V_W_bhidden_
     return loss, grads
 #-------------------------------------------------------------------------
 
-# print(f'targets shape: {test_target.shape}') # shape: (14, 4, 1)
-# print(f'targets:\n{test_target}')
-# print('-----')
-# print(f'inputs shape: {test_input.shape}') # shape: (14, 4, 1)
-# print(f'outputs:\n{outputs}')
-# print('----------------------------------------------')
+print(f'To clarify, the original sentence has a length of 14 elements')
+print(f'test_input shape: {test_input.shape}') # (14, 4, 1)
+# print(f'test_input: {test_input}') # 'a' -> [[1],[0],[0],[0]], 'a' -> [[1],[0],[0],[0]], ...
+print(f'global_outputs len: {len(global_outputs)}') 
+# print(f'global_outputs: {global_outputs}') # at this stage this is mostly random junk
+print(f'global_hidden_states len: {len(global_hidden_states)}')
+print(f'global_hidden_states shape: {global_hidden_states[0].shape}') # 14*(50, 1)
+# print(f'global_hidden_states: {global_hidden_states}') # at this stage this is mostly random junk
+
+print('Remember: While the test input is valid, at this stage the global outputs and hidden states are random junk')
 loss, grads = backward_pass(
         inputs = test_input, outputs = global_outputs, hidden_states = global_hidden_states, 
         targets = test_target, params_U_V_W_bhidden_bout = params
@@ -653,7 +660,7 @@ loss, grads = backward_pass(
 
 print('We get a loss of:')
 print(loss)
-
+exit()
 ##########################################################################
 ##
 ##  PART 9
