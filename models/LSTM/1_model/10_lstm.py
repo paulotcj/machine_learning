@@ -417,23 +417,23 @@ def softmax(x, derivative = False ):
 ##
 ##########################################################################
 #-------------------------------------------------------------------------
-def forward_pass(inputs, hidden_state, params):
+def forward_pass(inputs, hidden_state, params_U_V_W_bhidden_bout):
     """
     Computes the forward pass of a vanilla RNN.
     Args:
      `inputs`: sequence of inputs to be processed
      `hidden_state`: an already initialized hidden state
-     `params`: the parameters of the RNN
+     `params`: the parameters of the RNN (U, V, W, b_hidden, b_out)
     """
-
+    #---------
     # First we unpack our parameters
     #   U - weight input to hidden state, V - weight matrix recurrent computation,
     #   W - weight matrix hidden state to output, bias_hidden shape, bias_out
-    U, V, W, b_hidden, b_out = params
+    U, V, W, b_hidden, b_out = params_U_V_W_bhidden_bout
     
     # Create a list to store outputs and hidden states
     outputs, hidden_states = [], []
-    
+    #---------
     # For each element in input sequence
     for t in range(len(inputs)): # t as the notation for time-step
         # Compute new hidden state
@@ -447,7 +447,7 @@ def forward_pass(inputs, hidden_state, params):
         # Save results and continue
         outputs.append(out)
         hidden_states.append(hidden_state.copy())
-    
+    #---------
     return outputs, hidden_states
 #-------------------------------------------------------------------------
 print('----------------------------------------------')
@@ -468,10 +468,10 @@ test_input = one_hot_encode_sequence(sequence = test_input_sequence, vocab_size 
 test_target = one_hot_encode_sequence(sequence = test_target_sequence, vocab_size = vocab_size, param_word_to_idx = word_to_idx)
 
 # Initialize hidden state as zeros
-hidden_state = np.zeros((hidden_size, 1))
+global_hidden_state = np.zeros((hidden_size, 1))
 
 # Now let's try out our new function
-outputs, hidden_states = forward_pass(test_input, hidden_state, params)
+global_outputs, global_hidden_states = forward_pass(test_input, global_hidden_state, params)
 #-------------------
 print('Input sequence:')
 print(test_input_sequence)
@@ -480,7 +480,7 @@ print('\nTarget sequence:')
 print(test_target_sequence)
 
 print('\nPredicted sequence:')
-print([idx_to_word[np.argmax(output)] for output in outputs])
+print([idx_to_word[np.argmax(output)] for output in global_outputs])
 print('Note: At this stage the predictions are random, as the model has not been trained yet.')
 print('----------------------------------------------')
 #-------------------
@@ -520,7 +520,7 @@ def clip_gradient_norm(grads, max_norm=0.25):
     return grads
 #-------------------------------------------------------------------------
 #-------------------------------------------------------------------------
-def backward_pass(inputs, outputs, hidden_states, targets, params):
+def backward_pass(inputs, outputs, hidden_states, targets, params_U_V_W_bhidden_bout):
     """
     Computes the backward pass of a vanilla RNN.
     Args:
@@ -528,12 +528,12 @@ def backward_pass(inputs, outputs, hidden_states, targets, params):
      `outputs`: sequence of outputs from the forward pass
      `hidden_states`: sequence of hidden_states from the forward pass
      `targets`: sequence of targets
-     `params`: the parameters of the RNN
+     `params`: the parameters of the RNN (U, V, W, b_hidden, b_out)
     """
-
+    #-------------------
     # First we unpack our parameters
-    U, V, W, b_hidden, b_out = params
-    
+    U, V, W, b_hidden, b_out = params_U_V_W_bhidden_bout
+    #-------------------
     # Initialize gradients as zero
     d_U, d_V, d_W = np.zeros_like(U), np.zeros_like(V), np.zeros_like(W) # np.zeros_like(var) generates a new array of zeros with the same shape and type as the array 'var'
     d_b_hidden, d_b_out = np.zeros_like(b_hidden), np.zeros_like(b_out)
@@ -541,12 +541,12 @@ def backward_pass(inputs, outputs, hidden_states, targets, params):
     # Keep track of hidden state derivative and loss
     d_h_next = np.zeros_like(hidden_states[0])
     loss = 0
-    
+    #-------------------
     # For each element in output sequence
     # NB: We iterate backwards s.t. t = N, N-1, ... 1, 0
-    #----
+    #-------------------
     for t in reversed( range( len(outputs) ) ):
-        #------------------
+        #-------------------
         # Compute cross-entropy loss (as a scalar)
         #  Remember we can have targets shape as (14, 4, 1) and outputs shape as (14, 4, 1), so what we do here
         #    is outputs[0]->(4,1) , targets[0]->(4,1)  
@@ -561,7 +561,7 @@ def backward_pass(inputs, outputs, hidden_states, targets, params):
         # print(f'np.log( outputs[t]+1e-12 ) * targets[t]: { np.log( outputs[t]+1e-12 ) * targets[t] }')
         # print(f'np.mean( np.log( outputs[t]+1e-12 ) * targets[t] ): {np.mean( np.log( outputs[t]+1e-12 ) * targets[t] )}')
         # print('--------')
-        #------------------
+        #-------------------
         
         # Backpropagate into output (derivative of cross-entropy)
         # if you're confused about this step, see this link for an explanation:
@@ -586,7 +586,7 @@ def backward_pass(inputs, outputs, hidden_states, targets, params):
         # Backpropagate into V
         d_V += np.dot(d_f, hidden_states[t-1].T)
         d_h_next = np.dot(V.T, d_f)
-    
+    #-------------------
     # Pack gradients
     grads = d_U, d_V, d_W, d_b_hidden, d_b_out    
     
@@ -602,8 +602,10 @@ def backward_pass(inputs, outputs, hidden_states, targets, params):
 # print(f'inputs shape: {test_input.shape}') # shape: (14, 4, 1)
 # print(f'outputs:\n{outputs}')
 # print('----------------------------------------------')
-loss, grads = backward_pass(inputs = test_input, outputs = outputs, 
-                            hidden_states = hidden_states, targets = test_target, params = params)
+loss, grads = backward_pass(
+        inputs = test_input, outputs = global_outputs, hidden_states = global_hidden_states, 
+        targets = test_target, params_U_V_W_bhidden_bout = params
+    )
 
 print('We get a loss of:')
 print(loss)
@@ -631,7 +633,7 @@ num_epochs = 1000
 params = init_rnn(hidden_size=hidden_size, vocab_size=vocab_size)
 
 # Initialize hidden state as zeros
-hidden_state = np.zeros((hidden_size, 1))
+global_hidden_state = np.zeros((hidden_size, 1))
 
 # Track loss
 training_loss, validation_loss = [], []
@@ -651,16 +653,16 @@ for i in range(num_epochs):
         targets_one_hot = one_hot_encode_sequence(sequence = targets, vocab_size = vocab_size, param_word_to_idx = word_to_idx)
         
         # Re-initialize hidden state
-        hidden_state = np.zeros_like(hidden_state)
+        global_hidden_state = np.zeros_like(global_hidden_state)
 
         # Forward pass
-        outputs, hidden_states = forward_pass(
-            inputs = inputs_one_hot, hidden_state = hidden_state, params = params
+        global_outputs, global_hidden_states = forward_pass(
+            inputs = inputs_one_hot, hidden_state = global_hidden_state, params_U_V_W_bhidden_bout = params
         )
 
         # Backward pass - returns loss and grads ( _ )
-        loss, _ = backward_pass(inputs = inputs_one_hot, outputs = outputs, 
-            hidden_states = hidden_states, targets = targets_one_hot, params = params
+        loss, _ = backward_pass(inputs = inputs_one_hot, outputs = global_outputs, 
+            hidden_states = global_hidden_states, targets = targets_one_hot, params_U_V_W_bhidden_bout = params
         )
         
         # Update loss
@@ -673,17 +675,17 @@ for i in range(num_epochs):
         targets_one_hot = one_hot_encode_sequence(sequence = targets, vocab_size = vocab_size, param_word_to_idx = word_to_idx)
         
         # Re-initialize hidden state
-        hidden_state = np.zeros_like(hidden_state)
+        global_hidden_state = np.zeros_like(global_hidden_state)
 
         # Forward pass
-        outputs, hidden_states = forward_pass(
-            inputs = inputs_one_hot, hidden_state = hidden_state, params = params
+        global_outputs, global_hidden_states = forward_pass(
+            inputs = inputs_one_hot, hidden_state = global_hidden_state, params_U_V_W_bhidden_bout = params
         )
 
         # Backward pass
         loss, grads = backward_pass(
-            inputs = inputs_one_hot, outputs = outputs, hidden_states = hidden_states, 
-            targets = targets_one_hot, params = params
+            inputs = inputs_one_hot, outputs = global_outputs, hidden_states = global_hidden_states, 
+            targets = targets_one_hot, params_U_V_W_bhidden_bout = params
         )
         
         if np.isnan(loss): #not a number
@@ -712,11 +714,11 @@ inputs_one_hot = one_hot_encode_sequence(sequence = inputs, vocab_size = vocab_s
 targets_one_hot = one_hot_encode_sequence(sequence = targets, vocab_size = vocab_size, param_word_to_idx = word_to_idx)
 
 # Initialize hidden state as zeros
-hidden_state = np.zeros((hidden_size, 1))
+global_hidden_state = np.zeros((hidden_size, 1))
 
 # Forward pass
-outputs, hidden_states = forward_pass(inputs_one_hot, hidden_state, params)
-output_sentence = [idx_to_word[np.argmax(output)] for output in outputs]
+global_outputs, global_hidden_states = forward_pass(inputs_one_hot, global_hidden_state, params)
+output_sentence = [idx_to_word[np.argmax(output)] for output in global_outputs]
 print('Input sentence:')
 print(inputs)
 
@@ -725,7 +727,7 @@ print(targets)
 
 
 print('\nPredicted sequence:')
-translated_output = [idx_to_word[np.argmax(output)] for output in outputs]
+translated_output = [idx_to_word[np.argmax(output)] for output in global_outputs]
 print(translated_output)
 
 
@@ -765,7 +767,7 @@ def freestyle(params, sentence = '', num_generate = 4 , param_hidden_size = 50):
     hidden_state = np.zeros((param_hidden_size, 1))
 
     # Generate hidden state for sentence
-    outputs, hidden_states = forward_pass(inputs= sentence_one_hot, hidden_state =  hidden_state, params = params)
+    outputs, hidden_states = forward_pass(inputs= sentence_one_hot, hidden_state =  hidden_state, params_U_V_W_bhidden_bout = params)
     
     # Output sentence
     output_sentence = sentence
@@ -786,7 +788,7 @@ def freestyle(params, sentence = '', num_generate = 4 , param_hidden_size = 50):
     
         # Forward pass
         outputs, hidden_states = forward_pass(
-            inputs = output, hidden_state = hidden_state, params = params
+            inputs = output, hidden_state = hidden_state, params_U_V_W_bhidden_bout = params
         )
         
         # Compute the index the most likely word and look up the corresponding word
