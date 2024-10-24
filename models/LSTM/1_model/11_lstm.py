@@ -261,6 +261,10 @@ print('----')
 ##
 ##########################################################################
 
+
+hidden_size = 50 # Number of dimensions in the hidden state
+vocab_size  = len(word_to_idx) # Size of the vocabulary used
+
 #-------------------------------------------------------------------------  
 def init_orthogonal(param):
     """    
@@ -345,10 +349,7 @@ def init_rnn(hidden_size, vocab_size):
     return U, V, W, b_hidden, b_out
 #-------------------------------------------------------------------------
 
-hidden_layer_size = 50 # Number of hidden units in this layer
-vocab_size  = len(word_to_idx) # Size of the vocabulary used
-
-params = init_rnn(hidden_size=hidden_layer_size, vocab_size=vocab_size)
+params = init_rnn(hidden_size=hidden_size, vocab_size=vocab_size)
 print('----------------------------------------------')
 print(f'U (weight input to hidden state) shape: {params[0].shape}') # U
 print(f'V (weight matrix recurrent computation) shape: {params[1].shape}') # V
@@ -367,6 +368,7 @@ print(f'bias_out :{params[4]}')
 ##  PART 6
 ##
 ##########################################################################
+
 #-------------------------------------------------------------------------
 def sigmoid(x, derivative = False):
     """    
@@ -436,45 +438,25 @@ def softmax(x, derivative = False ):
 ##
 ##########################################################################
 #-------------------------------------------------------------------------
-def forward_pass(inputs, hidden_state, params_U_V_W_bhidden_bout):
-    """
-    Computes the forward pass of a vanilla RNN.
-    Args:
-     `inputs`: sequence of inputs to be processed
-     `hidden_state`: an already initialized hidden state
-     `params`: the parameters of the RNN (U, V, W, b_hidden, b_out)
-    """
-    #---------
+def forward_pass(inputs, hidden_state, params):
+    # Computes the forward pass of a vanilla RNN.
+    # Args:
+    #  `inputs`: sequence of inputs to be processed
+    #  `hidden_state`: an already initialized hidden state
+    #  `params`: the parameters of the RNN
+
     # First we unpack our parameters
-    #   U - weight input to hidden state, 
-    #   V - weight matrix recurrent computation,
-    #   W - weight matrix hidden state to output, 
-    #   bias_hidden shape, 
-    #   bias_out
-    U, V, W, b_hidden, b_out = params_U_V_W_bhidden_bout
-    # print(f'  U shape: {U.shape}')
-    # print(f'  V shape: {V.shape}')
-    # print(f'  W shape: {W.shape}')
-    # print(f'  b_hidden shape: {b_hidden.shape}')
-    # print(f'  b_out shape: {b_out.shape}')
+    #   U - weight input to hidden state, V - weight matrix recurrent computation,
+    #   W - weight matrix hidden state to output, bias_hidden shape, bias_out
+    U, V, W, b_hidden, b_out = params
     
     # Create a list to store outputs and hidden states
     outputs, hidden_states = [], []
-    #---------
+    
     # For each element in input sequence
     for t in range(len(inputs)): # t as the notation for time-step
         # Compute new hidden state
-       
-        dot_U_inputsT = np.dot(U, inputs[t]) # U * inputs(t)
-        dot_V_hidden_state = np.dot(V, hidden_state)
-        temp_hidden_state = dot_U_inputsT + dot_V_hidden_state + b_hidden
-
-        # print('---')
-        # print(f'  inputs[t] shape: {inputs[t].shape}')
-        # print(f'  dot_U_inputsT shape: {dot_U_inputsT.shape}')
-        # print(f'  dot_V_hidden_state shape: {dot_V_hidden_state.shape}')
-        # print(f'  temp_hidden_state shape: {temp_hidden_state.shape}')
-        #---
+        temp_hidden_state = np.dot(U, inputs[t]) + np.dot(V, hidden_state) + b_hidden
         hidden_state = tanh(temp_hidden_state)
 
         # Compute output
@@ -484,7 +466,7 @@ def forward_pass(inputs, hidden_state, params_U_V_W_bhidden_bout):
         # Save results and continue
         outputs.append(out)
         hidden_states.append(hidden_state.copy())
-    #---------
+    
     return outputs, hidden_states
 #-------------------------------------------------------------------------
 print('----------------------------------------------')
@@ -496,27 +478,19 @@ print(f'training_set len: {len(training_set)}')
 print(f'training_set[0][0] (inputs)\ntraining_set[0][1] (targets):\n{training_set[0][0]}\n{training_set[0][1]}')
 print('----------------------------------------------')
 
-#-------------------
 # Get first sequence in training set
 test_input_sequence, test_target_sequence = training_set[0]
 
 # One-hot encode input and target sequence
-test_input = one_hot_encode_sequence(
-        sequence = test_input_sequence, vocab_size = vocab_size, param_word_to_idx = word_to_idx
-    )
-test_target = one_hot_encode_sequence(
-        sequence = test_target_sequence, vocab_size = vocab_size, param_word_to_idx = word_to_idx
-    )
+test_input = one_hot_encode_sequence(sequence = test_input_sequence, vocab_size = vocab_size, param_word_to_idx = word_to_idx)
+test_target = one_hot_encode_sequence(sequence = test_target_sequence, vocab_size = vocab_size, param_word_to_idx = word_to_idx)
 
 # Initialize hidden state as zeros
-global_hidden_state = np.zeros((hidden_layer_size, 1)) # hidden_layer_size = 50
+hidden_state = np.zeros((hidden_size, 1))
 
 # Now let's try out our new function
-global_outputs, global_hidden_states = forward_pass(
-        inputs = test_input, hidden_state = global_hidden_state, params_U_V_W_bhidden_bout = params
-    )
+outputs, hidden_states = forward_pass(test_input, hidden_state, params)
 
-#-------------------
 print('Input sequence:')
 print(test_input_sequence)
 
@@ -524,10 +498,11 @@ print('\nTarget sequence:')
 print(test_target_sequence)
 
 print('\nPredicted sequence:')
-print([idx_to_word[np.argmax(output)] for output in global_outputs])
+print([idx_to_word[np.argmax(output)] for output in outputs])
 print('Note: At this stage the predictions are random, as the model has not been trained yet.')
 print('----------------------------------------------')
-#-------------------
+
+
 ##########################################################################
 ##
 ##  PART 8
@@ -536,29 +511,12 @@ print('----------------------------------------------')
 
 #-------------------------------------------------------------------------
 def clip_gradient_norm(grads, max_norm=0.25):
-    {
-    """
-    Clips gradients to have a maximum norm of `max_norm`.
-    This is to prevent the exploding gradients problem.
-    """
-    # rememnber: grads = d_U, d_V, d_W, d_b_hidden, d_b_out  
-    #   U - weight input to hidden state
-    #   V - weight matrix recurrent computation
-    #   W - weight matrix hidden state to output
-    #   bias_hidden shape
-    #   bias_out
-    # print(f'grads[0] U shape: {grads[0].shape}')
-    # print(f'grads[1] V shape: {grads[1].shape}')
-    # print(f'grads[2] W shape: {grads[2].shape}')
-    # print(f'grads[3] b_hidden shape: {grads[3].shape}')
-    # print(f'grads[4] b_out shape: {grads[4].shape}')
-    }
-
+    # Clips gradients to have a maximum norm of `max_norm`.
+    # This is to prevent the exploding gradients problem.
 
     # Set the maximum of the norm to be of type float
     max_norm = float(max_norm)
     total_norm = 0
-
     
     # Calculate the L2 norm squared for each gradient and add them to the total norm
     for grad in grads:
@@ -567,48 +525,29 @@ def clip_gradient_norm(grads, max_norm=0.25):
     
     total_norm = np.sqrt(total_norm)
     
-    
     # Calculate clipping coeficient
     clip_coef = max_norm / (total_norm + 1e-6)
-
-    # print(f'total_norm: {total_norm}') #from the example this should be around 28.2843
-    # print(f'clip_coef: {clip_coef}') #from the example this would be around 0.008835
     
-    #------------------
     # If the total norm is larger than the maximum allowable norm, then clip the gradient
     if clip_coef < 1:
         for grad in grads:
-            # print(f'----')
-            # print(f'grad: {grad}')
-            # print(f'new grad: {grad * clip_coef}')
-            grad = grad * clip_coef
-    #------------------
+            grad *= clip_coef
     
     return grads
 #-------------------------------------------------------------------------
 #-------------------------------------------------------------------------
-def backward_pass(inputs, outputs, hidden_states, targets, params_U_V_W_bhidden_bout):
-    {"""
-    Computes the backward pass of a vanilla RNN.
-    Args:
-     `inputs`: sequence of inputs to be processed
-     `outputs`: sequence of outputs from the forward pass
-     `hidden_states`: sequence of hidden_states from the forward pass
-     `targets`: sequence of targets
-     `params`: the parameters of the RNN (U, V, W, b_hidden, b_out)
-    """
-    }
-    #-------------------
-    # First we unpack our parameters
-    U, V, W, b_hidden, b_out = params_U_V_W_bhidden_bout
+def backward_pass(inputs, outputs, hidden_states, targets, params):
+    # Computes the backward pass of a vanilla RNN.
+    # Args:
+    #  `inputs`: sequence of inputs to be processed
+    #  `outputs`: sequence of outputs from the forward pass
+    #  `hidden_states`: sequence of hidden_states from the forward pass
+    #  `targets`: sequence of targets
+    #  `params`: the parameters of the RNN
 
-    {# print(f'U shape: {U.shape}')
-    # print(f'V shape: {V.shape}')
-    # print(f'W shape: {W.shape}')
-    # print(f'b_hidden shape: {b_hidden.shape}')
-    # print(f'b_out shape: {b_out.shape}')
-    }
-    #-------------------
+    # First we unpack our parameters
+    U, V, W, b_hidden, b_out = params
+    
     # Initialize gradients as zero
     d_U, d_V, d_W = np.zeros_like(U), np.zeros_like(V), np.zeros_like(W) # np.zeros_like(var) generates a new array of zeros with the same shape and type as the array 'var'
     d_b_hidden, d_b_out = np.zeros_like(b_hidden), np.zeros_like(b_out)
@@ -616,68 +555,52 @@ def backward_pass(inputs, outputs, hidden_states, targets, params_U_V_W_bhidden_
     # Keep track of hidden state derivative and loss
     d_h_next = np.zeros_like(hidden_states[0])
     loss = 0
-    {
-    #-------------------
+    
     # For each element in output sequence
     # NB: We iterate backwards s.t. t = N, N-1, ... 1, 0
-    #-------------------
-    # len_outputs = len(outputs)
-    # print(f'len(outputs): {len_outputs}')
-    # print(f'range(len(outputs)): {range(len_outputs)}')
-    # print(f'reversed( range( len(outputs) ) ): {reversed( range( len(outputs) ) )}')
-    }
-    for t in reversed( range( len(outputs) ) ): #for a sequence of 14 elements, this will be 13, 12, 11, ..., 0
+    #----
+    for t in reversed( range( len(outputs) ) ):
+        #------------------
         # Compute cross-entropy loss (as a scalar)
-        {
         #  Remember we can have targets shape as (14, 4, 1) and outputs shape as (14, 4, 1), so what we do here
         #    is outputs[0]->(4,1) , targets[0]->(4,1)  
         #       
         # Formula: Loss += -(1/N) * SUM(i->n)[ y * log(y_hat + E) ] 
         #  note that 1/N*SUM(i->n) is the same as np.mean()
-        }
         loss += -np.mean( np.log( outputs[t]+1e-12 ) * targets[t] )
         
-        {
         # print(f'outputs[t]: {outputs[t]}')
         # print(f'targets[t]: {targets[t]}')
         # print(f'np.log( outputs[t]): {np.log( outputs[t] )}')
         # print(f'np.log( outputs[t]+1e-12 ) * targets[t]: { np.log( outputs[t]+1e-12 ) * targets[t] }')
         # print(f'np.mean( np.log( outputs[t]+1e-12 ) * targets[t] ): {np.mean( np.log( outputs[t]+1e-12 ) * targets[t] )}')
         # print('--------')
-        #-------------------
-        }
+        #------------------
         
         # Backpropagate into output (derivative of cross-entropy)
-        {
         # if you're confused about this step, see this link for an explanation:
         # http://cs231n.github.io/neural-networks-case-study/#grad
-        #   Suppose outputs[t] is [0.1, 0.7, 0.2] and targets[t] is [0, 1, 0] (one-hot encoded)
-        # The code would execute as follows:
-        #     d_o = outputs[t].copy() results in d_o = [0.1, 0.7, 0.2].
-        #     np.argmax(targets[t]) returns 1 (the index of the maximum value in targets[t]).
-        #     d_o[1] -= 1 modifies d_o to [0.1, -0.3, 0.2].
-        }
         d_o = outputs[t].copy()
         d_o[ np.argmax(targets[t]) ] -= 1
         
-        # Backpropagate into W (W - weight matrix hidden state to output)
+        # Backpropagate into W
         d_W += np.dot(d_o, hidden_states[t].T)
         d_b_out += d_o
         
-        # Backpropagate into h (hidden state)
+        # Backpropagate into h
         d_h = np.dot(W.T, d_o) + d_h_next
         
         # Backpropagate through non-linearity
         d_f = tanh(hidden_states[t], derivative=True) * d_h
         d_b_hidden += d_f
         
-        # Backpropagate into U (U - weight input to hidden state)
+        # Backpropagate into U
         d_U += np.dot(d_f, inputs[t].T)
         
-        # Backpropagate into V (V - weight matrix recurrent computation)
+        # Backpropagate into V
         d_V += np.dot(d_f, hidden_states[t-1].T)
         d_h_next = np.dot(V.T, d_f)
-    #-------------------
+    
     # Pack gradients
     grads = d_U, d_V, d_W, d_b_hidden, d_b_out    
     
@@ -687,20 +610,14 @@ def backward_pass(inputs, outputs, hidden_states, targets, params_U_V_W_bhidden_
     return loss, grads
 #-------------------------------------------------------------------------
 
-print(f'To clarify, the original sentence has a length of 14 elements')
-print(f'test_input shape: {test_input.shape}') # (14, 4, 1)
-# print(f'test_input: {test_input}') # 'a' -> [[1],[0],[0],[0]], 'a' -> [[1],[0],[0],[0]], ...
-print(f'global_outputs len: {len(global_outputs)}') 
-# print(f'global_outputs: {global_outputs}') # at this stage this is mostly random junk
-print(f'global_hidden_states len: {len(global_hidden_states)}')
-print(f'global_hidden_states shape: {global_hidden_states[0].shape}') # 14*(50, 1)
-# print(f'global_hidden_states: {global_hidden_states}') # at this stage this is mostly random junk
-
-print('Remember: While the test input is valid, at this stage the global outputs and hidden states are random junk')
-loss, grads = backward_pass(
-        inputs = test_input, outputs = global_outputs, hidden_states = global_hidden_states, 
-        targets = test_target, params_U_V_W_bhidden_bout = params
-    )
+# print(f'targets shape: {test_target.shape}') # shape: (14, 4, 1)
+# print(f'targets:\n{test_target}')
+# print('-----')
+# print(f'inputs shape: {test_input.shape}') # shape: (14, 4, 1)
+# print(f'outputs:\n{outputs}')
+# print('----------------------------------------------')
+loss, grads = backward_pass(inputs = test_input, outputs = outputs, 
+                            hidden_states = hidden_states, targets = test_target, params = params)
 
 print('We get a loss of:')
 print(loss)
@@ -710,127 +627,25 @@ print(loss)
 ##  PART 9
 ##
 ##########################################################################
-#-------------------------------------------------------------------------
-def update_parameters(params, grads, learning_rate=1e-3):
-    # To train our network, we need an optimizer. A common method is gradient descent,
-    # which updates parameters using the rule: θ_{n+1} = (θ_{n}) - (η * ∂E/∂θ_{n}),
-    #     θ = Theta - often used to represent parameters or weights of a model
-    #     η = Eta - often used to represent the learning rate
-    #     E = Cost function
-    #     ∂E/∂θ = Partial derivative of the cost function with respect to the parameter
-    #     η * ∂E/∂θ_{n} = step size
-    #     
-    # Quick note: Gradients (grads) - These are the partial derivatives of the cost function ( E ) 
-    #   with respect to each parameter. They indicate how much the cost function would change if 
-    #   the parameter is adjusted.
-
-
-    # This whole function is similar to what happens when you run `optimizer.step()` in PyTorch with SGD.
-
+def update_parameters(params, grads, lr=1e-3):
     # Take a step
     for param, grad in zip(params, grads):
-        param -= learning_rate * grad
+        param -= lr * grad
     
     return params
-    # for param, grad in zip(params, grads):
-    #     temp_param = param - learning_rate * grad
-    #     param = temp_param
-    
-    # return params
 #-------------------------------------------------------------------------
 
 import matplotlib.pyplot as plt
 # %matplotlib inline
-# #-------------------------------------------------------------------------
-# def train_rnn(param_hidden_layer_size, param_vocab_size, num_epochs = 1000):
-#     #------------
-#     # Initialize a new network
-#     params = init_rnn(hidden_size = param_hidden_layer_size, vocab_size = param_vocab_size)
-
-#     # Initialize hidden state as zeros
-#     local_hidden_state = np.zeros((param_hidden_layer_size, 1))
-
-#     # Track loss
-#     training_loss, validation_loss = [], []
-#     #------------
-
-#     #-------------------------------------------------------------------------
-#     # For each epoch
-#     for i in range(num_epochs):
-        
-#         # Track loss
-#         epoch_training_loss = 0
-#         epoch_validation_loss = 0
-        
-#         # For each sentence in validation set
-#         for inputs, targets in validation_set:
-#             # One-hot encode input and target sequence
-#             inputs_one_hot = one_hot_encode_sequence(sequence = inputs, vocab_size = vocab_size, param_word_to_idx = word_to_idx)
-#             targets_one_hot = one_hot_encode_sequence(sequence = targets, vocab_size = vocab_size, param_word_to_idx = word_to_idx)
-            
-#             # Re-initialize hidden state
-#             global_hidden_state = np.zeros_like(global_hidden_state)
-
-#             # Forward pass
-#             global_outputs, global_hidden_states = forward_pass(
-#                 inputs = inputs_one_hot, hidden_state = global_hidden_state, params_U_V_W_bhidden_bout = params
-#             )
-
-#             # Backward pass - returns loss and grads ( _ )
-#             loss, _ = backward_pass(inputs = inputs_one_hot, outputs = global_outputs, 
-#                 hidden_states = global_hidden_states, targets = targets_one_hot, params_U_V_W_bhidden_bout = params
-#             )
-            
-#             # Update loss
-#             epoch_validation_loss += loss
-        
-#         # For each sentence in training set
-#         for inputs, targets in training_set:
-#             # One-hot encode input and target sequence
-#             inputs_one_hot = one_hot_encode_sequence(sequence = inputs, vocab_size = vocab_size, param_word_to_idx = word_to_idx)
-#             targets_one_hot = one_hot_encode_sequence(sequence = targets, vocab_size = vocab_size, param_word_to_idx = word_to_idx)
-            
-#             # Re-initialize hidden state
-#             global_hidden_state = np.zeros_like(global_hidden_state)
-
-#             # Forward pass
-#             global_outputs, global_hidden_states = forward_pass(
-#                 inputs = inputs_one_hot, hidden_state = global_hidden_state, params_U_V_W_bhidden_bout = params
-#             )
-
-#             # Backward pass
-#             loss, grads = backward_pass(
-#                 inputs = inputs_one_hot, outputs = global_outputs, hidden_states = global_hidden_states, 
-#                 targets = targets_one_hot, params_U_V_W_bhidden_bout = params
-#             )
-            
-#             if np.isnan(loss): #not a number
-#                 raise ValueError('Gradients have vanished!')
-            
-#             # Update parameters
-#             params = update_parameters(params, grads, learning_rate=3e-4)
-            
-#             # Update loss
-#             epoch_training_loss += loss
-            
-#         # Save loss for plot
-#         training_loss.append(epoch_training_loss/len(training_set))
-#         validation_loss.append(epoch_validation_loss/len(validation_set))
-
-#         # Print loss every 100 epochs
-#         if i % 100 == 0:
-#             print(f'Epoch {i}, training loss: {training_loss[-1]}, validation loss: {validation_loss[-1]}')
-#     #-------------------------------------------------------------------------
-# #-------------------------------------------------------------------------
 
 # Hyper-parameters
 num_epochs = 1000
 
 # Initialize a new network
-params = init_rnn(hidden_size=hidden_layer_size, vocab_size=vocab_size)
+params = init_rnn(hidden_size=hidden_size, vocab_size=vocab_size)
 
 # Initialize hidden state as zeros
-global_hidden_state = np.zeros((hidden_layer_size, 1))
+hidden_state = np.zeros((hidden_size, 1))
 
 # Track loss
 training_loss, validation_loss = [], []
@@ -850,16 +665,16 @@ for i in range(num_epochs):
         targets_one_hot = one_hot_encode_sequence(sequence = targets, vocab_size = vocab_size, param_word_to_idx = word_to_idx)
         
         # Re-initialize hidden state
-        global_hidden_state = np.zeros_like(global_hidden_state)
+        hidden_state = np.zeros_like(hidden_state)
 
         # Forward pass
-        global_outputs, global_hidden_states = forward_pass(
-            inputs = inputs_one_hot, hidden_state = global_hidden_state, params_U_V_W_bhidden_bout = params
+        outputs, hidden_states = forward_pass(
+            inputs = inputs_one_hot, hidden_state = hidden_state, params = params
         )
 
         # Backward pass - returns loss and grads ( _ )
-        loss, _ = backward_pass(inputs = inputs_one_hot, outputs = global_outputs, 
-            hidden_states = global_hidden_states, targets = targets_one_hot, params_U_V_W_bhidden_bout = params
+        loss, _ = backward_pass(inputs = inputs_one_hot, outputs = outputs, 
+            hidden_states = hidden_states, targets = targets_one_hot, params = params
         )
         
         # Update loss
@@ -872,24 +687,24 @@ for i in range(num_epochs):
         targets_one_hot = one_hot_encode_sequence(sequence = targets, vocab_size = vocab_size, param_word_to_idx = word_to_idx)
         
         # Re-initialize hidden state
-        global_hidden_state = np.zeros_like(global_hidden_state)
+        hidden_state = np.zeros_like(hidden_state)
 
         # Forward pass
-        global_outputs, global_hidden_states = forward_pass(
-            inputs = inputs_one_hot, hidden_state = global_hidden_state, params_U_V_W_bhidden_bout = params
+        outputs, hidden_states = forward_pass(
+            inputs = inputs_one_hot, hidden_state = hidden_state, params = params
         )
 
         # Backward pass
         loss, grads = backward_pass(
-            inputs = inputs_one_hot, outputs = global_outputs, hidden_states = global_hidden_states, 
-            targets = targets_one_hot, params_U_V_W_bhidden_bout = params
+            inputs = inputs_one_hot, outputs = outputs, hidden_states = hidden_states, 
+            targets = targets_one_hot, params = params
         )
         
         if np.isnan(loss): #not a number
             raise ValueError('Gradients have vanished!')
         
         # Update parameters
-        params = update_parameters(params, grads, learning_rate=3e-4)
+        params = update_parameters(params, grads, lr=3e-4)
         
         # Update loss
         epoch_training_loss += loss
@@ -911,24 +726,19 @@ inputs_one_hot = one_hot_encode_sequence(sequence = inputs, vocab_size = vocab_s
 targets_one_hot = one_hot_encode_sequence(sequence = targets, vocab_size = vocab_size, param_word_to_idx = word_to_idx)
 
 # Initialize hidden state as zeros
-global_hidden_state = np.zeros((hidden_layer_size, 1))
+hidden_state = np.zeros((hidden_size, 1))
 
 # Forward pass
-global_outputs, global_hidden_states = forward_pass(inputs_one_hot, global_hidden_state, params)
-output_sentence = [idx_to_word[np.argmax(output)] for output in global_outputs]
+outputs, hidden_states = forward_pass(inputs_one_hot, hidden_state, params)
+output_sentence = [idx_to_word[np.argmax(output)] for output in outputs]
 print('Input sentence:')
 print(inputs)
 
 print('\nTarget sequence:')
 print(targets)
 
-
 print('\nPredicted sequence:')
-translated_output = [idx_to_word[np.argmax(output)] for output in global_outputs]
-print(translated_output)
-
-
-print(f'Is the target sequence equal to the predicted sequence? {targets == translated_output}')
+print([idx_to_word[np.argmax(output)] for output in outputs])
 
 # Plot training and validation loss
 epoch = np.arange(len(training_loss))
@@ -938,64 +748,3 @@ plt.plot(epoch, validation_loss, 'b', label='Validation loss')
 plt.legend()
 plt.xlabel('Epoch'), plt.ylabel('NLL')
 plt.show()
-exit()
-##########################################################################
-##
-##  PART 10
-##
-##########################################################################
-
-#-------------------------------------------------------------------------
-def freestyle(params, sentence = '', num_generate = 4 , param_hidden_size = 50):
-    """
-    Takes in a sentence as a string and outputs a sequence
-    based on the predictions of the RNN.
-    Args:
-     `params`: the parameters of the network
-     `sentence`: string with whitespace-separated tokens
-     `num_generate`: the number of tokens to generate
-    """
-
-    sentence = sentence.split(' ')
-    
-    sentence_one_hot = one_hot_encode_sequence(sentence = sentence, vocab_size = vocab_size, param_word_to_idx = word_to_idx)
-    
-    # Initialize hidden state as zeros
-    hidden_state = np.zeros((param_hidden_size, 1))
-
-    # Generate hidden state for sentence
-    outputs, hidden_states = forward_pass(inputs= sentence_one_hot, hidden_state =  hidden_state, params_U_V_W_bhidden_bout = params)
-    
-    # Output sentence
-    output_sentence = sentence
-    
-    # Append first prediction
-    word = idx_to_word[np.argmax(outputs[-1])]  #return the index of the max value in the array 
-    output_sentence.append(word)
-    
-    # Forward pass
-    for i in range(num_generate):
-
-        # Get the latest prediction and latest hidden state
-        output = outputs[-1]
-        hidden_state = hidden_states[-1]
-    
-        # Reshape our output to match the input shape of our forward pass
-        output = output.reshape(1, output.shape[0], output.shape[1])
-    
-        # Forward pass
-        outputs, hidden_states = forward_pass(
-            inputs = output, hidden_state = hidden_state, params_U_V_W_bhidden_bout = params
-        )
-        
-        # Compute the index the most likely word and look up the corresponding word
-        word = idx_to_word[np.argmax(outputs)]
-        
-        output_sentence.append(word)
-        
-    return output_sentence
-#------------------------------------------------------------------------- 
-
-# Perform freestyle
-result_freestyle = freestyle(params = params, sentence='a a a a a b')
-print(f'Result freestyle\n:{result_freestyle}')
