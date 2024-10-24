@@ -578,6 +578,9 @@ def clip_gradient_norm(grads, max_norm=0.25):
     # If the total norm is larger than the maximum allowable norm, then clip the gradient
     if clip_coef < 1:
         for grad in grads:
+            # print(f'----')
+            # print(f'grad: {grad}')
+            # print(f'new grad: {grad * clip_coef}')
             grad *= clip_coef
     #------------------
     
@@ -684,11 +687,13 @@ def backward_pass(inputs, outputs, hidden_states, targets, params_U_V_W_bhidden_
     return loss, grads
 #-------------------------------------------------------------------------
 
+print(f'To clarify, the original sentence has a length of 14 elements')
 # print(f'targets shape: {test_target.shape}') # shape: (14, 4, 1)
+# print(f'test_input: {test_input}') # 'a' -> [[1],[0],[0],[0]], 'a' -> [[1],[0],[0],[0]], ...
 # print(f'targets:\n{test_target}')
-# print('-----')
+# print(f'global_outputs: {global_outputs}') # at this stage this is mostly random junk
 # print(f'inputs shape: {test_input.shape}') # shape: (14, 4, 1)
-# print(f'outputs:\n{outputs}')
+# print(f'global_hidden_states: {global_hidden_states}') # at this stage this is mostly random junk
 # print('----------------------------------------------')
 loss, grads = backward_pass(inputs = test_input, outputs = outputs, 
                             hidden_states = hidden_states, targets = test_target, params_U_V_W_bhidden_bout = params)
