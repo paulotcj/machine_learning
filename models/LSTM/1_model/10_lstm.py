@@ -536,11 +536,25 @@ print('----------------------------------------------')
 
 #-------------------------------------------------------------------------
 def clip_gradient_norm(grads, max_norm=0.25):
+    {
     """
     Clips gradients to have a maximum norm of `max_norm`.
     This is to prevent the exploding gradients problem.
     """
-    # rememnber: grads = d_U, d_V, d_W, d_b_hidden, d_b_out   
+    # rememnber: grads = d_U, d_V, d_W, d_b_hidden, d_b_out  
+    #   U - weight input to hidden state
+    #   V - weight matrix recurrent computation
+    #   W - weight matrix hidden state to output
+    #   bias_hidden shape
+    #   bias_out
+    # print(f'grads[0] U shape: {grads[0].shape}')
+    # print(f'grads[1] V shape: {grads[1].shape}')
+    # print(f'grads[2] W shape: {grads[2].shape}')
+    # print(f'grads[3] b_hidden shape: {grads[3].shape}')
+    # print(f'grads[4] b_out shape: {grads[4].shape}')
+    }
+
+
     # Set the maximum of the norm to be of type float
     max_norm = float(max_norm)
     total_norm = 0
@@ -574,8 +588,7 @@ def clip_gradient_norm(grads, max_norm=0.25):
 #-------------------------------------------------------------------------
 #-------------------------------------------------------------------------
 def backward_pass(inputs, outputs, hidden_states, targets, params_U_V_W_bhidden_bout):
-    {
-    """
+    {"""
     Computes the backward pass of a vanilla RNN.
     Args:
      `inputs`: sequence of inputs to be processed
@@ -588,6 +601,13 @@ def backward_pass(inputs, outputs, hidden_states, targets, params_U_V_W_bhidden_
     #-------------------
     # First we unpack our parameters
     U, V, W, b_hidden, b_out = params_U_V_W_bhidden_bout
+
+    {# print(f'U shape: {U.shape}')
+    # print(f'V shape: {V.shape}')
+    # print(f'W shape: {W.shape}')
+    # print(f'b_hidden shape: {b_hidden.shape}')
+    # print(f'b_out shape: {b_out.shape}')
+    }
     #-------------------
     # Initialize gradients as zero
     d_U, d_V, d_W = np.zeros_like(U), np.zeros_like(V), np.zeros_like(W) # np.zeros_like(var) generates a new array of zeros with the same shape and type as the array 'var'
@@ -607,8 +627,6 @@ def backward_pass(inputs, outputs, hidden_states, targets, params_U_V_W_bhidden_
     # print(f'reversed( range( len(outputs) ) ): {reversed( range( len(outputs) ) )}')
     }
     for t in reversed( range( len(outputs) ) ): #for a sequence of 14 elements, this will be 13, 12, 11, ..., 0
-    
-        #-------------------
         # Compute cross-entropy loss (as a scalar)
         {
         #  Remember we can have targets shape as (14, 4, 1) and outputs shape as (14, 4, 1), so what we do here
@@ -686,22 +704,120 @@ loss, grads = backward_pass(
 
 print('We get a loss of:')
 print(loss)
-exit()
+
 ##########################################################################
 ##
 ##  PART 9
 ##
 ##########################################################################
-def update_parameters(params, grads, lr=1e-3):
+#-------------------------------------------------------------------------
+def update_parameters(params, grads, learning_rate=1e-3):
+    # To train our network, we need an optimizer. A common method is gradient descent,
+    # which updates parameters using the rule: θ_{n+1} = (θ_{n}) - (η * ∂E/∂θ_{n}),
+    #     θ = Theta - often used to represent parameters or weights of a model
+    #     η = Eta - often used to represent the learning rate
+    #     E = Cost function
+    #     ∂E/∂θ = Partial derivative of the cost function with respect to the parameter
+    #     η * ∂E/∂θ_{n} = step size
+    #     
+    # Quick note: Gradients (grads) - These are the partial derivatives of the cost function ( E ) 
+    #   with respect to each parameter. They indicate how much the cost function would change if 
+    #   the parameter is adjusted.
+
+
+    # This whole function is similar to what happens when you run `optimizer.step()` in PyTorch with SGD.
+
     # Take a step
     for param, grad in zip(params, grads):
-        param -= lr * grad
+        temp_param = param - learning_rate * grad
+        param = temp_param
     
     return params
 #-------------------------------------------------------------------------
 
 import matplotlib.pyplot as plt
 # %matplotlib inline
+# #-------------------------------------------------------------------------
+# def train_rnn(param_hidden_layer_size, param_vocab_size, num_epochs = 1000):
+#     #------------
+#     # Initialize a new network
+#     params = init_rnn(hidden_size = param_hidden_layer_size, vocab_size = param_vocab_size)
+
+#     # Initialize hidden state as zeros
+#     local_hidden_state = np.zeros((param_hidden_layer_size, 1))
+
+#     # Track loss
+#     training_loss, validation_loss = [], []
+#     #------------
+
+#     #-------------------------------------------------------------------------
+#     # For each epoch
+#     for i in range(num_epochs):
+        
+#         # Track loss
+#         epoch_training_loss = 0
+#         epoch_validation_loss = 0
+        
+#         # For each sentence in validation set
+#         for inputs, targets in validation_set:
+#             # One-hot encode input and target sequence
+#             inputs_one_hot = one_hot_encode_sequence(sequence = inputs, vocab_size = vocab_size, param_word_to_idx = word_to_idx)
+#             targets_one_hot = one_hot_encode_sequence(sequence = targets, vocab_size = vocab_size, param_word_to_idx = word_to_idx)
+            
+#             # Re-initialize hidden state
+#             global_hidden_state = np.zeros_like(global_hidden_state)
+
+#             # Forward pass
+#             global_outputs, global_hidden_states = forward_pass(
+#                 inputs = inputs_one_hot, hidden_state = global_hidden_state, params_U_V_W_bhidden_bout = params
+#             )
+
+#             # Backward pass - returns loss and grads ( _ )
+#             loss, _ = backward_pass(inputs = inputs_one_hot, outputs = global_outputs, 
+#                 hidden_states = global_hidden_states, targets = targets_one_hot, params_U_V_W_bhidden_bout = params
+#             )
+            
+#             # Update loss
+#             epoch_validation_loss += loss
+        
+#         # For each sentence in training set
+#         for inputs, targets in training_set:
+#             # One-hot encode input and target sequence
+#             inputs_one_hot = one_hot_encode_sequence(sequence = inputs, vocab_size = vocab_size, param_word_to_idx = word_to_idx)
+#             targets_one_hot = one_hot_encode_sequence(sequence = targets, vocab_size = vocab_size, param_word_to_idx = word_to_idx)
+            
+#             # Re-initialize hidden state
+#             global_hidden_state = np.zeros_like(global_hidden_state)
+
+#             # Forward pass
+#             global_outputs, global_hidden_states = forward_pass(
+#                 inputs = inputs_one_hot, hidden_state = global_hidden_state, params_U_V_W_bhidden_bout = params
+#             )
+
+#             # Backward pass
+#             loss, grads = backward_pass(
+#                 inputs = inputs_one_hot, outputs = global_outputs, hidden_states = global_hidden_states, 
+#                 targets = targets_one_hot, params_U_V_W_bhidden_bout = params
+#             )
+            
+#             if np.isnan(loss): #not a number
+#                 raise ValueError('Gradients have vanished!')
+            
+#             # Update parameters
+#             params = update_parameters(params, grads, learning_rate=3e-4)
+            
+#             # Update loss
+#             epoch_training_loss += loss
+            
+#         # Save loss for plot
+#         training_loss.append(epoch_training_loss/len(training_set))
+#         validation_loss.append(epoch_validation_loss/len(validation_set))
+
+#         # Print loss every 100 epochs
+#         if i % 100 == 0:
+#             print(f'Epoch {i}, training loss: {training_loss[-1]}, validation loss: {validation_loss[-1]}')
+#     #-------------------------------------------------------------------------
+# #-------------------------------------------------------------------------
 
 # Hyper-parameters
 num_epochs = 1000
@@ -769,7 +885,7 @@ for i in range(num_epochs):
             raise ValueError('Gradients have vanished!')
         
         # Update parameters
-        params = update_parameters(params, grads, lr=3e-4)
+        params = update_parameters(params, grads, learning_rate=3e-4)
         
         # Update loss
         epoch_training_loss += loss
@@ -818,13 +934,13 @@ plt.plot(epoch, validation_loss, 'b', label='Validation loss')
 plt.legend()
 plt.xlabel('Epoch'), plt.ylabel('NLL')
 plt.show()
-
+exit()
 ##########################################################################
 ##
 ##  PART 10
 ##
 ##########################################################################
-exit()
+
 #-------------------------------------------------------------------------
 def freestyle(params, sentence = '', num_generate = 4 , param_hidden_size = 50):
     """
