@@ -349,7 +349,10 @@ def init_rnn(hidden_size, vocab_size):
     return U, V, W, b_hidden, b_out
 #-------------------------------------------------------------------------
 
-params = init_rnn(hidden_size=hidden_size, vocab_size=vocab_size)
+hidden_layer_size = 50 # Number of hidden units in this layer
+vocab_size  = len(word_to_idx) # Size of the vocabulary used
+
+params = init_rnn(hidden_size=hidden_layer_size, vocab_size=vocab_size)
 print('----------------------------------------------')
 print(f'U (weight input to hidden state) shape: {params[0].shape}') # U
 print(f'V (weight matrix recurrent computation) shape: {params[1].shape}') # V
@@ -438,25 +441,45 @@ def softmax(x, derivative = False ):
 ##
 ##########################################################################
 #-------------------------------------------------------------------------
-def forward_pass(inputs, hidden_state, params):
-    # Computes the forward pass of a vanilla RNN.
-    # Args:
-    #  `inputs`: sequence of inputs to be processed
-    #  `hidden_state`: an already initialized hidden state
-    #  `params`: the parameters of the RNN
-
+def forward_pass(inputs, hidden_state, params_U_V_W_bhidden_bout):
+    """
+    Computes the forward pass of a vanilla RNN.
+    Args:
+     `inputs`: sequence of inputs to be processed
+     `hidden_state`: an already initialized hidden state
+     `params`: the parameters of the RNN (U, V, W, b_hidden, b_out)
+    """
+    #---------
     # First we unpack our parameters
-    #   U - weight input to hidden state, V - weight matrix recurrent computation,
-    #   W - weight matrix hidden state to output, bias_hidden shape, bias_out
-    U, V, W, b_hidden, b_out = params
+    #   U - weight input to hidden state, 
+    #   V - weight matrix recurrent computation,
+    #   W - weight matrix hidden state to output, 
+    #   bias_hidden shape, 
+    #   bias_out
+    U, V, W, b_hidden, b_out = params_U_V_W_bhidden_bout
+    # print(f'  U shape: {U.shape}')
+    # print(f'  V shape: {V.shape}')
+    # print(f'  W shape: {W.shape}')
+    # print(f'  b_hidden shape: {b_hidden.shape}')
+    # print(f'  b_out shape: {b_out.shape}')
     
     # Create a list to store outputs and hidden states
     outputs, hidden_states = [], []
-    
+    #---------
     # For each element in input sequence
     for t in range(len(inputs)): # t as the notation for time-step
         # Compute new hidden state
-        temp_hidden_state = np.dot(U, inputs[t]) + np.dot(V, hidden_state) + b_hidden
+       
+        dot_U_inputsT = np.dot(U, inputs[t]) # U * inputs(t)
+        dot_V_hidden_state = np.dot(V, hidden_state)
+        temp_hidden_state = dot_U_inputsT + dot_V_hidden_state + b_hidden
+
+        # print('---')
+        # print(f'  inputs[t] shape: {inputs[t].shape}')
+        # print(f'  dot_U_inputsT shape: {dot_U_inputsT.shape}')
+        # print(f'  dot_V_hidden_state shape: {dot_V_hidden_state.shape}')
+        # print(f'  temp_hidden_state shape: {temp_hidden_state.shape}')
+        #---
         hidden_state = tanh(temp_hidden_state)
 
         # Compute output
@@ -466,9 +489,10 @@ def forward_pass(inputs, hidden_state, params):
         # Save results and continue
         outputs.append(out)
         hidden_states.append(hidden_state.copy())
-    
+    #---------
     return outputs, hidden_states
 #-------------------------------------------------------------------------
+
 print('----------------------------------------------')
 print('about the inputs and targets remember:')
 print('  example: \'The quick brown fox jumps\'')
@@ -478,6 +502,7 @@ print(f'training_set len: {len(training_set)}')
 print(f'training_set[0][0] (inputs)\ntraining_set[0][1] (targets):\n{training_set[0][0]}\n{training_set[0][1]}')
 print('----------------------------------------------')
 
+#-------------------
 # Get first sequence in training set
 test_input_sequence, test_target_sequence = training_set[0]
 
@@ -669,7 +694,7 @@ for i in range(num_epochs):
 
         # Forward pass
         outputs, hidden_states = forward_pass(
-            inputs = inputs_one_hot, hidden_state = hidden_state, params = params
+            inputs = inputs_one_hot, hidden_state = hidden_state, params_U_V_W_bhidden_bout = params
         )
 
         # Backward pass - returns loss and grads ( _ )
@@ -691,7 +716,7 @@ for i in range(num_epochs):
 
         # Forward pass
         outputs, hidden_states = forward_pass(
-            inputs = inputs_one_hot, hidden_state = hidden_state, params = params
+            inputs = inputs_one_hot, hidden_state = hidden_state, params_U_V_W_bhidden_bout = params
         )
 
         # Backward pass
