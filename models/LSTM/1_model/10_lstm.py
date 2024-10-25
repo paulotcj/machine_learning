@@ -541,7 +541,7 @@ print('----------------------------------------------')
 ##########################################################################
 
 #-------------------------------------------------------------------------
-def clip_gradient_norm(grads, max_norm=0.25):
+def clip_gradient_norm(param_grads, max_norm=0.25):
     {
     """
     Clips gradients to have a maximum norm of `max_norm`.
@@ -567,7 +567,7 @@ def clip_gradient_norm(grads, max_norm=0.25):
 
     
     # Calculate the L2 norm squared for each gradient and add them to the total norm
-    for grad in grads:
+    for grad in param_grads:
         grad_norm = np.sum(np.power(grad, 2))
         total_norm += grad_norm
     
@@ -583,7 +583,7 @@ def clip_gradient_norm(grads, max_norm=0.25):
     #------------------
     # If the total norm is larger than the maximum allowable norm, then clip the gradient
     if clip_coef < 1:
-        for grad in grads:
+        for grad in param_grads:
             # print(f'----')
             # print(f'grad: {grad}')
             # print(f'new grad: {grad * clip_coef}')
@@ -591,10 +591,10 @@ def clip_gradient_norm(grads, max_norm=0.25):
 
     #------------------
     
-    return grads
+    return param_grads
 #-------------------------------------------------------------------------
 #-------------------------------------------------------------------------
-def backward_pass(inputs, outputs, hidden_states, targets, params_U_V_W_bhidden_bout):
+def backward_pass(param_inputs, param_outputs, param_hidden_states, param_targets, params_U_V_W_bhidden_bout):
     {"""
     Computes the backward pass of a vanilla RNN.
     Args:
@@ -621,7 +621,7 @@ def backward_pass(inputs, outputs, hidden_states, targets, params_U_V_W_bhidden_
     d_b_hidden, d_b_out = np.zeros_like(b_hidden), np.zeros_like(b_out)
     
     # Keep track of hidden state derivative and loss
-    d_h_next = np.zeros_like(hidden_states[0])
+    d_h_next = np.zeros_like(param_hidden_states[0])
     loss = 0
     {
     #-------------------
@@ -633,7 +633,7 @@ def backward_pass(inputs, outputs, hidden_states, targets, params_U_V_W_bhidden_
     # print(f'range(len(outputs)): {range(len_outputs)}')
     # print(f'reversed( range( len(outputs) ) ): {reversed( range( len(outputs) ) )}')
     }
-    for t in reversed( range( len(outputs) ) ): #for a sequence of 14 elements, this will be 13, 12, 11, ..., 0
+    for t in reversed( range( len(param_outputs) ) ): #for a sequence of 14 elements, this will be 13, 12, 11, ..., 0
         # Compute cross-entropy loss (as a scalar)
         {
         #  Remember we can have targets shape as (14, 4, 1) and outputs shape as (14, 4, 1), so what we do here
@@ -642,7 +642,7 @@ def backward_pass(inputs, outputs, hidden_states, targets, params_U_V_W_bhidden_
         # Formula: Loss += -(1/N) * SUM(i->n)[ y * log(y_hat + E) ] 
         #  note that 1/N*SUM(i->n) is the same as np.mean()
         }
-        loss += -np.mean( np.log( outputs[t]+1e-12 ) * targets[t] )
+        loss += -np.mean( np.log( param_outputs[t]+1e-12 ) * param_targets[t] )
         
         {
         # print(f'outputs[t]: {outputs[t]}')
@@ -664,25 +664,25 @@ def backward_pass(inputs, outputs, hidden_states, targets, params_U_V_W_bhidden_
         #     np.argmax(targets[t]) returns 1 (the index of the maximum value in targets[t]).
         #     d_o[1] -= 1 modifies d_o to [0.1, -0.3, 0.2].
         }
-        d_o = outputs[t].copy()
-        d_o[ np.argmax(targets[t]) ] -= 1
+        d_o = param_outputs[t].copy()
+        d_o[ np.argmax(param_targets[t]) ] -= 1
         
         # Backpropagate into W (W - weight matrix hidden state to output)
-        d_W += np.dot(d_o, hidden_states[t].T)
+        d_W += np.dot(d_o, param_hidden_states[t].T)
         d_b_out += d_o
         
         # Backpropagate into h (hidden state)
         d_h = np.dot(W.T, d_o) + d_h_next
         
         # Backpropagate through non-linearity
-        d_f = tanh(hidden_states[t], derivative=True) * d_h
+        d_f = tanh(param_hidden_states[t], derivative=True) * d_h
         d_b_hidden += d_f
         
         # Backpropagate into U (U - weight input to hidden state)
-        d_U += np.dot(d_f, inputs[t].T)
+        d_U += np.dot(d_f, param_inputs[t].T)
         
         # Backpropagate into V (V - weight matrix recurrent computation)
-        d_V += np.dot(d_f, hidden_states[t-1].T)
+        d_V += np.dot(d_f, param_hidden_states[t-1].T)
         d_h_next = np.dot(V.T, d_f)
     #-------------------
     # Pack gradients
@@ -705,8 +705,8 @@ print(f'global_hidden_states shape: {global_hidden_states[0].shape}') # 14*(50, 
 
 print('Remember: While the test input is valid, at this stage the global outputs and hidden states are random junk')
 loss, grads = backward_pass(
-        inputs = test_input, outputs = global_outputs, hidden_states = global_hidden_states, 
-        targets = test_target, params_U_V_W_bhidden_bout = params
+        param_inputs = test_input, param_outputs = global_outputs, param_hidden_states = global_hidden_states, 
+        param_targets = test_target, params_U_V_W_bhidden_bout = params
     )
 
 print('We get a loss of:')
@@ -860,8 +860,8 @@ for i in range(num_epochs):
         )
 
         # Backward pass - returns loss and grads ( _ )
-        loss, _ = backward_pass(inputs = inputs_one_hot, outputs = global_outputs, 
-            hidden_states = global_hidden_states, targets = targets_one_hot, params_U_V_W_bhidden_bout = params
+        loss, _ = backward_pass(param_inputs = inputs_one_hot, param_outputs = global_outputs, 
+            param_hidden_states = global_hidden_states, param_targets = targets_one_hot, params_U_V_W_bhidden_bout = params
         )
         
         # Update loss
@@ -883,8 +883,8 @@ for i in range(num_epochs):
 
         # Backward pass
         loss, grads = backward_pass(
-            inputs = inputs_one_hot, outputs = global_outputs, hidden_states = global_hidden_states, 
-            targets = targets_one_hot, params_U_V_W_bhidden_bout = params
+            param_inputs = inputs_one_hot, param_outputs = global_outputs, param_hidden_states = global_hidden_states, 
+            param_targets = targets_one_hot, params_U_V_W_bhidden_bout = params
         )
         
         if np.isnan(loss): #not a number
