@@ -111,7 +111,9 @@ def execute_part_2(sequences):
         print(f'{i}: {idx_to_word[i]}')    
 
 #-------------------------------------------------------------------------
-execute_part_2(sequences = part1_result['sequences'])
+execute_part_2(
+    sequences = part1_result['sequences']
+)
 
 
 ##########################################################################
@@ -211,7 +213,9 @@ def execute_part_3(sequences):
             'test_set': test_set
     }
 #------------------------------------------------------------------------- 
-part3_result = execute_part_3(sequences = part1_result['sequences'])
+part3_result = execute_part_3(
+    sequences = part1_result['sequences']
+)
 
 
 ##########################################################################
@@ -284,7 +288,10 @@ def execute_part_4(word_to_idx, vocab_size):
     print(test_sentence[1])
     print('----')
 #-------------------------------------------------------------------------
-execute_part_4(word_to_idx=part3_result['word_to_idx'], vocab_size=part3_result['vocab_size'])
+execute_part_4(
+    word_to_idx = part3_result['word_to_idx'], 
+    vocab_size  = part3_result['vocab_size']
+)
 
 
 ##########################################################################
@@ -397,7 +404,10 @@ def execute_part_5(word_to_idx, vocab_size):
 
     return { 'hidden_layer_size' : hidden_layer_size, 'params': params }
 #-------------------------------------------------------------------------
-part5_result = execute_part_5(word_to_idx=part3_result['word_to_idx'], vocab_size=part3_result['vocab_size'])
+part5_result = execute_part_5(
+    word_to_idx = part3_result['word_to_idx'], 
+    vocab_size  = part3_result['vocab_size']
+)
 
 ##########################################################################
 ##
@@ -582,12 +592,12 @@ def execute_part_7(training_set, idx_to_word, word_to_idx , vocab_size, hidden_l
     }
 #-------------------------------------------------------------------------
 part7_result = execute_part_7(
-    training_set = part3_result['training_set'], 
-    idx_to_word = part3_result['idx_to_word'], 
-    word_to_idx = part3_result['word_to_idx'], 
-    vocab_size = part3_result['vocab_size'], 
-    hidden_layer_size = part5_result['hidden_layer_size'],
-    params = part5_result['params']
+    training_set        = part3_result['training_set'], 
+    idx_to_word         = part3_result['idx_to_word'], 
+    word_to_idx         = part3_result['word_to_idx'], 
+    vocab_size          = part3_result['vocab_size'], 
+    hidden_layer_size   = part5_result['hidden_layer_size'],
+    params              = part5_result['params']
 )
 
 
@@ -773,11 +783,11 @@ def execute_part_8(test_input, test_target, outputs, hidden_states, params):
     print(loss)
 #-------------------------------------------------------------------------
 execute_part_8(
-    test_input = part7_result['test_input'], 
-    test_target = part7_result['test_target'], 
-    outputs = part7_result['outputs'], 
-    hidden_states = part7_result['hidden_states'], 
-    params = part5_result['params']
+    test_input      = part7_result['test_input'], 
+    test_target     = part7_result['test_target'], 
+    outputs         = part7_result['outputs'], 
+    hidden_states   = part7_result['hidden_states'], 
+    params          = part5_result['params']
 )
 
 
@@ -940,42 +950,52 @@ def plot_graph(training_loss, validation_loss):
     plt.show()
 #-------------------------------------------------------------------------
 #-------------------------------------------------------------------------
-def execute_part_9(part5_result, part3_result):
+def execute_part_9(hidden_layer_size, vocab_size, word_to_idx, idx_to_word, 
+                   training_set, validation_set, test_set):
+    #-----------------------------
     train_rnn_results = train_rnn(
-        hidden_layer_size   = part5_result['hidden_layer_size'],
-        vocab_size          = part3_result['vocab_size'],
-        word_to_idx         = part3_result['word_to_idx'],
-        validation_set      = part3_result['validation_set'],
-        training_set        = part3_result['training_set']
+        hidden_layer_size   = hidden_layer_size,
+        vocab_size          = vocab_size,
+        word_to_idx         = word_to_idx,
+        validation_set      = validation_set,
+        training_set        = training_set
     )
 
     make_prediction(
-        hidden_layer_size   = part5_result['hidden_layer_size'],
-        vocab_size          = part3_result['vocab_size'],
-        word_to_idx         = part3_result['word_to_idx'],
-        idx_to_word         = part3_result['idx_to_word'],
+        hidden_layer_size   = hidden_layer_size,
+        vocab_size          = vocab_size,
+        word_to_idx         = word_to_idx,
+        idx_to_word         = idx_to_word,
         params              = train_rnn_results['params'],
-        test_set            = part3_result['test_set']
+        test_set            = test_set
     )
     plot_graph(
         training_loss = train_rnn_results['training_loss'],
         validation_loss = train_rnn_results['validation_loss']
     )
+    #-----------------------------
+    return {
+        'params': train_rnn_results['params']
+    }
 #-------------------------------------------------------------------------
-execute_part_9(part5_result, part3_result)
-
-
-exit()
-
+part9_result = execute_part_9(
+    hidden_layer_size   = part5_result['hidden_layer_size'],
+    vocab_size          = part3_result['vocab_size'],
+    word_to_idx         = part3_result['word_to_idx'],
+    idx_to_word         = part3_result['idx_to_word'],
+    training_set        = part3_result['training_set'],
+    validation_set      = part3_result['validation_set'],
+    test_set            = part3_result['test_set']
+)
 
 ##########################################################################
 ##
 ##  PART 10
 ##
 ##########################################################################
-
 #-------------------------------------------------------------------------
-def freestyle(params, sentence = '', num_generate = 4 , param_hidden_size = 50):
+def freestyle(vocab_size, word_to_idx, idx_to_word,
+        params, sentence = '', num_generate = 4 , hidden_layer_size = 50):
     """
     Takes in a sentence as a string and outputs a sequence
     based on the predictions of the RNN.
@@ -987,10 +1007,10 @@ def freestyle(params, sentence = '', num_generate = 4 , param_hidden_size = 50):
 
     sentence = sentence.split(' ')
     
-    sentence_one_hot = one_hot_encode_sequence(sentence = sentence, vocab_size = vocab_size, word_to_idx = word_to_idx)
+    sentence_one_hot = one_hot_encode_sequence(sequence = sentence, vocab_size = vocab_size, word_to_idx = word_to_idx)
     
     # Initialize hidden state as zeros
-    hidden_state = np.zeros((param_hidden_size, 1))
+    hidden_state = np.zeros((hidden_layer_size, 1))
 
     # Generate hidden state for sentence
     outputs, hidden_states = forward_pass(inputs= sentence_one_hot, hidden_state =  hidden_state, params_U_V_W_bhidden_bout = params)
@@ -1024,7 +1044,16 @@ def freestyle(params, sentence = '', num_generate = 4 , param_hidden_size = 50):
         
     return output_sentence
 #------------------------------------------------------------------------- 
-
-# Perform freestyle
-result_freestyle = freestyle(params = params, sentence='a a a a a b')
-print(f'Result freestyle\n:{result_freestyle}')
+#-------------------------------------------------------------------------
+def execute_part_10():
+    # Perform freestyle
+    result_freestyle = freestyle(
+        vocab_size  = part3_result['vocab_size'], 
+        word_to_idx = part3_result['word_to_idx'],
+        idx_to_word = part3_result['idx_to_word'],
+        params      = part9_result['params'],
+        sentence    = 'a a a a a b'
+    )
+    print(f'Result freestyle\n:{result_freestyle}')
+#-------------------------------------------------------------------------
+execute_part_10()
