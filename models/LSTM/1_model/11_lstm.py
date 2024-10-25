@@ -587,7 +587,8 @@ def clip_gradient_norm(grads, max_norm=0.25):
             # print(f'----')
             # print(f'grad: {grad}')
             # print(f'new grad: {grad * clip_coef}')
-            grad *= clip_coef
+            grad *= clip_coef  # !!! KEEP THIS CODE!!!! grad = grad * clip_coef IS NOT STABLE. Python bug
+
     #------------------
     
     return grads
@@ -696,14 +697,17 @@ def backward_pass(inputs, outputs, hidden_states, targets, params_U_V_W_bhidden_
 print(f'To clarify, the original sentence has a length of 14 elements')
 print(f'test_input shape: {test_input.shape}') # (14, 4, 1)
 # print(f'test_input: {test_input}') # 'a' -> [[1],[0],[0],[0]], 'a' -> [[1],[0],[0],[0]], ...
-# print(f'targets:\n{test_target}')
+print(f'global_outputs len: {len(global_outputs)}') 
 # print(f'global_outputs: {global_outputs}') # at this stage this is mostly random junk
-# print(f'inputs shape: {test_input.shape}') # shape: (14, 4, 1)
+print(f'global_hidden_states len: {len(global_hidden_states)}')
+print(f'global_hidden_states shape: {global_hidden_states[0].shape}') # 14*(50, 1)
 # print(f'global_hidden_states: {global_hidden_states}') # at this stage this is mostly random junk
 
 print('Remember: While the test input is valid, at this stage the global outputs and hidden states are random junk')
-loss, grads = backward_pass(inputs = test_input, outputs = global_outputs, 
-                            hidden_states = global_hidden_states, targets = test_target, params_U_V_W_bhidden_bout = params)
+loss, grads = backward_pass(
+        inputs = test_input, outputs = global_outputs, hidden_states = global_hidden_states, 
+        targets = test_target, params_U_V_W_bhidden_bout = params
+    )
 
 print('We get a loss of:')
 print(loss)
