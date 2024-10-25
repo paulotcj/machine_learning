@@ -261,6 +261,9 @@ print('----')
 ##
 ##########################################################################
 
+
+
+
 #-------------------------------------------------------------------------  
 def init_orthogonal(param):
     """    
@@ -307,7 +310,7 @@ def init_orthogonal(param):
     return new_param
 #-------------------------------------------------------------------------
 #-------------------------------------------------------------------------
-def init_rnn(hidden_size, vocab_size):
+def init_rnn(param_hidden_layer_size, vocab_size):
     """
     Initializes our recurrent neural network.
     
@@ -320,16 +323,16 @@ def init_rnn(hidden_size, vocab_size):
     # Part 1
     # Initialize the weights with zeros
     # Weight matrix (input to hidden state)
-    U = np.zeros((hidden_size, vocab_size))
+    U = np.zeros((param_hidden_layer_size, vocab_size))
 
     # Weight matrix (recurrent computation)
-    V = np.zeros((hidden_size, hidden_size))
+    V = np.zeros((param_hidden_layer_size, param_hidden_layer_size))
 
     # Weight matrix (hidden state to output)
-    W = np.zeros((vocab_size, hidden_size))
+    W = np.zeros((vocab_size, param_hidden_layer_size))
 
     # Bias (hidden state)
-    b_hidden = np.zeros((hidden_size, 1))
+    b_hidden = np.zeros((param_hidden_layer_size, 1))
 
     # Bias (output)
     b_out = np.zeros((vocab_size, 1))
@@ -348,7 +351,7 @@ def init_rnn(hidden_size, vocab_size):
 hidden_layer_size = 50 # Number of hidden units in this layer
 vocab_size  = len(word_to_idx) # Size of the vocabulary used
 
-params = init_rnn(hidden_size=hidden_layer_size, vocab_size=vocab_size)
+params = init_rnn(param_hidden_layer_size=hidden_layer_size, vocab_size=vocab_size)
 print('----------------------------------------------')
 print(f'U (weight input to hidden state) shape: {params[0].shape}') # U
 print(f'V (weight matrix recurrent computation) shape: {params[1].shape}') # V
@@ -367,6 +370,7 @@ print(f'bias_out :{params[4]}')
 ##  PART 6
 ##
 ##########################################################################
+
 #-------------------------------------------------------------------------
 def sigmoid(x, derivative = False):
     """    
@@ -436,7 +440,7 @@ def softmax(x, derivative = False ):
 ##
 ##########################################################################
 #-------------------------------------------------------------------------
-def forward_pass(inputs, hidden_state, params_U_V_W_bhidden_bout):
+def forward_pass(param_inputs, param_hidden_state, params_U_V_W_bhidden_bout):
     """
     Computes the forward pass of a vanilla RNN.
     Args:
@@ -462,11 +466,11 @@ def forward_pass(inputs, hidden_state, params_U_V_W_bhidden_bout):
     outputs, hidden_states = [], []
     #---------
     # For each element in input sequence
-    for t in range(len(inputs)): # t as the notation for time-step
+    for t in range(len(param_inputs)): # t as the notation for time-step
         # Compute new hidden state
        
-        dot_U_inputsT = np.dot(U, inputs[t]) # U * inputs(t)
-        dot_V_hidden_state = np.dot(V, hidden_state)
+        dot_U_inputsT = np.dot(U, param_inputs[t]) # U * inputs(t)
+        dot_V_hidden_state = np.dot(V, param_hidden_state)
         temp_hidden_state = dot_U_inputsT + dot_V_hidden_state + b_hidden
 
         # print('---')
@@ -475,18 +479,19 @@ def forward_pass(inputs, hidden_state, params_U_V_W_bhidden_bout):
         # print(f'  dot_V_hidden_state shape: {dot_V_hidden_state.shape}')
         # print(f'  temp_hidden_state shape: {temp_hidden_state.shape}')
         #---
-        hidden_state = tanh(temp_hidden_state)
+        param_hidden_state = tanh(temp_hidden_state)
 
         # Compute output
-        temp_out = np.dot(W, hidden_state) + b_out
+        temp_out = np.dot(W, param_hidden_state) + b_out
         out = softmax(temp_out)
         
         # Save results and continue
         outputs.append(out)
-        hidden_states.append(hidden_state.copy())
+        hidden_states.append(param_hidden_state.copy())
     #---------
     return outputs, hidden_states
 #-------------------------------------------------------------------------
+
 print('----------------------------------------------')
 print('about the inputs and targets remember:')
 print('  example: \'The quick brown fox jumps\'')
@@ -513,7 +518,7 @@ global_hidden_state = np.zeros((hidden_layer_size, 1)) # hidden_layer_size = 50
 
 # Now let's try out our new function
 global_outputs, global_hidden_states = forward_pass(
-        inputs = test_input, hidden_state = global_hidden_state, params_U_V_W_bhidden_bout = params
+        param_inputs = test_input, param_hidden_state = global_hidden_state, params_U_V_W_bhidden_bout = params
     )
 
 #-------------------
@@ -528,6 +533,7 @@ print([idx_to_word[np.argmax(output)] for output in global_outputs])
 print('Note: At this stage the predictions are random, as the model has not been trained yet.')
 print('----------------------------------------------')
 #-------------------
+
 ##########################################################################
 ##
 ##  PART 8
@@ -581,7 +587,8 @@ def clip_gradient_norm(grads, max_norm=0.25):
             # print(f'----')
             # print(f'grad: {grad}')
             # print(f'new grad: {grad * clip_coef}')
-            grad = grad * clip_coef
+            grad *= clip_coef  # !!! KEEP THIS CODE!!!! grad = grad * clip_coef IS NOT STABLE. Python bug
+
     #------------------
     
     return grads
@@ -732,11 +739,6 @@ def update_parameters(params, grads, learning_rate=1e-3):
         param -= learning_rate * grad
     
     return params
-    # for param, grad in zip(params, grads):
-    #     temp_param = param - learning_rate * grad
-    #     param = temp_param
-    
-    # return params
 #-------------------------------------------------------------------------
 
 import matplotlib.pyplot as plt
@@ -827,7 +829,7 @@ import matplotlib.pyplot as plt
 num_epochs = 1000
 
 # Initialize a new network
-params = init_rnn(hidden_size=hidden_layer_size, vocab_size=vocab_size)
+params = init_rnn(param_hidden_layer_size=hidden_layer_size, vocab_size=vocab_size)
 
 # Initialize hidden state as zeros
 global_hidden_state = np.zeros((hidden_layer_size, 1))
@@ -854,7 +856,7 @@ for i in range(num_epochs):
 
         # Forward pass
         global_outputs, global_hidden_states = forward_pass(
-            inputs = inputs_one_hot, hidden_state = global_hidden_state, params_U_V_W_bhidden_bout = params
+            param_inputs = inputs_one_hot, param_hidden_state = global_hidden_state, params_U_V_W_bhidden_bout = params
         )
 
         # Backward pass - returns loss and grads ( _ )
@@ -876,7 +878,7 @@ for i in range(num_epochs):
 
         # Forward pass
         global_outputs, global_hidden_states = forward_pass(
-            inputs = inputs_one_hot, hidden_state = global_hidden_state, params_U_V_W_bhidden_bout = params
+            param_inputs = inputs_one_hot, param_hidden_state = global_hidden_state, params_U_V_W_bhidden_bout = params
         )
 
         # Backward pass
