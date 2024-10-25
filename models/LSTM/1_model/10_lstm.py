@@ -821,7 +821,7 @@ def train_rnn(hidden_layer_size, vocab_size, word_to_idx, validation_set, traini
     params = init_rnn(hidden_layer_size=hidden_layer_size, vocab_size=vocab_size)
 
     # Initialize hidden state as zeros
-    global_hidden_state = np.zeros((hidden_layer_size, 1))
+    hidden_state = np.zeros((hidden_layer_size, 1))
 
     # Track loss
     training_loss, validation_loss = [], []
@@ -841,16 +841,16 @@ def train_rnn(hidden_layer_size, vocab_size, word_to_idx, validation_set, traini
             targets_one_hot = one_hot_encode_sequence(sequence = targets, vocab_size = vocab_size, word_to_idx = word_to_idx)
             
             # Re-initialize hidden state
-            global_hidden_state = np.zeros_like(global_hidden_state)
+            hidden_state = np.zeros_like(hidden_state)
 
             # Forward pass
-            global_outputs, global_hidden_states = forward_pass(
-                inputs = inputs_one_hot, hidden_state = global_hidden_state, params_U_V_W_bhidden_bout = params
+            outputs, hidden_states = forward_pass(
+                inputs = inputs_one_hot, hidden_state = hidden_state, params_U_V_W_bhidden_bout = params
             )
 
             # Backward pass - returns loss and grads ( _ )
-            loss, _ = backward_pass(inputs = inputs_one_hot, outputs = global_outputs, 
-                hidden_states = global_hidden_states, targets = targets_one_hot, params_U_V_W_bhidden_bout = params
+            loss, _ = backward_pass(inputs = inputs_one_hot, outputs = outputs, 
+                hidden_states = hidden_states, targets = targets_one_hot, params_U_V_W_bhidden_bout = params
             )
             
             # Update loss
@@ -863,16 +863,16 @@ def train_rnn(hidden_layer_size, vocab_size, word_to_idx, validation_set, traini
             targets_one_hot = one_hot_encode_sequence(sequence = targets, vocab_size = vocab_size, word_to_idx = word_to_idx)
             
             # Re-initialize hidden state
-            global_hidden_state = np.zeros_like(global_hidden_state)
+            hidden_state = np.zeros_like(hidden_state)
 
             # Forward pass
-            global_outputs, global_hidden_states = forward_pass(
-                inputs = inputs_one_hot, hidden_state = global_hidden_state, params_U_V_W_bhidden_bout = params
+            outputs, hidden_states = forward_pass(
+                inputs = inputs_one_hot, hidden_state = hidden_state, params_U_V_W_bhidden_bout = params
             )
 
             # Backward pass
             loss, grads = backward_pass(
-                inputs = inputs_one_hot, outputs = global_outputs, hidden_states = global_hidden_states, 
+                inputs = inputs_one_hot, outputs = outputs, hidden_states = hidden_states, 
                 targets = targets_one_hot, params_U_V_W_bhidden_bout = params
             )
             
@@ -895,7 +895,8 @@ def train_rnn(hidden_layer_size, vocab_size, word_to_idx, validation_set, traini
     #-------------------------------------------------------------------------
     return {
         'training_loss': training_loss,
-        'validation_loss': validation_loss
+        'validation_loss': validation_loss,
+        'params': params
     }
 #-------------------------------------------------------------------------
 #-------------------------------------------------------------------------
@@ -953,7 +954,7 @@ def execute_part_9(part5_result, part3_result):
         vocab_size          = part3_result['vocab_size'],
         word_to_idx         = part3_result['word_to_idx'],
         idx_to_word         = part3_result['idx_to_word'],
-        params              = part5_result['params'],
+        params              = train_rnn_results['params'],
         test_set            = part3_result['test_set']
     )
     plot_graph(
