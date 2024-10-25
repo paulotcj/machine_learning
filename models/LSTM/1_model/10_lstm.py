@@ -779,13 +779,15 @@ execute_part_8(
     hidden_states = part7_result['hidden_states'], 
     params = part5_result['params']
 )
-exit()
+
 
 ##########################################################################
 ##
 ##  PART 9
 ##
 ##########################################################################
+import matplotlib.pyplot as plt
+# %matplotlib inline
 #-------------------------------------------------------------------------
 def update_parameters(params, grads, learning_rate=1e-3):
     # To train our network, we need an optimizer. A common method is gradient descent,
@@ -809,21 +811,20 @@ def update_parameters(params, grads, learning_rate=1e-3):
 
     return params
 #-------------------------------------------------------------------------
-
-import matplotlib.pyplot as plt
-# %matplotlib inline
 #-------------------------------------------------------------------------
-def train_rnn( param_validation_set, param_hidden_state , param_hidden_layer_size, param_vocab_size, num_epochs = 1000):
-    #------------
+def train_rnn(hidden_layer_size, vocab_size, word_to_idx, validation_set, training_set):
+
+    # Hyper-parameters
+    num_epochs = 1000
+
     # Initialize a new network
-    params = init_rnn(hidden_layer_size=param_hidden_layer_size, vocab_size = param_vocab_size)
+    params = init_rnn(hidden_layer_size=hidden_layer_size, vocab_size=vocab_size)
 
     # Initialize hidden state as zeros
-    local_hidden_state = np.zeros((param_hidden_layer_size, 1))
+    global_hidden_state = np.zeros((hidden_layer_size, 1))
 
     # Track loss
     training_loss, validation_loss = [], []
-    #------------
 
     #-------------------------------------------------------------------------
     # For each epoch
@@ -834,13 +835,13 @@ def train_rnn( param_validation_set, param_hidden_state , param_hidden_layer_siz
         epoch_validation_loss = 0
         
         # For each sentence in validation set
-        for inputs, targets in param_validation_set:
+        for inputs, targets in validation_set:
             # One-hot encode input and target sequence
             inputs_one_hot = one_hot_encode_sequence(sequence = inputs, vocab_size = vocab_size, word_to_idx = word_to_idx)
             targets_one_hot = one_hot_encode_sequence(sequence = targets, vocab_size = vocab_size, word_to_idx = word_to_idx)
             
             # Re-initialize hidden state
-            param_hidden_state = np.zeros_like(global_hidden_state)
+            global_hidden_state = np.zeros_like(global_hidden_state)
 
             # Forward pass
             global_outputs, global_hidden_states = forward_pass(
@@ -891,127 +892,81 @@ def train_rnn( param_validation_set, param_hidden_state , param_hidden_layer_siz
         # Print loss every 100 epochs
         if i % 100 == 0:
             print(f'Epoch {i}, training loss: {training_loss[-1]}, validation loss: {validation_loss[-1]}')
-    #-------------------------------------------------------------------------    
-
-
+    #-------------------------------------------------------------------------
+    return {
+        'training_loss': training_loss,
+        'validation_loss': validation_loss
+    }
 #-------------------------------------------------------------------------
-
-# Hyper-parameters
-num_epochs = 1000
-
-# Initialize a new network
-params = init_rnn(hidden_layer_size=hidden_layer_size, vocab_size=vocab_size)
-
-# Initialize hidden state as zeros
-global_hidden_state = np.zeros((hidden_layer_size, 1))
-
-# Track loss
-training_loss, validation_loss = [], []
-
 #-------------------------------------------------------------------------
-# For each epoch
-for i in range(num_epochs):
-    
-    # Track loss
-    epoch_training_loss = 0
-    epoch_validation_loss = 0
-    
-     # For each sentence in validation set
-    for inputs, targets in validation_set:
-        # One-hot encode input and target sequence
-        inputs_one_hot = one_hot_encode_sequence(sequence = inputs, vocab_size = vocab_size, word_to_idx = word_to_idx)
-        targets_one_hot = one_hot_encode_sequence(sequence = targets, vocab_size = vocab_size, word_to_idx = word_to_idx)
-        
-        # Re-initialize hidden state
-        global_hidden_state = np.zeros_like(global_hidden_state)
+def make_prediction(hidden_layer_size, vocab_size, word_to_idx, idx_to_word, params, test_set):
+    # Get first sentence in test set
+    inputs, targets = test_set[1]
 
-        # Forward pass
-        global_outputs, global_hidden_states = forward_pass(
-            inputs = inputs_one_hot, hidden_state = global_hidden_state, params_U_V_W_bhidden_bout = params
-        )
+    # One-hot encode input and target sequence
+    inputs_one_hot = one_hot_encode_sequence(sequence = inputs, vocab_size = vocab_size, word_to_idx = word_to_idx)
+    targets_one_hot = one_hot_encode_sequence(sequence = targets, vocab_size = vocab_size, word_to_idx = word_to_idx)
 
-        # Backward pass - returns loss and grads ( _ )
-        loss, _ = backward_pass(inputs = inputs_one_hot, outputs = global_outputs, 
-            hidden_states = global_hidden_states, targets = targets_one_hot, params_U_V_W_bhidden_bout = params
-        )
-        
-        # Update loss
-        epoch_validation_loss += loss
-    
-    # For each sentence in training set
-    for inputs, targets in training_set:
-        # One-hot encode input and target sequence
-        inputs_one_hot = one_hot_encode_sequence(sequence = inputs, vocab_size = vocab_size, word_to_idx = word_to_idx)
-        targets_one_hot = one_hot_encode_sequence(sequence = targets, vocab_size = vocab_size, word_to_idx = word_to_idx)
-        
-        # Re-initialize hidden state
-        global_hidden_state = np.zeros_like(global_hidden_state)
+    # Initialize hidden state as zeros
+    hidden_state = np.zeros((hidden_layer_size, 1))
 
-        # Forward pass
-        global_outputs, global_hidden_states = forward_pass(
-            inputs = inputs_one_hot, hidden_state = global_hidden_state, params_U_V_W_bhidden_bout = params
-        )
+    # Forward pass
+    outputs, hidden_states = forward_pass(inputs_one_hot, hidden_state, params)
+    output_sentence = [idx_to_word[np.argmax(output)] for output in outputs]
+    print('Input sentence:')
+    print(inputs)
 
-        # Backward pass
-        loss, grads = backward_pass(
-            inputs = inputs_one_hot, outputs = global_outputs, hidden_states = global_hidden_states, 
-            targets = targets_one_hot, params_U_V_W_bhidden_bout = params
-        )
-        
-        if np.isnan(loss): #not a number
-            raise ValueError('Gradients have vanished!')
-        
-        # Update parameters
-        params = update_parameters(params, grads, learning_rate=3e-4)
-        
-        # Update loss
-        epoch_training_loss += loss
-        
-    # Save loss for plot
-    training_loss.append(epoch_training_loss/len(training_set))
-    validation_loss.append(epoch_validation_loss/len(validation_set))
+    print('\nTarget sequence:')
+    print(targets)
 
-    # Print loss every 100 epochs
-    if i % 100 == 0:
-        print(f'Epoch {i}, training loss: {training_loss[-1]}, validation loss: {validation_loss[-1]}')
+
+    print('\nPredicted sequence:')
+    translated_output = [idx_to_word[np.argmax(output)] for output in outputs]
+    print(translated_output)
+
+
+    print(f'Is the target sequence equal to the predicted sequence? {targets == translated_output}')
 #-------------------------------------------------------------------------
+#-------------------------------------------------------------------------
+def plot_graph(training_loss, validation_loss):
+    # Plot training and validation loss
+    epoch = np.arange(len(training_loss))
+    plt.figure()
+    plt.plot(epoch, training_loss, 'r', label='Training loss',)
+    plt.plot(epoch, validation_loss, 'b', label='Validation loss')
+    plt.legend()
+    plt.xlabel('Epoch'), plt.ylabel('NLL')
+    plt.show()
+#-------------------------------------------------------------------------
+#-------------------------------------------------------------------------
+def execute_part_9(part5_result, part3_result):
+    train_rnn_results = train_rnn(
+        hidden_layer_size   = part5_result['hidden_layer_size'],
+        vocab_size          = part3_result['vocab_size'],
+        word_to_idx         = part3_result['word_to_idx'],
+        validation_set      = part3_result['validation_set'],
+        training_set        = part3_result['training_set']
+    )
 
-# Get first sentence in test set
-inputs, targets = test_set[1]
-
-# One-hot encode input and target sequence
-inputs_one_hot = one_hot_encode_sequence(sequence = inputs, vocab_size = vocab_size, word_to_idx = word_to_idx)
-targets_one_hot = one_hot_encode_sequence(sequence = targets, vocab_size = vocab_size, word_to_idx = word_to_idx)
-
-# Initialize hidden state as zeros
-global_hidden_state = np.zeros((hidden_layer_size, 1))
-
-# Forward pass
-global_outputs, global_hidden_states = forward_pass(inputs_one_hot, global_hidden_state, params)
-output_sentence = [idx_to_word[np.argmax(output)] for output in global_outputs]
-print('Input sentence:')
-print(inputs)
-
-print('\nTarget sequence:')
-print(targets)
+    make_prediction(
+        hidden_layer_size   = part5_result['hidden_layer_size'],
+        vocab_size          = part3_result['vocab_size'],
+        word_to_idx         = part3_result['word_to_idx'],
+        idx_to_word         = part3_result['idx_to_word'],
+        params              = part5_result['params'],
+        test_set            = part3_result['test_set']
+    )
+    plot_graph(
+        training_loss = train_rnn_results['training_loss'],
+        validation_loss = train_rnn_results['validation_loss']
+    )
+#-------------------------------------------------------------------------
+execute_part_9(part5_result, part3_result)
 
 
-print('\nPredicted sequence:')
-translated_output = [idx_to_word[np.argmax(output)] for output in global_outputs]
-print(translated_output)
-
-
-print(f'Is the target sequence equal to the predicted sequence? {targets == translated_output}')
-
-# Plot training and validation loss
-epoch = np.arange(len(training_loss))
-plt.figure()
-plt.plot(epoch, training_loss, 'r', label='Training loss',)
-plt.plot(epoch, validation_loss, 'b', label='Validation loss')
-plt.legend()
-plt.xlabel('Epoch'), plt.ylabel('NLL')
-plt.show()
 exit()
+
+
 ##########################################################################
 ##
 ##  PART 10
