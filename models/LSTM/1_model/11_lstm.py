@@ -507,8 +507,12 @@ print('----------------------------------------------')
 test_input_sequence, test_target_sequence = training_set[0]
 
 # One-hot encode input and target sequence
-test_input = one_hot_encode_sequence(sequence = test_input_sequence, vocab_size = vocab_size, param_word_to_idx = word_to_idx)
-test_target = one_hot_encode_sequence(sequence = test_target_sequence, vocab_size = vocab_size, param_word_to_idx = word_to_idx)
+test_input = one_hot_encode_sequence(
+        sequence = test_input_sequence, vocab_size = vocab_size, param_word_to_idx = word_to_idx
+    )
+test_target = one_hot_encode_sequence(
+        sequence = test_target_sequence, vocab_size = vocab_size, param_word_to_idx = word_to_idx
+    )
 
 # Initialize hidden state as zeros
 hidden_state = np.zeros((hidden_size, 1))
