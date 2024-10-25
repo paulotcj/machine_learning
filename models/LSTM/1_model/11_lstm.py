@@ -514,11 +514,14 @@ test_target = one_hot_encode_sequence(
     )
 
 # Initialize hidden state as zeros
-hidden_state = np.zeros((hidden_layer_size, 1))
+global_hidden_state = np.zeros((hidden_layer_size, 1)) # hidden_layer_size = 50
 
 # Now let's try out our new function
-outputs, hidden_states = forward_pass(test_input, hidden_state, params)
+global_outputs, global_hidden_states = forward_pass(
+        inputs = test_input, hidden_state = global_hidden_state, params_U_V_W_bhidden_bout = params
+    )
 
+#-------------------
 print('Input sequence:')
 print(test_input_sequence)
 
@@ -526,7 +529,7 @@ print('\nTarget sequence:')
 print(test_target_sequence)
 
 print('\nPredicted sequence:')
-print([idx_to_word[np.argmax(output)] for output in outputs])
+print([idx_to_word[np.argmax(output)] for output in global_outputs])
 print('Note: At this stage the predictions are random, as the model has not been trained yet.')
 print('----------------------------------------------')
 #-------------------
@@ -699,8 +702,8 @@ print(f'test_input shape: {test_input.shape}') # (14, 4, 1)
 # print(f'global_hidden_states: {global_hidden_states}') # at this stage this is mostly random junk
 
 print('Remember: While the test input is valid, at this stage the global outputs and hidden states are random junk')
-loss, grads = backward_pass(inputs = test_input, outputs = outputs, 
-                            hidden_states = hidden_states, targets = test_target, params_U_V_W_bhidden_bout = params)
+loss, grads = backward_pass(inputs = test_input, outputs = global_outputs, 
+                            hidden_states = global_hidden_states, targets = test_target, params_U_V_W_bhidden_bout = params)
 
 print('We get a loss of:')
 print(loss)
