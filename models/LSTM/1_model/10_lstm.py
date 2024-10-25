@@ -1,10 +1,10 @@
-import numpy as np
 # original reference: https://github.com/CaptainE/RNN-LSTM-in-numpy
 ##########################################################################
 ##
 ##  PART 1
 ##
 ##########################################################################
+import numpy as np
 # Set seed such that we always get the same dataset
 np.random.seed(42)
 #-------------------------------------------------------------------------
@@ -952,6 +952,7 @@ def plot_graph(training_loss, validation_loss):
 #-------------------------------------------------------------------------
 def execute_part_9(hidden_layer_size, vocab_size, word_to_idx, idx_to_word, 
                    training_set, validation_set, test_set):
+    print('PART 9')
     #-----------------------------
     train_rnn_results = train_rnn(
         hidden_layer_size   = hidden_layer_size,
@@ -1046,6 +1047,7 @@ def freestyle(vocab_size, word_to_idx, idx_to_word,
 #------------------------------------------------------------------------- 
 #-------------------------------------------------------------------------
 def execute_part_10():
+    print('PART 10')
     # Perform freestyle
     result_freestyle = freestyle(
         vocab_size  = part3_result['vocab_size'], 
