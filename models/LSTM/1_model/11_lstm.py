@@ -262,8 +262,7 @@ print('----')
 ##########################################################################
 
 
-hidden_size = 50 # Number of dimensions in the hidden state
-vocab_size  = len(word_to_idx) # Size of the vocabulary used
+
 
 #-------------------------------------------------------------------------  
 def init_orthogonal(param):
@@ -515,7 +514,7 @@ test_target = one_hot_encode_sequence(
     )
 
 # Initialize hidden state as zeros
-hidden_state = np.zeros((hidden_size, 1))
+hidden_state = np.zeros((hidden_layer_size, 1))
 
 # Now let's try out our new function
 outputs, hidden_states = forward_pass(test_input, hidden_state, params)
@@ -530,7 +529,7 @@ print('\nPredicted sequence:')
 print([idx_to_word[np.argmax(output)] for output in outputs])
 print('Note: At this stage the predictions are random, as the model has not been trained yet.')
 print('----------------------------------------------')
-
+#-------------------
 
 ##########################################################################
 ##
@@ -726,10 +725,10 @@ import matplotlib.pyplot as plt
 num_epochs = 1000
 
 # Initialize a new network
-params = init_rnn(hidden_size=hidden_size, vocab_size=vocab_size)
+params = init_rnn(hidden_size=hidden_layer_size, vocab_size=vocab_size)
 
 # Initialize hidden state as zeros
-hidden_state = np.zeros((hidden_size, 1))
+hidden_state = np.zeros((hidden_layer_size, 1))
 
 # Track loss
 training_loss, validation_loss = [], []
@@ -810,7 +809,7 @@ inputs_one_hot = one_hot_encode_sequence(sequence = inputs, vocab_size = vocab_s
 targets_one_hot = one_hot_encode_sequence(sequence = targets, vocab_size = vocab_size, param_word_to_idx = word_to_idx)
 
 # Initialize hidden state as zeros
-hidden_state = np.zeros((hidden_size, 1))
+hidden_state = np.zeros((hidden_layer_size, 1))
 
 # Forward pass
 outputs, hidden_states = forward_pass(inputs_one_hot, hidden_state, params)
