@@ -440,7 +440,7 @@ def softmax(x, derivative = False ):
 ##
 ##########################################################################
 #-------------------------------------------------------------------------
-def forward_pass(inputs, hidden_state, params_U_V_W_bhidden_bout):
+def forward_pass(param_inputs, param_hidden_state, params_U_V_W_bhidden_bout):
     """
     Computes the forward pass of a vanilla RNN.
     Args:
@@ -466,11 +466,11 @@ def forward_pass(inputs, hidden_state, params_U_V_W_bhidden_bout):
     outputs, hidden_states = [], []
     #---------
     # For each element in input sequence
-    for t in range(len(inputs)): # t as the notation for time-step
+    for t in range(len(param_inputs)): # t as the notation for time-step
         # Compute new hidden state
        
-        dot_U_inputsT = np.dot(U, inputs[t]) # U * inputs(t)
-        dot_V_hidden_state = np.dot(V, hidden_state)
+        dot_U_inputsT = np.dot(U, param_inputs[t]) # U * inputs(t)
+        dot_V_hidden_state = np.dot(V, param_hidden_state)
         temp_hidden_state = dot_U_inputsT + dot_V_hidden_state + b_hidden
 
         # print('---')
@@ -479,15 +479,15 @@ def forward_pass(inputs, hidden_state, params_U_V_W_bhidden_bout):
         # print(f'  dot_V_hidden_state shape: {dot_V_hidden_state.shape}')
         # print(f'  temp_hidden_state shape: {temp_hidden_state.shape}')
         #---
-        hidden_state = tanh(temp_hidden_state)
+        param_hidden_state = tanh(temp_hidden_state)
 
         # Compute output
-        temp_out = np.dot(W, hidden_state) + b_out
+        temp_out = np.dot(W, param_hidden_state) + b_out
         out = softmax(temp_out)
         
         # Save results and continue
         outputs.append(out)
-        hidden_states.append(hidden_state.copy())
+        hidden_states.append(param_hidden_state.copy())
     #---------
     return outputs, hidden_states
 #-------------------------------------------------------------------------
@@ -518,7 +518,7 @@ global_hidden_state = np.zeros((hidden_layer_size, 1)) # hidden_layer_size = 50
 
 # Now let's try out our new function
 global_outputs, global_hidden_states = forward_pass(
-        inputs = test_input, hidden_state = global_hidden_state, params_U_V_W_bhidden_bout = params
+        param_inputs = test_input, param_hidden_state = global_hidden_state, params_U_V_W_bhidden_bout = params
     )
 
 #-------------------
@@ -717,10 +717,10 @@ print(loss)
 ##  PART 9
 ##
 ##########################################################################
-def update_parameters(params, grads, lr=1e-3):
+def update_parameters(params, grads, learning_rate=1e-3):
     # Take a step
     for param, grad in zip(params, grads):
-        param -= lr * grad
+        param -= learning_rate * grad
     
     return params
 #-------------------------------------------------------------------------
@@ -759,7 +759,7 @@ for i in range(num_epochs):
 
         # Forward pass
         outputs, hidden_states = forward_pass(
-            inputs = inputs_one_hot, hidden_state = hidden_state, params_U_V_W_bhidden_bout = params
+            param_inputs = inputs_one_hot, param_hidden_state = hidden_state, params_U_V_W_bhidden_bout = params
         )
 
         # Backward pass - returns loss and grads ( _ )
@@ -781,7 +781,7 @@ for i in range(num_epochs):
 
         # Forward pass
         outputs, hidden_states = forward_pass(
-            inputs = inputs_one_hot, hidden_state = hidden_state, params_U_V_W_bhidden_bout = params
+            param_inputs = inputs_one_hot, param_hidden_state = hidden_state, params_U_V_W_bhidden_bout = params
         )
 
         # Backward pass
@@ -794,7 +794,7 @@ for i in range(num_epochs):
             raise ValueError('Gradients have vanished!')
         
         # Update parameters
-        params = update_parameters(params, grads, lr=3e-4)
+        params = update_parameters(params, grads, learning_rate=3e-4)
         
         # Update loss
         epoch_training_loss += loss
