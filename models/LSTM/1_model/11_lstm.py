@@ -310,7 +310,7 @@ def init_orthogonal(param):
     return new_param
 #-------------------------------------------------------------------------
 #-------------------------------------------------------------------------
-def init_rnn(hidden_size, vocab_size):
+def init_rnn(param_hidden_layer_size, vocab_size):
     """
     Initializes our recurrent neural network.
     
@@ -323,16 +323,16 @@ def init_rnn(hidden_size, vocab_size):
     # Part 1
     # Initialize the weights with zeros
     # Weight matrix (input to hidden state)
-    U = np.zeros((hidden_size, vocab_size))
+    U = np.zeros((param_hidden_layer_size, vocab_size))
 
     # Weight matrix (recurrent computation)
-    V = np.zeros((hidden_size, hidden_size))
+    V = np.zeros((param_hidden_layer_size, param_hidden_layer_size))
 
     # Weight matrix (hidden state to output)
-    W = np.zeros((vocab_size, hidden_size))
+    W = np.zeros((vocab_size, param_hidden_layer_size))
 
     # Bias (hidden state)
-    b_hidden = np.zeros((hidden_size, 1))
+    b_hidden = np.zeros((param_hidden_layer_size, 1))
 
     # Bias (output)
     b_out = np.zeros((vocab_size, 1))
@@ -351,7 +351,7 @@ def init_rnn(hidden_size, vocab_size):
 hidden_layer_size = 50 # Number of hidden units in this layer
 vocab_size  = len(word_to_idx) # Size of the vocabulary used
 
-params = init_rnn(hidden_size=hidden_layer_size, vocab_size=vocab_size)
+params = init_rnn(param_hidden_layer_size=hidden_layer_size, vocab_size=vocab_size)
 print('----------------------------------------------')
 print(f'U (weight input to hidden state) shape: {params[0].shape}') # U
 print(f'V (weight matrix recurrent computation) shape: {params[1].shape}') # V
@@ -732,7 +732,7 @@ import matplotlib.pyplot as plt
 num_epochs = 1000
 
 # Initialize a new network
-params = init_rnn(hidden_size=hidden_layer_size, vocab_size=vocab_size)
+params = init_rnn(param_hidden_layer_size=hidden_layer_size, vocab_size=vocab_size)
 
 # Initialize hidden state as zeros
 hidden_state = np.zeros((hidden_layer_size, 1))
