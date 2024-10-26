@@ -2,7 +2,7 @@
 # original reference: https://github.com/CaptainE/RNN-LSTM-in-numpy
 ##########################################################################
 ##
-##  PART 1
+##  PART 11: LSTM
 ##
 ##########################################################################
 import numpy as np
@@ -232,8 +232,8 @@ def init_lstm(hidden_size, vocab_size, z_size):
     return W_f, W_i, W_g, W_o, W_v, b_f, b_i, b_g, b_o, b_v
 #-------------------------------------------------------------------------
 #-------------------------------------------------------------------------
-def execute_part1_I():
-    print('Part 1 - I')
+def execute_part11_I():
+    print('Part 11 - I')
     sequences = generate_dataset()
     print('A single sample from the generated dataset:')
     print(sequences[0])
@@ -242,8 +242,8 @@ def execute_part1_I():
     }
 #-------------------------------------------------------------------------
 #-------------------------------------------------------------------------
-def execute_part1_II(sequences):
-    print('Part 1 - II')
+def execute_part11_II(sequences):
+    print('Part 11 - II')
     word_to_idx, idx_to_word, num_sequences, vocab_size = sequences_to_dicts(sequences)
     print(f'We have {num_sequences} sentences and {len(word_to_idx)} unique tokens in our dataset (including UNK).\n')
     print('The index of \'b\' is', word_to_idx['b'])
@@ -260,8 +260,8 @@ def execute_part1_II(sequences):
     }
 #-------------------------------------------------------------------------
 #-------------------------------------------------------------------------
-def execute_part1_III(sequences):
-    print('Part 1 - III')
+def execute_part11_III(sequences):
+    print('Part 11 - III')
     training_set, validation_set, test_set = create_datasets(sequences = sequences, dataset_class = Dataset)
     return {
         'training_set': training_set,
@@ -270,39 +270,39 @@ def execute_part1_III(sequences):
     }
 #-------------------------------------------------------------------------
 #-------------------------------------------------------------------------
-def execute_part1(hidden_layer_size = 50):
-    print('PART 1')
+def execute_part11(hidden_layer_size = 50):
+    print('PART 11')
     print('----------------')
-    part1_I_result = execute_part1_I()
+    part11_I_result = execute_part11_I()
     print('----------------')
-    part1_II_result = execute_part1_II(part1_I_result['sequences'])
+    part11_II_result = execute_part11_II(part11_I_result['sequences'])
     print('----------------')
-    part1_III_result = execute_part1_III(part1_I_result['sequences'])
+    part11_III_result = execute_part11_III(part11_I_result['sequences'])
     print('----------------')
     
-    vocab_size = part1_II_result['vocab_size']
+    vocab_size = part11_II_result['vocab_size']
     z_size = hidden_layer_size + vocab_size 
 
     params = init_lstm(hidden_size=hidden_layer_size, vocab_size=vocab_size, z_size=z_size)
 
     return {
-        'sequences'     : part1_I_result['sequences'],
+        'sequences'     : part11_I_result['sequences'],
         'vocab_size'    : vocab_size,
-        'word_to_idx'   : part1_II_result['word_to_idx'],
-        'idx_to_word'   : part1_II_result['idx_to_word'],
-        'num_sequences' : part1_II_result['num_sequences'],
+        'word_to_idx'   : part11_II_result['word_to_idx'],
+        'idx_to_word'   : part11_II_result['idx_to_word'],
+        'num_sequences' : part11_II_result['num_sequences'],
         'hidden_layer_size': hidden_layer_size,
         'params'        : params,
-        'training_set'  : part1_III_result['training_set'],
-        'validation_set': part1_III_result['validation_set'],
-        'test_set'      : part1_III_result['test_set']
+        'training_set'  : part11_III_result['training_set'],
+        'validation_set': part11_III_result['validation_set'],
+        'test_set'      : part11_III_result['test_set']
     }
 #-------------------------------------------------------------------------
-part1_result = execute_part1()
+part11_result = execute_part11()
 
 ##########################################################################
 ##
-##  PART 2
+##  PART 12
 ##
 ##########################################################################
 #-------------------------------------------------------------------------
@@ -493,8 +493,8 @@ def forward(inputs, h_prev, C_prev, p, hidden_size):
     return z_s, f_s, i_s, g_s, C_s, o_s, h_s, v_s, output_s
 #-------------------------------------------------------------------------
 #-------------------------------------------------------------------------
-def execute_part2(vocab_size, hidden_layer_size, params, idx_to_word, word_to_idx, test_set):
-    print('PART 2')
+def execute_part12(vocab_size, hidden_layer_size, params, idx_to_word, word_to_idx, test_set):
+    print('PART 12')
     # Get first sentence in test set
     inputs, targets = test_set[1]
 
@@ -520,12 +520,12 @@ def execute_part2(vocab_size, hidden_layer_size, params, idx_to_word, word_to_id
     print([idx_to_word[np.argmax(output)] for output in outputs])
 #-------------------------------------------------------------------------
 
-execute_part2(
-    vocab_size          = part1_result['vocab_size'],
-    hidden_layer_size   = part1_result['hidden_layer_size'],
-    params              = part1_result['params'],
-    idx_to_word         = part1_result['idx_to_word'],
-    word_to_idx         = part1_result['word_to_idx'],
-    test_set            = part1_result['test_set']
+execute_part12(
+    vocab_size          = part11_result['vocab_size'],
+    hidden_layer_size   = part11_result['hidden_layer_size'],
+    params              = part11_result['params'],
+    idx_to_word         = part11_result['idx_to_word'],
+    word_to_idx         = part11_result['word_to_idx'],
+    test_set            = part11_result['test_set']
 )
 
