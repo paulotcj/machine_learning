@@ -8,6 +8,7 @@
 import numpy as np
 np.random.seed(42)
 from collections import defaultdict
+from torch.utils import data
 #-------------------------------------------------------------------------
 def generate_dataset(num_sequences=100):
     """
@@ -76,6 +77,69 @@ def sequences_to_dicts(sequences):
         idx_to_word[idx] = word
 
     return word_to_idx, idx_to_word, num_sentences, vocab_size
+#-------------------------------------------------------------------------
+#-------------------------------------------------------------------------
+class Dataset(data.Dataset):
+    def __init__(self, inputs, targets):
+        self.inputs = inputs # x
+        self.targets = targets # y
+
+    def __len__(self):
+        # Return the size of the dataset
+        return len(self.targets)
+
+    def __getitem__(self, index):
+        # Retrieve inputs and targets at the given index
+        x = self.inputs[index]
+        y = self.targets[index]
+
+        return x, y
+#-------------------------------------------------------------------------
+#-------------------------------------------------------------------------
+def get_inputs_targets_from_sequences(sequences):
+    # Define empty lists
+    inputs, targets = [], []
+    
+    # Append inputs and targets such that both lists contain L-1 words of a sentence of length L
+    # but targets are shifted right by one so that we can predict the next word
+    # example: 'The quick brown fox jumps'
+    #    Inputs:  ["The", "quick", "brown", "fox"]
+    #    Targets: ["quick", "brown", "fox", "jumps"]
+    # The idea is to predict the next word based on the input words, so the model learns to predict 
+    # "quick" given "The", "brown" given "quick", and so on.
+    for sequence in sequences:
+        inputs.append(sequence[:-1]) # take everything except the last word -> ["The", "quick", "brown", "fox"]
+        targets.append(sequence[1:]) # take everything except the first word -> ["quick", "brown", "fox", "jumps"]
+        
+    return inputs, targets
+#-------------------------------------------------------------------------
+#-------------------------------------------------------------------------
+def create_datasets(sequences, dataset_class, p_train=0.8, p_val=0.1, p_test=0.1):
+    # Define partition sizes
+    num_train = int( len(sequences)*p_train ) #typically 80% of the data
+    num_validation = int( len(sequences)*p_val )     #typically 10% of the data
+    num_test = int( len(sequences)*p_test )   #typically 10% of the data
+
+    # Split sequences into partitions
+    sequences_train = sequences[:num_train]
+    sequences_validation = sequences[num_train:num_train+num_validation]
+    sequences_test = sequences[-num_test:]
+
+    # In the next step we split this into inputs and targets. So far we have sequences for: 
+    #   Training, Validation, and Test. After that we will have:
+    #   Training (Inputs, Targets), Validation (Inputs, Targets), and Test (Inputs, Targets)
+
+    # Get inputs and targets for each partition
+    inputs_train, targets_train = get_inputs_targets_from_sequences(sequences_train)
+    inputs_validation, targets_validation = get_inputs_targets_from_sequences(sequences_validation)
+    inputs_test, targets_test = get_inputs_targets_from_sequences(sequences_test)
+
+    # Create datasets
+    training_set = dataset_class(inputs_train, targets_train)
+    validation_set = dataset_class(inputs_validation, targets_validation)
+    test_set = dataset_class(inputs_test, targets_test)
+
+    return training_set, validation_set, test_set
 #-------------------------------------------------------------------------
 #-------------------------------------------------------------------------  
 def init_orthogonal(param):
@@ -196,12 +260,24 @@ def execute_part1_II(sequences):
     }
 #-------------------------------------------------------------------------
 #-------------------------------------------------------------------------
+def execute_part1_III(sequences):
+    print('Part 1 - III')
+    training_set, validation_set, test_set = create_datasets(sequences = sequences, dataset_class = Dataset)
+    return {
+        'training_set': training_set,
+        'validation_set': validation_set,
+        'test_set': test_set
+    }
+#-------------------------------------------------------------------------
+#-------------------------------------------------------------------------
 def execute_part1(hidden_layer_size = 50):
     print('PART 1')
     print('----------------')
     part1_I_result = execute_part1_I()
     print('----------------')
     part1_II_result = execute_part1_II(part1_I_result['sequences'])
+    print('----------------')
+    part1_III_result = execute_part1_III(part1_I_result['sequences'])
     print('----------------')
     
     vocab_size = part1_II_result['vocab_size']
@@ -216,7 +292,10 @@ def execute_part1(hidden_layer_size = 50):
         'idx_to_word'   : part1_II_result['idx_to_word'],
         'num_sequences' : part1_II_result['num_sequences'],
         'hidden_layer_size': hidden_layer_size,
-        'params'        : params
+        'params'        : params,
+        'training_set'  : part1_III_result['training_set'],
+        'validation_set': part1_III_result['validation_set'],
+        'test_set'      : part1_III_result['test_set']
     }
 #-------------------------------------------------------------------------
 part1_result = execute_part1()
@@ -226,6 +305,87 @@ part1_result = execute_part1()
 ##  PART 2
 ##
 ##########################################################################
+#-------------------------------------------------------------------------
+def sigmoid(x, derivative = False):
+    """    
+    Computes the element-wise sigmoid activation function for an array x.
+    
+    Args:
+     `x`: the array where the function is applied
+     `derivative`: if set to True will return the derivative instead of the forward pass
+    """
+    x_safe = x + 1e-12 # this is a low-low value
+    f_x = 1 / (1 + np.exp(-x_safe))
+    
+    #sigmoid function: f(x) = 1 / (1 + e^(-x))
+    #derivative of sigmoid: f'(x) = f(x) * (1 - f(x))
+    if derivative: # Return the derivative of the function evaluated at x
+        d_f_x = f_x * (1 - f_x)
+        return d_f_x
+    else: # Return the forward pass of the function at x
+        return f_x
+#-------------------------------------------------------------------------
+#-------------------------------------------------------------------------
+def tanh(x, derivative = False):
+    """
+    Computes the element-wise tanh activation function for an array x.
+    Args:
+     `x`: the array where the function is applied
+     `derivative`: if set to True will return the derivative instead of the forward pass
+    """
+    #-----
+    # tanh function: f(x) = (e^x - e^(-x)) / (e^x + e^(-x))   ALSO: f(x) = sinh(x) / cosh(x)
+    # derivative of tanh: f'(x) = 1 - f(x)^2                  OR f'(x) = 1 - tanh^2(x)
+
+    x_safe = x + 1e-12 # this is a low-low value
+    f_x = (np.exp(x_safe)-np.exp(-x_safe))/(np.exp(x_safe)+np.exp(-x_safe))
+    
+    if derivative: # Return the derivative of the function evaluated at x
+        d_f_x = 1 - f_x**2
+        return d_f_x
+    else: # Return the forward pass of the function at x
+        return f_x
+#-------------------------------------------------------------------------
+#-------------------------------------------------------------------------
+def softmax(x, derivative = False ):
+    """
+    Computes the softmax for an array x.
+    Args:
+     `x`: the array where the function is applied
+     `derivative`: if set to True will return the derivative instead of the forward pass\
+    """
+    #-----
+    # softmax function: f(x) = e^x / sum(e^x)
+    # derivative of softmax: "The derivative of the softmax function is a bit more complicated because softmax depends on all the elements of the input vector x ."
+
+    x_safe = x + 1e-12 # this is a low-low value
+    f_x = np.exp(x_safe) / np.sum(np.exp(x_safe))
+    
+    if derivative: # Return the derivative of the function evaluated at x
+        pass # We will not need this one (truth is the derivative of softmax is very hard)
+    else: # Return the forward pass of the function at x
+        return f_x
+#-------------------------------------------------------------------------
+#-------------------------------------------------------------------------    
+def one_hot_encode(idx, vocab_size):
+    """
+    One-hot encodes a single word given its index and the size of the vocabulary.
+       
+    Args:
+     `idx`: the index of the given word
+     `vocab_size`: the size of the vocabulary
+    
+    Returns a 1-D numpy array of length `vocab_size`.
+    """
+
+    # Initialize the encoded array
+    one_hot = np.zeros(vocab_size)
+    
+    # Set the appropriate element to one
+    one_hot[idx] = 1.0
+
+    return one_hot
+#-------------------------------------------------------------------------
 #-------------------------------------------------------------------------    
 def one_hot_encode_sequence(sequence, vocab_size, word_to_idx):
     """
@@ -253,7 +413,7 @@ def one_hot_encode_sequence(sequence, vocab_size, word_to_idx):
     return encoding
 #-------------------------------------------------------------------------
 #-------------------------------------------------------------------------
-def forward(inputs, h_prev, C_prev, p):
+def forward(inputs, h_prev, C_prev, p, hidden_size):
     """
     Arguments:
     x -- your input data at timestep "t", numpy array of shape (n_x, m).
@@ -333,21 +493,21 @@ def forward(inputs, h_prev, C_prev, p):
     return z_s, f_s, i_s, g_s, C_s, o_s, h_s, v_s, output_s
 #-------------------------------------------------------------------------
 #-------------------------------------------------------------------------
-def execute_part2(vocab_size, hidden_layer_size, params, idx_to_word, test_set):
+def execute_part2(vocab_size, hidden_layer_size, params, idx_to_word, word_to_idx, test_set):
     print('PART 2')
     # Get first sentence in test set
     inputs, targets = test_set[1]
 
     # One-hot encode input and target sequence
-    inputs_one_hot = one_hot_encode_sequence(sequence = inputs, vocab_size = vocab_size)
-    targets_one_hot = one_hot_encode_sequence(sequence = targets, vocab_size = vocab_size)
+    inputs_one_hot = one_hot_encode_sequence(sequence = inputs, vocab_size = vocab_size, word_to_idx=word_to_idx)
+    targets_one_hot = one_hot_encode_sequence(sequence = targets, vocab_size = vocab_size, word_to_idx=word_to_idx)
 
     # Initialize hidden state as zeros
     h = np.zeros((hidden_layer_size, 1))
     c = np.zeros((hidden_layer_size, 1))
 
     # Forward pass
-    z_s, f_s, i_s, g_s, C_s, o_s, h_s, v_s, outputs = forward(inputs_one_hot, h, c, params)
+    z_s, f_s, i_s, g_s, C_s, o_s, h_s, v_s, outputs = forward(inputs_one_hot, h, c, params, hidden_layer_size)
 
     output_sentence = [idx_to_word[np.argmax(output)] for output in outputs]
     print('Input sentence:')
@@ -365,6 +525,7 @@ execute_part2(
     hidden_layer_size   = part1_result['hidden_layer_size'],
     params              = part1_result['params'],
     idx_to_word         = part1_result['idx_to_word'],
-    # test_set            = part1_result['sequences']
+    word_to_idx         = part1_result['word_to_idx'],
+    test_set            = part1_result['test_set']
 )
 
