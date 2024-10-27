@@ -273,7 +273,7 @@ def execute_part11(hidden_layer_size = 50):
     print('----------------')
     
     vocab_size = part11_II_result['vocab_size']
-    z_size = hidden_layer_size + vocab_size 
+    z_size = hidden_layer_size + vocab_size # typically: 50 + 4 = 54
 
     params = init_lstm(hidden_layer_size=hidden_layer_size, vocab_size=vocab_size, z_size=z_size)
 
