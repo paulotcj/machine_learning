@@ -444,44 +444,52 @@ def forward(inputs, hidden_state_prev, C_prev, params, hidden_size):
     # print(f'C_prev shape: {C_prev.shape}')
     # print(f'C_prev: {C_prev}')
     # print('----------------')
+
     # Append the initial cell and hidden state to their respective lists
     h_s.append(hidden_state_prev) # 0's in the first execution
     C_s.append(C_prev) #0's in the first execution
     
+
+    # inputs will be a list of one-hot encoded words, in our example most likely a sentence with 14 words, and the vocab size is 4,
+    #  so the shape will be (14,4,1), and they will typically look like this: [[[1],[0],[0],[0]], [[0],[1],[0],[0]], ...]
     for x in inputs:
-        
         # Concatenate input and hidden state
         z = np.row_stack((hidden_state_prev, x))
         z_s.append(z)
+        print(f'x shape: {x.shape}')
+        print(f'x: {x}')
+        # print(f'z shape: {z.shape}')
+        # print(f'z: {z}')
         
+        #--------
         # Calculate forget gate
         f = sigmoid(np.dot(W_f, z) + b_f)
         f_s.append(f)
-        
+        #--------
         # Calculate input gate
         i = sigmoid(np.dot(W_i, z) + b_i)
         i_s.append(i)
-        
+        #--------
         # Calculate candidate
         g = tanh(np.dot(W_g, z) + b_g)
         g_s.append(g)
-        
+        #--------
         # Calculate memory state
         C_prev = f * C_prev + i * g 
         C_s.append(C_prev)
-        
+        #--------
         # Calculate output gate
         o = sigmoid(np.dot(W_o, z) + b_o)
         o_s.append(o)
-        
+        #--------
         # Calculate hidden state
         hidden_state_prev = o * tanh(C_prev)
         h_s.append(hidden_state_prev)
-
+        #--------
         # Calculate logits
         v = np.dot(W_v, hidden_state_prev) + b_v
         v_s.append(v)
-        
+        #--------
         # Calculate softmax
         output = softmax(v)
         output_s.append(output)
