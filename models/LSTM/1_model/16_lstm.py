@@ -405,13 +405,13 @@ def one_hot_encode_sequence(sequence, vocab_size, word_to_idx):
     return encoding
 #-------------------------------------------------------------------------
 #-------------------------------------------------------------------------
-def forward(inputs, hidden_state_prev, C_prev, params, hidden_size):
+def forward(inputs, hidden_state_prev, C_prev, params, hidden_layer_size):
     """
     Arguments:
     inputs -- your input data at timestep "t", numpy array of shape (n_x, m).
     hidden_state_prev -- Hidden state at timestep "t-1", numpy array of shape (n_a, m)
     C_prev -- Memory state at timestep "t-1", numpy array of shape (n_a, m)
-    params -- python list containing:
+    params -- python list containing :
                         W_f -- Weight matrix of the forget gate, numpy array of shape (n_a, n_a + n_x)
                         b_f -- Bias of the forget gate, numpy array of shape (n_a, 1)
                         W_i -- Weight matrix of the update gate, numpy array of shape (n_a, n_a + n_x)
@@ -422,12 +422,22 @@ def forward(inputs, hidden_state_prev, C_prev, params, hidden_size):
                         b_o --  Bias of the output gate, numpy array of shape (n_a, 1)
                         W_v -- Weight matrix relating the hidden-state to the output, numpy array of shape (n_v, n_a)
                         b_v -- Bias relating the hidden-state to the output, numpy array of shape (n_v, 1)
+    Note: W_f and other weights have their size defined by z_size defined at init_lstm
     Returns:
     z_s, f_s, i_s, g_s, C_s, o_s, h_s, v_s -- lists of size m containing the computations in each forward pass
     outputs -- prediction at timestep "t", numpy array of shape (n_v, m)
     """
-    assert hidden_state_prev.shape == (hidden_size, 1)
-    assert C_prev.shape == (hidden_size, 1)
+    # z_s will be a list of the concatenated input and hidden state
+    # f_s will be a list of the forget gate computations
+    # i_s will be a list of the input gate computations
+    # g_s will be a list of the candidate computations
+    # C_s will be a list of the cell state computations
+    # o_s will be a list of the output gate computations
+    # h_s will be a list of the hidden state computations
+    # v_s will be a list of the logit computations
+
+    assert hidden_state_prev.shape == (hidden_layer_size, 1)
+    assert C_prev.shape == (hidden_layer_size, 1)
     #--------
     # First we unpack our parameters
     W_f, W_i, W_g, W_o, W_v, b_f, b_i, b_g, b_o, b_v = params
@@ -452,34 +462,30 @@ def forward(inputs, hidden_state_prev, C_prev, params, hidden_size):
 
     # inputs will be a list of one-hot encoded words, in our example most likely a sentence with 14 words, and the vocab size is 4,
     #  so the shape will be (14,4,1), and they will typically look like this: [[[1],[0],[0],[0]], [[0],[1],[0],[0]], ...]
+    # and x will be [[1],[0],[0],[0]]
     for key, x in enumerate(inputs):
         # Concatenate input and hidden state
-        z = np.row_stack((hidden_state_prev, x))
-        z_s.append(z)
+        z = np.row_stack((hidden_state_prev, x)) #this one will look like (54,1) and [[0],[1],[0],[0],...,[1],[0],[0],[0]] - where this last [1],[0],[0],[0] is x
+        z_s.append(z) 
 
-        if key == 0:
-            print('----')
-            print(f'x shape: {x.shape}')
-            print(f'x: {x}')
-            print('----')
-            print(f'hidden_state_prev shape: {hidden_state_prev.shape}')
-            print(f'hidden_state_prev: {hidden_state_prev}')
-            print('----')
-            print(f'z shape: {z.shape}')
-            print(f'z: {z}')
-            print('----')
-        
         #--------
-        # Calculate forget gate
-        f = sigmoid(np.dot(W_f, z) + b_f)
+        # Calculate forget gate, W_f is the weights for the forget gate, tipycally in our example, 50 layers of 54 z's
+        # W_f shape: (50, 54), z shape: (54, 1), b_f shape: (50, 1)
+        temp_forget = np.dot(W_f, z)
+        temp_forget = temp_forget + b_f
+        f = sigmoid(temp_forget)
         f_s.append(f)
         #--------
         # Calculate input gate
-        i = sigmoid(np.dot(W_i, z) + b_i)
+        temp_input = np.dot(W_i, z)
+        temp_input = temp_input + b_i
+        i = sigmoid(temp_input)
         i_s.append(i)
         #--------
         # Calculate candidate
-        g = tanh(np.dot(W_g, z) + b_g)
+        temp_candidate = np.dot(W_g, z)
+        temp_candidate = temp_candidate + b_g
+        g = tanh(temp_candidate)
         g_s.append(g)
         #--------
         # Calculate memory state
@@ -487,7 +493,8 @@ def forward(inputs, hidden_state_prev, C_prev, params, hidden_size):
         C_s.append(C_prev)
         #--------
         # Calculate output gate
-        o = sigmoid(np.dot(W_o, z) + b_o)
+        temp_output = np.dot(W_o, z) + b_o
+        o = sigmoid(temp_output)
         o_s.append(o)
         #--------
         # Calculate hidden state
@@ -495,6 +502,8 @@ def forward(inputs, hidden_state_prev, C_prev, params, hidden_size):
         h_s.append(hidden_state_prev)
         #--------
         # Calculate logits
+        #  "logits" refer to the raw, unnormalized scores that a model outputs before 
+        #  applying an activation function like the softmax, as we can see below
         v = np.dot(W_v, hidden_state_prev) + b_v
         v_s.append(v)
         #--------
@@ -520,7 +529,13 @@ def execute_part12(vocab_size, hidden_layer_size, params, idx_to_word, word_to_i
 
     #-----------
     # Forward pass
-    z_s, f_s, i_s, g_s, C_s, o_s, h_s, v_s, outputs = forward(inputs_one_hot, h, c, params, hidden_layer_size)
+    z_s, f_s, i_s, g_s, C_s, o_s, h_s, v_s, outputs = forward(
+        inputs              = inputs_one_hot, 
+        hidden_state_prev   = h, 
+        C_prev              = c, 
+        params              = params, 
+        hidden_layer_size   = hidden_layer_size
+    )
     #-----------
 
     output_sentence = [idx_to_word[np.argmax(output)] for output in outputs]
@@ -560,7 +575,7 @@ part12_result = execute_part12(
     word_to_idx         = part11_result['word_to_idx'],
     test_set            = part11_result['test_set']
 )
-exit()
+
 ##########################################################################
 ##
 ##  PART 13
@@ -831,7 +846,7 @@ def train_LSTM(hidden_layer_size, vocab_size, word_to_idx,  training_set, valida
             c = np.zeros((hidden_layer_size, 1))
 
             # Forward pass
-            z_s, f_s, i_s, g_s, C_s, o_s, h_s, v_s, outputs = forward(inputs = inputs_one_hot, hidden_state_prev  = h, C_prev = c, params = params, hidden_size=hidden_layer_size)
+            z_s, f_s, i_s, g_s, C_s, o_s, h_s, v_s, outputs = forward(inputs = inputs_one_hot, hidden_state_prev  = h, C_prev = c, params = params, hidden_layer_size=hidden_layer_size)
             
             # Backward pass
             loss, _ = backward(
@@ -864,7 +879,7 @@ def train_LSTM(hidden_layer_size, vocab_size, word_to_idx,  training_set, valida
             c = np.zeros((hidden_layer_size, 1))
 
             # Forward pass
-            z_s, f_s, i_s, g_s, C_s, o_s, h_s, v_s, outputs = forward(inputs = inputs_one_hot, hidden_state_prev=h, C_prev=c, params=params, hidden_size=hidden_layer_size)
+            z_s, f_s, i_s, g_s, C_s, o_s, h_s, v_s, outputs = forward(inputs = inputs_one_hot, hidden_state_prev=h, C_prev=c, params=params, hidden_layer_size=hidden_layer_size)
             
             # Backward pass
             loss, grads = backward(
@@ -916,7 +931,7 @@ def make_prediction(hidden_layer_size, vocab_size, idx_to_word, word_to_idx, par
     c = np.zeros((hidden_layer_size, 1))
 
     # Forward pass
-    z_s, f_s, i_s, g_s, C_s, o_s, h_s, v_s, outputs = forward(inputs=inputs_one_hot, hidden_state_prev=h, C_prev=c, params=params, hidden_size=hidden_layer_size)
+    z_s, f_s, i_s, g_s, C_s, o_s, h_s, v_s, outputs = forward(inputs=inputs_one_hot, hidden_state_prev=h, C_prev=c, params=params, hidden_layer_size=hidden_layer_size)
 
     # Print example
     print('Input sentence:')
