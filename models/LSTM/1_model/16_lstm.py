@@ -463,6 +463,15 @@ def forward(inputs, hidden_state_prev, C_prev, params, hidden_layer_size):
         z_s.append(z) 
 
         #--------
+        # Notes and refreshers: Dot product - Consider matrices A and B. The dot product of A and B requires thart number of columns in A to be
+        #  equal to the number of rows in B. And the result will be the number of rows in A and the number of columns in B.
+        #  For example: A shape (50,54) and B shape (54,1) will result in a matrix of shape (50,1)
+        #                        R   C               R  C  -> A_cols = 54, B_rows = 54, A_rows = 50, B_cols = 1, result = (50,1)
+        #--------
+        # Notes on addition of 2 np.arrays: Considering the shape we are dealing with (50,1), adding 2 arrays the result is performed element-wise,
+        #  for instance: [[1],[2],[3]] + [[4],[5],[6]] = [[5],[7],[9]]
+        #--------
+
         # Calculate forget gate, W_f is the weights for the forget gate, tipycally in our example, 50 layers of 54 z's
         # W_f shape: (50, 54), z shape: (54, 1), b_f shape: (50, 1)
         temp_forget = np.dot(W_f, z) #dot product of weight of forget gate and concatenated input and hidden state
@@ -483,28 +492,32 @@ def forward(inputs, hidden_state_prev, C_prev, params, hidden_layer_size):
         g_s.append(g_candidate)
         #--------
         # Calculate memory state
+        #   Now this is interesting because we say how much we should forget from the previous state (C_prev) and how much we should 
+        #     add to the state (input * g_candidate), the forget or input values should range from 0 to 1, and we should expect something
+        #     like this:  0.7 * C_prev + 0.99 * g_candidate, meaning: retain 70% of the previous state and add 99% of the candidate
         C_prev = forget * C_prev + input * g_candidate  # C_prev is passed as a parameter
         C_s.append(C_prev)
         #--------
         # Calculate output gate
-        temp_output = np.dot(W_o, z) # dot product of weight of output gate and concatenated input and hidden state
-        temp_output = temp_output + b_o # apply bias
-        output = sigmoid(temp_output) # apply activation function
-        o_s.append(output)
+        temp_output_gate = np.dot(W_o, z) # dot product of weight of output gate and concatenated input and hidden state
+        temp_output_gate = temp_output_gate + b_o # apply bias
+        output_gate = sigmoid(temp_output_gate) # apply activation function
+        o_s.append(output_gate)
         #--------
         # Calculate hidden state
-        hidden_state_prev = output * tanh(C_prev)
+        hidden_state_prev = output_gate * tanh(C_prev)
         h_s.append(hidden_state_prev)
         #--------
         # Calculate logits
         #  "logits" refer to the raw, unnormalized scores that a model outputs before 
         #  applying an activation function like the softmax, as we can see below
-        v = np.dot(W_v, hidden_state_prev) + b_v
+        v_temp = np.dot(W_v, hidden_state_prev) # dot product of weights of the hidden state and the hidden state
+        v = v_temp + b_v # apply bias
         v_s.append(v)
         #--------
         # Calculate softmax
-        output = softmax(v)
-        output_s.append(output)
+        output_softmax = softmax(v)
+        output_s.append(output_softmax)
 
     return z_s, f_s, i_s, g_s, C_s, o_s, h_s, v_s, output_s
 #-------------------------------------------------------------------------
@@ -541,7 +554,9 @@ def execute_part12(vocab_size, hidden_layer_size, params, idx_to_word, word_to_i
     print(targets)
 
     print('\nPredicted sequence:')
-    print([idx_to_word[np.argmax(output)] for output in outputs])
+    predicted = [idx_to_word[np.argmax(output)] for output in outputs]
+    print(predicted)
+    print('This is supposed to be junk - just ignore it')
 
     return{
         'inpus'             : inputs,
@@ -570,7 +585,7 @@ part12_result = execute_part12(
     word_to_idx         = part11_result['word_to_idx'],
     test_set            = part11_result['test_set']
 )
-
+exit()
 ##########################################################################
 ##
 ##  PART 13
@@ -936,7 +951,10 @@ def make_prediction(hidden_layer_size, vocab_size, idx_to_word, word_to_idx, par
     print(targets)
 
     print('\nPredicted sequence:')
-    print([idx_to_word[np.argmax(output)] for output in outputs])
+    predicted = [idx_to_word[np.argmax(output)] for output in outputs]
+    print(predicted)
+
+    print(f'Is predicted equal to target?: {predicted == targets}')  
 
 def plot_graph(training_loss, validation_loss):
 
