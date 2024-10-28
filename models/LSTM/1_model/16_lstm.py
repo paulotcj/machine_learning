@@ -452,14 +452,22 @@ def forward(inputs, hidden_state_prev, C_prev, params, hidden_size):
 
     # inputs will be a list of one-hot encoded words, in our example most likely a sentence with 14 words, and the vocab size is 4,
     #  so the shape will be (14,4,1), and they will typically look like this: [[[1],[0],[0],[0]], [[0],[1],[0],[0]], ...]
-    for x in inputs:
+    for key, x in enumerate(inputs):
         # Concatenate input and hidden state
         z = np.row_stack((hidden_state_prev, x))
         z_s.append(z)
-        print(f'x shape: {x.shape}')
-        print(f'x: {x}')
-        # print(f'z shape: {z.shape}')
-        # print(f'z: {z}')
+
+        if key == 0:
+            print('----')
+            print(f'x shape: {x.shape}')
+            print(f'x: {x}')
+            print('----')
+            print(f'hidden_state_prev shape: {hidden_state_prev.shape}')
+            print(f'hidden_state_prev: {hidden_state_prev}')
+            print('----')
+            print(f'z shape: {z.shape}')
+            print(f'z: {z}')
+            print('----')
         
         #--------
         # Calculate forget gate
