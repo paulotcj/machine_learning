@@ -447,13 +447,7 @@ def forward(inputs, hidden_state_prev, C_prev, params, hidden_layer_size):
     g_s, C_s, o_s, h_s = [], [] ,[], []
     v_s, output_s =  [], [] 
     #--------
-    # print('----------------')
-    # print(f'hidden_state_prev shape: {hidden_state_prev.shape}')
-    # print(f'hidden_state_prev: {hidden_state_prev}')
-    # print('----------------')
-    # print(f'C_prev shape: {C_prev.shape}')
-    # print(f'C_prev: {C_prev}')
-    # print('----------------')
+
 
     # Append the initial cell and hidden state to their respective lists
     h_s.append(hidden_state_prev) # 0's in the first execution
@@ -471,34 +465,35 @@ def forward(inputs, hidden_state_prev, C_prev, params, hidden_layer_size):
         #--------
         # Calculate forget gate, W_f is the weights for the forget gate, tipycally in our example, 50 layers of 54 z's
         # W_f shape: (50, 54), z shape: (54, 1), b_f shape: (50, 1)
-        temp_forget = np.dot(W_f, z)
-        temp_forget = temp_forget + b_f
-        f = sigmoid(temp_forget)
-        f_s.append(f)
+        temp_forget = np.dot(W_f, z) #dot product of weight of forget gate and concatenated input and hidden state
+        temp_forget = temp_forget + b_f # apply bias
+        forget = sigmoid(temp_forget) #apply activation function
+        f_s.append(forget)
         #--------
         # Calculate input gate
-        temp_input = np.dot(W_i, z)
-        temp_input = temp_input + b_i
-        i = sigmoid(temp_input)
-        i_s.append(i)
+        temp_input = np.dot(W_i, z) # dot product of weight of input gate and concatenated input and hidden state
+        temp_input = temp_input + b_i # apply bias
+        input = sigmoid(temp_input) # apply activation function
+        i_s.append(input)
         #--------
         # Calculate candidate
-        temp_candidate = np.dot(W_g, z)
-        temp_candidate = temp_candidate + b_g
-        g = tanh(temp_candidate)
-        g_s.append(g)
+        temp_candidate = np.dot(W_g, z) # dot product of weight of candidate and concatenated input and hidden state
+        temp_candidate = temp_candidate + b_g # apply bias
+        g_candidate = tanh(temp_candidate) # apply activation function
+        g_s.append(g_candidate)
         #--------
         # Calculate memory state
-        C_prev = f * C_prev + i * g 
+        C_prev = forget * C_prev + input * g_candidate  # C_prev is passed as a parameter
         C_s.append(C_prev)
         #--------
         # Calculate output gate
-        temp_output = np.dot(W_o, z) + b_o
-        o = sigmoid(temp_output)
-        o_s.append(o)
+        temp_output = np.dot(W_o, z) # dot product of weight of output gate and concatenated input and hidden state
+        temp_output = temp_output + b_o # apply bias
+        output = sigmoid(temp_output) # apply activation function
+        o_s.append(output)
         #--------
         # Calculate hidden state
-        hidden_state_prev = o * tanh(C_prev)
+        hidden_state_prev = output * tanh(C_prev)
         h_s.append(hidden_state_prev)
         #--------
         # Calculate logits
