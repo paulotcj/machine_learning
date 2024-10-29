@@ -6,7 +6,7 @@ from collections import defaultdict
 from torch.utils import data
 
 np.random.seed(42)
-vocab_size = 4
+
 
 ##########################################################################
 ##
@@ -17,26 +17,32 @@ vocab_size = 4
 #-------------------------------------------------------------------------
 class Net(nn.Module):
     #-------------------------------------------------------------------------
-    def __init__(self):
+    def __init__(self, vocab_size, hidden_layer_size = 50, num_layers = 1):
         super(Net, self).__init__()
-        
+
         # Recurrent layer
-        self.lstm = nn.LSTM(input_size=vocab_size,
-                         hidden_size=50,
-                         num_layers=1,
-                         bidirectional=False)
+        self.lstm = nn.LSTM(
+            input_size     = vocab_size, # typically 4 in our example
+            hidden_size    = hidden_layer_size, # hidden layer size (LSTM units in this layer)
+            num_layers     = num_layers,
+            bidirectional  = False
+        )
         
         # Output layer
-        self.l_out = nn.Linear(in_features=50,
-                            out_features=vocab_size,
-                            bias=False)
+        self.l_out = nn.Linear(
+            in_features     = hidden_layer_size, # we are going to output a size 50 vector from the LSTM layer, that has 50 units
+            out_features    = vocab_size,
+            bias            = False
+        )
     #-------------------------------------------------------------------------
     #-------------------------------------------------------------------------
     def forward(self, x):
         # RNN returns output and last hidden state
-        x, (h, c) = self.lstm(x)
+        x, (h, c) = self.lstm(x) # x = input, h = hidden state, c = cell state
         
         # Flatten output for feed-forward layer
+        #   -1: tells PyTorch to infer the size of this dimension based on the other dimensions and the total number of elements in the tensor. 
+        #     Essentially, it allows PyTorch to automatically calculate the appropriate size for this dimension
         x = x.view(-1, self.lstm.hidden_size)
         
         # Output layer
@@ -45,9 +51,6 @@ class Net(nn.Module):
         return x
     #-------------------------------------------------------------------------
 #-------------------------------------------------------------------------
-
-net = Net()
-print(net)
 
 ##########################################################################
 ##
@@ -300,16 +303,13 @@ def execute_part11(hidden_layer_size = 50):
         'test_set'      : part11_III_result['test_set']
     }
 #-------------------------------------------------------------------------
-part11_result = execute_part11()
-
-
 #-------------------------------------------------------------------------
-def train_lstm(validation_set, training_set, test_set, word_to_idx, idx_to_word):
+def train_lstm(validation_set, training_set, word_to_idx, vocab_size):
     # Hyper-parameters
-    num_epochs = 50
+    num_epochs = 1
 
     # Initialize a new network
-    net = Net()
+    net = Net(vocab_size = vocab_size)
 
     # Define a loss function and optimizer for this problem
     criterion = nn.CrossEntropyLoss()
@@ -318,6 +318,7 @@ def train_lstm(validation_set, training_set, test_set, word_to_idx, idx_to_word)
     # Track loss
     training_loss, validation_loss = [], []
 
+    #-------------------------------------------------
     # For each epoch
     for i in range(num_epochs):
         
@@ -327,6 +328,7 @@ def train_lstm(validation_set, training_set, test_set, word_to_idx, idx_to_word)
         
         net.eval()
             
+        #-------------------------------------------------
         # For each sentence in validation set
         for inputs, targets in validation_set:
             
@@ -342,18 +344,18 @@ def train_lstm(validation_set, training_set, test_set, word_to_idx, idx_to_word)
             targets_idx = torch.LongTensor(targets_idx)
             
             # Forward pass
-            # YOUR CODE HERE!
             outputs = net.forward(inputs_one_hot)
             
             # Compute loss
-            # YOUR CODE HERE!
             loss = criterion(outputs, targets_idx)
             
             # Update loss
             epoch_validation_loss += loss.detach().numpy()
-        
+        #-------------------------------------------------
+
         net.train()
         
+        #-------------------------------------------------
         # For each sentence in training set
         for inputs, targets in training_set:
             
@@ -369,22 +371,20 @@ def train_lstm(validation_set, training_set, test_set, word_to_idx, idx_to_word)
             targets_idx = torch.LongTensor(targets_idx)
             
             # Forward pass
-            # YOUR CODE HERE!
             outputs = net.forward(inputs_one_hot)
             
             # Compute loss
-            # YOUR CODE HERE!
             loss = criterion(outputs, targets_idx)
             
             # Backward pass
-            # YOUR CODE HERE!
             optimizer.zero_grad()
             loss.backward()
             optimizer.step()
             
             # Update loss
             epoch_training_loss += loss.detach().numpy()
-            
+        #-------------------------------------------------
+
         # Save loss for plot
         training_loss.append(epoch_training_loss/len(training_set))
         validation_loss.append(epoch_validation_loss/len(validation_set))
@@ -392,7 +392,16 @@ def train_lstm(validation_set, training_set, test_set, word_to_idx, idx_to_word)
         # Print loss every 5 epochs
         if i % 5 == 0:
             print(f'Epoch {i}, training loss: {training_loss[-1]}, validation loss: {validation_loss[-1]}')
+    #-------------------------------------------------
 
+    return {
+        'net': net,
+        'training_loss': training_loss,
+        'validation_loss': validation_loss
+    }
+#-------------------------------------------------------------------------
+#-------------------------------------------------------------------------
+def make_prediction(net, test_set, word_to_idx, idx_to_word, vocab_size):
             
     # Get first sentence in test set
     inputs, targets = test_set[1]
@@ -409,7 +418,6 @@ def train_lstm(validation_set, training_set, test_set, word_to_idx, idx_to_word)
     targets_idx = torch.LongTensor(targets_idx)
 
     # Forward pass
-    # YOUR CODE HERE!
     outputs = net.forward(inputs_one_hot).data.numpy()
 
     print('\nInput sequence:')
@@ -420,8 +428,9 @@ def train_lstm(validation_set, training_set, test_set, word_to_idx, idx_to_word)
 
     print('\nPredicted sequence:')
     print([idx_to_word[np.argmax(output)] for output in outputs])
-
-
+#-------------------------------------------------------------------------
+#-------------------------------------------------------------------------
+def plot_graph(training_loss, validation_loss):
     # Plot training and validation loss
     epoch = np.arange(len(training_loss))
     plt.figure()
@@ -431,10 +440,27 @@ def train_lstm(validation_set, training_set, test_set, word_to_idx, idx_to_word)
     plt.xlabel('Epoch'), plt.ylabel('NLL')
     plt.show()    
 #-------------------------------------------------------------------------
-train_lstm(
-    validation_set = part11_result['validation_set'],
-    training_set = part11_result['training_set'],
-    test_set = part11_result['test_set'],
-    word_to_idx=part11_result['word_to_idx'],
-    idx_to_word=part11_result['idx_to_word']
-)
+#-------------------------------------------------------------------------
+def execute_part16():
+    part11_result = execute_part11()
+    train_lstm_result   = train_lstm(
+        validation_set  = part11_result['validation_set'],
+        training_set    = part11_result['training_set'],
+        word_to_idx     = part11_result['word_to_idx'],
+        vocab_size      = part11_result['vocab_size']
+    )
+
+    # make_prediction(
+    make_prediction(
+        net         = train_lstm_result['net'],
+        test_set    = part11_result['test_set'], 
+        word_to_idx = part11_result['word_to_idx'],
+        idx_to_word = part11_result['idx_to_word'],
+        vocab_size  = part11_result['vocab_size']
+    )
+    plot_graph(
+        training_loss   = train_lstm_result['training_loss'], 
+        validation_loss = train_lstm_result['validation_loss']
+    )
+#-------------------------------------------------------------------------
+execute_part16()
