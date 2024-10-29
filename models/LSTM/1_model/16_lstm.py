@@ -701,9 +701,14 @@ def backward(z, f, i, g, C, o, h, v, hidden_layer_size, outputs, targets, params
     # Track loss
     loss = 0
 
-    print(f'outputs: {outputs}')
-    print('----------')
-    print(f'outputs[0]: {outputs[0]}')
+    # print(f'outputs: {outputs}')
+    # print('----------')
+    # print(f'outputs[0]: {outputs[0]}')
+
+    print(f'C len {len(C)}')
+    print(f'C: {C}')
+
+
         
     for t in reversed(range(len(outputs))): #outputs len: 14 (as our sentence has 14 words), so this will be a loop from 13 to 0
         
@@ -718,12 +723,27 @@ def backward(z, f, i, g, C, o, h, v, hidden_layer_size, outputs, targets, params
         }
         # Compute the cross entropy
         loss += -np.mean( np.log( outputs[t] + 1e-12 ) * targets[t] )
+
+        #-----
         # Get the previous hidden cell state
-        C_prev= C[t-1]
+        #  note C has a length of 15, as it starts with 0's added even before the first forward pass, and that makes sense since we are
+        #    using 't-1', so se just pad this array with 0's for convenience and to demonstrate an initial memory state of 0's before the first input
+        C_prev= C[t-1] 
         
+        #-----
         # Compute the derivative of the relation of the hidden-state to the output gate
-        dv = np.copy(outputs[t])
+        dv = np.copy( outputs[t] )
+        {
+        # if you're confused about this step, see this link for an explanation:
+        # http://cs231n.github.io/neural-networks-case-study/#grad
+        #   Suppose outputs[t] is [0.1, 0.7, 0.2] and targets[t] is [0, 1, 0] (one-hot encoded)
+        # The code would execute as follows:
+        #     d_o = outputs[t].copy() results in d_o = [0.1, 0.7, 0.2].
+        #     np.argmax(targets[t]) returns 1 (the index of the maximum value in targets[t]).
+        #     d_o[1] -= 1 modifies d_o to [0.1, -0.3, 0.2].
+        }        
         dv[np.argmax(targets[t])] -= 1
+        #-----
 
         # Update the gradient of the relation of the hidden-state to the output gate
         W_v_d += np.dot(dv, h[t].T)
