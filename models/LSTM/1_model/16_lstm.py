@@ -978,7 +978,8 @@ def train_LSTM(hidden_layer_size, vocab_size, word_to_idx,  training_set, valida
         'training_loss': training_loss,
         'validation_loss': validation_loss
     }
-
+#-------------------------------------------------------------------------
+#-------------------------------------------------------------------------
 def make_prediction(hidden_layer_size, vocab_size, idx_to_word, word_to_idx, params, test_set):
         
     # Get first sentence in test set
@@ -1007,7 +1008,8 @@ def make_prediction(hidden_layer_size, vocab_size, idx_to_word, word_to_idx, par
     print(predicted)
 
     print(f'Is predicted equal to target?: {predicted == targets}')  
-
+#-------------------------------------------------------------------------
+#-------------------------------------------------------------------------
 def plot_graph(training_loss, validation_loss):
 
     # Plot training and validation loss
