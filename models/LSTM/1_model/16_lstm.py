@@ -701,14 +701,6 @@ def backward(z, f, i, g, C, o, h, v, hidden_layer_size, outputs, targets, params
     # Track loss
     loss = 0
 
-    # print(f'outputs: {outputs}')
-    # print('----------')
-    # print(f'outputs[0]: {outputs[0]}')
-
-    print(f'C len {len(C)}')
-    print(f'C: {C}')
-
-
         
     for t in reversed(range(len(outputs))): #outputs len: 14 (as our sentence has 14 words), so this will be a loop from 13 to 0
         
@@ -792,7 +784,7 @@ def backward(z, f, i, g, C, o, h, v, hidden_layer_size, outputs, targets, params
     grads= W_f_d, W_i_d, W_g_d, W_o_d, W_v_d, b_f_d, b_i_d, b_g_d, b_o_d, b_v_d
     
     # Clip gradients
-    grads = clip_gradient_norm(grads)
+    grads = clip_gradient_norm(grads = grads)
     
     return loss, grads
 #-------------------------------------------------------------------------
@@ -830,7 +822,7 @@ execute_part13(
     params              = part11_result['params']
 )
 
-exit()
+
 ##########################################################################
 ##
 ##  PART 14
@@ -862,6 +854,8 @@ def update_parameters(params, grads, learning_rate=1e-3):
 #-------------------------------------------------------------------------
 #-------------------------------------------------------------------------
 def train_LSTM(hidden_layer_size, vocab_size, word_to_idx,  training_set, validation_set):
+    # we are going to start from the scratch, so we need to initialize the parameters
+    #-------------------------------------------------
     # num_epochs = 85
     num_epochs = 50
 
@@ -875,6 +869,7 @@ def train_LSTM(hidden_layer_size, vocab_size, word_to_idx,  training_set, valida
     # Track loss
     training_loss, validation_loss = [], []
 
+    #-------------------------------------------------
     # For each epoch
     for i in range(num_epochs):
         
@@ -882,6 +877,7 @@ def train_LSTM(hidden_layer_size, vocab_size, word_to_idx,  training_set, valida
         epoch_training_loss = 0
         epoch_validation_loss = 0
         
+        #-------------------------------------------------
         # For each sentence in validation set
         for inputs, targets in validation_set:
             
@@ -914,7 +910,9 @@ def train_LSTM(hidden_layer_size, vocab_size, word_to_idx,  training_set, valida
             
             # Update loss
             epoch_validation_loss += loss
-        
+        #-------------------------------------------------
+
+        #-------------------------------------------------
         # For each sentence in training set
         for inputs, targets in training_set:
             
@@ -944,13 +942,28 @@ def train_LSTM(hidden_layer_size, vocab_size, word_to_idx,  training_set, valida
                 targets             = targets_one_hot, 
                 params              = params
             )
+
+            # params -> W_f,   W_i,   W_g,   W_o,   W_v,   b_f,   b_i,   b_g,   b_o,   b_v
+            # grads  -> W_f_d, W_i_d, W_g_d, W_o_d, W_v_d, b_f_d, b_i_d, b_g_d, b_o_d, b_v_d
+            # print('--------')
+            # print(f'params len: {len(params)}')
+            # print(f'params[0] shape: {params[0].shape}')
+            # print(f'params[0]: {params[0]}')
+            # print('--------')
+            # print(f'grads shape: {len(grads)}')
+            # print(f'grads[0] shape: {grads[0].shape}')
+            # print(f'grads[0]: {grads[0]}')
+            # print('--------')
+
             
             # Update parameters
             params = update_parameters(params = params, grads = grads, learning_rate=1e-1)
             
             # Update loss
             epoch_training_loss += loss
-                    
+        #-------------------------------------------------         
+
+
         # Save loss for plot
         training_loss.append(epoch_training_loss/len(training_set))
         validation_loss.append(epoch_validation_loss/len(validation_set))
@@ -958,6 +971,7 @@ def train_LSTM(hidden_layer_size, vocab_size, word_to_idx,  training_set, valida
         # Print loss every 5 epochs
         if i % 5 == 0:
             print(f'Epoch {i}, training loss: {training_loss[-1]}, validation loss: {validation_loss[-1]}')
+    #-------------------------------------------------
 
     return {
         'params' : params,
