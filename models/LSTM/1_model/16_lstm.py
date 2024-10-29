@@ -585,7 +585,7 @@ part12_result = execute_part12(
     word_to_idx         = part11_result['word_to_idx'],
     test_set            = part11_result['test_set']
 )
-exit()
+
 ##########################################################################
 ##
 ##  PART 13
@@ -658,7 +658,7 @@ def backward(z, f, i, g, C, o, h, v, hidden_layer_size, outputs, targets, params
     v -- your logit computations as a list of size m.
     outputs -- your outputs as a list of size m.
     targets -- your targets as a list of size m.
-    p -- python list containing:
+    params -- python list containing:
                         W_f -- Weight matrix of the forget gate, numpy array of shape (n_a, n_a + n_x)
                         b_f -- Bias of the forget gate, numpy array of shape (n_a, 1)
                         W_i -- Weight matrix of the update gate, numpy array of shape (n_a, n_a + n_x)
@@ -675,35 +675,49 @@ def backward(z, f, i, g, C, o, h, v, hidden_layer_size, outputs, targets, params
     """
 
     # Unpack parameters
-    W_f, W_i, W_g, W_o, W_v, b_f, b_i, b_g, b_o, b_v = params
+    W_f, W_i, W_g, W_o, W_v, b_f, b_i, b_g, b_o, b_v = params 
 
+    #-----------------------------------
     # Initialize gradients as zero
-    W_f_d = np.zeros_like(W_f)
-    b_f_d = np.zeros_like(b_f)
+    W_f_d = np.zeros_like(W_f) # weights of the forget gate (derivative)
+    b_f_d = np.zeros_like(b_f) # bias of the forget gate (derivative)
 
-    W_i_d = np.zeros_like(W_i)
-    b_i_d = np.zeros_like(b_i)
+    W_i_d = np.zeros_like(W_i) # weights of the input gate (derivative)
+    b_i_d = np.zeros_like(b_i) # bias of the input gate (derivative)
 
-    W_g_d = np.zeros_like(W_g)
-    b_g_d = np.zeros_like(b_g)
+    W_g_d = np.zeros_like(W_g) # weights of the candidate (derivative)
+    b_g_d = np.zeros_like(b_g) # bias of the candidate (derivative)
 
-    W_o_d = np.zeros_like(W_o)
-    b_o_d = np.zeros_like(b_o)
+    W_o_d = np.zeros_like(W_o) # weights of the output gate (derivative)
+    b_o_d = np.zeros_like(b_o) # bias of the output gate (derivative)
 
-    W_v_d = np.zeros_like(W_v)
-    b_v_d = np.zeros_like(b_v)
+    W_v_d = np.zeros_like(W_v) # weights relating the hidden-state to the output (derivative)
+    b_v_d = np.zeros_like(b_v) # bias relating the hidden-state to the output (derivative)
     
     # Set the next cell and hidden state equal to zero
-    dh_next = np.zeros_like(h[0])
-    dC_next = np.zeros_like(C[0])
-        
+    dh_next = np.zeros_like(h[0]) # hidden state (derivative)
+    dC_next = np.zeros_like(C[0]) # cell state (derivative)
+    #-----------------------------------
     # Track loss
     loss = 0
-    
-    for t in reversed(range(len(outputs))):
+
+    print(f'outputs: {outputs}')
+    print('----------')
+    print(f'outputs[0]: {outputs[0]}')
         
+    for t in reversed(range(len(outputs))): #outputs len: 14 (as our sentence has 14 words), so this will be a loop from 13 to 0
+        
+
+        # Compute cross-entropy loss
+        {
+        #  Remember we can have targets shape as (14, 4, 1) and outputs shape as (14, 4, 1), so what we do here
+        #    is outputs[0]->(4,1) , targets[0]->(4,1)  
+        #       
+        # Formula: Loss += -(1/N) * SUM(i->n)[ y * log(y_hat + E) ] 
+        #  note that 1/N*SUM(i->n) is the same as np.mean()
+        }
         # Compute the cross entropy
-        loss += -np.mean(np.log(outputs[t]) * targets[t])
+        loss += -np.mean( np.log( outputs[t] + 1e-12 ) * targets[t] )
         # Get the previous hidden cell state
         C_prev= C[t-1]
         
@@ -765,6 +779,9 @@ def backward(z, f, i, g, C, o, h, v, hidden_layer_size, outputs, targets, params
 #-------------------------------------------------------------------------
 def execute_part13(z_s, f_s, i_s, g_s, C_s, o_s, h_s, v_s, hidden_layer_size, outputs, targets_one_hot, params):
     print('PART 13')
+
+    
+    
     # Perform a backward pass
     loss, grads = backward(z = z_s, f = f_s, i = i_s, g = g_s, C = C_s, o = o_s, h = h_s, v = v_s, 
                            hidden_layer_size= hidden_layer_size, outputs = outputs, targets=targets_one_hot, params = params)
@@ -793,6 +810,7 @@ execute_part13(
     params              = part11_result['params']
 )
 
+exit()
 ##########################################################################
 ##
 ##  PART 14
