@@ -306,7 +306,7 @@ def execute_part11(hidden_layer_size = 50):
 #-------------------------------------------------------------------------
 def train_lstm(validation_set, training_set, word_to_idx, vocab_size):
     # Hyper-parameters
-    num_epochs = 1
+    num_epochs = 50
 
     # Initialize a new network
     net = Net(vocab_size = vocab_size)
@@ -333,13 +333,13 @@ def train_lstm(validation_set, training_set, word_to_idx, vocab_size):
         #   like Dropout and BatchNorm behave differently to facilitate learning. For instance, Dropout 
         #   randomly zeroes some of the elements of the input tensor with a given probability during 
         #   training to prevent overfitting. BatchNorm normalizes the output of a previous activation 
-        #   layer by subtracting the batch mean and dividing by the batch standard deviation.
+        #   layer by subtracting the batch mean and dividing by the batch standard deviation
         #
         # When you call net.eval(), it changes the behavior of these layers to be appropriate for 
         #   evaluation. Specifically, Dropout layers will no longer drop any units, and BatchNorm layers 
         #   will use the learned running statistics instead of batch statistics. This ensures that the 
         #   model's predictions are deterministic and consistent, which is crucial for evaluating the 
-        #   model's performance on a validation set or making predictions on new data.        
+        #   model's performance on a validation set or making predictions on new data.       
         net.eval()
         #----------
             
@@ -367,7 +367,7 @@ def train_lstm(validation_set, training_set, word_to_idx, vocab_size):
             #-----------------
             # inputs_one_hot is being rearranged such that the first dimension (index 0) remains in place, 
             #   the second dimension (index 1) is moved to the third position, and the third dimension 
-            #   (index 2) is moved to the second position. It was [6,4,1] and it will become [6,1,4].
+            #   (index 2) is moved to the second position. It was [6,4,1] and it will become [6,1,4]
             #
             # To break it down further, if inputs_one_hot originally had dimensions 
             #   [batch_size, seq_len, num_features], after the permutation, it would have dimensions 
@@ -395,12 +395,12 @@ def train_lstm(validation_set, training_set, word_to_idx, vocab_size):
         #  compared to when the model is in evaluation mode. Specifically, Dropout layers will randomly 
         #  zero some of the elements of the input tensor with a given probability, which helps prevent 
         #  overfitting. BatchNorm layers will use the statistics of the current batch rather than the 
-        #  running statistics accumulated during training.
+        #  running statistics accumulated during training
         #
         # By calling net.train(), you are preparing the model net to be trained, enabling the specific 
         #   behaviors of certain layers that are necessary for effective training. This step is typically 
         #   followed by the actual training loop, where the model parameters are updated based on the 
-        #   loss computed from the training data.
+        #   loss computed from the training data
         net.train()
         
         #-------------------------------------------------
@@ -426,9 +426,12 @@ def train_lstm(validation_set, training_set, word_to_idx, vocab_size):
             
             # Backward pass
             #  PyTorch accumulates gradients by default. This means that if you don't reset the gradients, 
-            #    they will be summed up across multiple backward passes, leading to incorrect updates.
+            #    they will be summed up across multiple backward passes, leading to incorrect updates
             optimizer.zero_grad() 
-            loss.backward()
+            loss.backward() #the actual backpropagation step
+
+            # by calling optimizer.step(), you trigger this entire process, leading to the adjustment 
+            #   of the model's parameters based on the computed gradients
             optimizer.step()
             
             # Update loss
