@@ -326,7 +326,22 @@ def train_lstm(validation_set, training_set, word_to_idx, vocab_size):
         epoch_training_loss = 0
         epoch_validation_loss = 0
         
+        #----------
+        # net.eval() is a method call in PyTorch that sets the neural network model net to evaluation mode. 
+        #   This is particularly important when you are transitioning from the training phase to the 
+        #   evaluation or inference phase of your model's lifecycle. During training, certain layers 
+        #   like Dropout and BatchNorm behave differently to facilitate learning. For instance, Dropout 
+        #   randomly zeroes some of the elements of the input tensor with a given probability during 
+        #   training to prevent overfitting. BatchNorm normalizes the output of a previous activation 
+        #   layer by subtracting the batch mean and dividing by the batch standard deviation.
+        #
+        # When you call net.eval(), it changes the behavior of these layers to be appropriate for 
+        #   evaluation. Specifically, Dropout layers will no longer drop any units, and BatchNorm layers 
+        #   will use the learned running statistics instead of batch statistics. This ensures that the 
+        #   model's predictions are deterministic and consistent, which is crucial for evaluating the 
+        #   model's performance on a validation set or making predictions on new data.        
         net.eval()
+        #----------
             
         #-------------------------------------------------
         # For each sentence in validation set
@@ -334,17 +349,40 @@ def train_lstm(validation_set, training_set, word_to_idx, vocab_size):
             
             # One-hot encode input and target sequence
             inputs_one_hot = one_hot_encode_sequence(sequence = inputs, vocab_size=vocab_size, word_to_idx=word_to_idx)
-            targets_idx = [word_to_idx[word] for word in targets]
             
+            
+            # consider a target sequence: [a, a, b, b, b, EOS], and the word_to_idx represents 
+            #   a - 0, b - 1, EOS - 2, UNK - 3. That means that the targets_idx will be [0, 0, 1, 1, 1, 2]
+            targets_idx = [ word_to_idx[word] for word in targets ]
+
+            
+            #----------------
             # Convert input to tensor
+            #  lets break this down: the first input las a length of 6, our vocabulary has a length of 4
+            #  therefore input is len 6 -> ['a', 'a', 'a', 'b', 'b', 'b'], and input_one_hot is len 6x4x1 ->
+            #     [ [ [1.], [0.], [0.], [0.] ], ... ]
+            #  but then inputs_one_hot will be wrapped in a tensor object -> torch.Size([6, 4, 1])
             inputs_one_hot = torch.Tensor(inputs_one_hot)
+
+            #-----------------
+            # inputs_one_hot is being rearranged such that the first dimension (index 0) remains in place, 
+            #   the second dimension (index 1) is moved to the third position, and the third dimension 
+            #   (index 2) is moved to the second position. It was [6,4,1] and it will become [6,1,4].
+            #
+            # To break it down further, if inputs_one_hot originally had dimensions 
+            #   [batch_size, seq_len, num_features], after the permutation, it would have dimensions 
+            #   [batch_size, num_features, seq_len]
             inputs_one_hot = inputs_one_hot.permute(0, 2, 1)
-            
+
+
+
             # Convert target to tensor
-            targets_idx = torch.LongTensor(targets_idx)
+            targets_idx = torch.LongTensor(targets_idx) #just wraps the list in a tensor object
+
             
             # Forward pass
-            outputs = net.forward(inputs_one_hot)
+            #  considering a target sentence of length 6 and vocab len 4 the shape will be: [6, 4]
+            outputs = net.forward(inputs_one_hot) 
             
             # Compute loss
             loss = criterion(outputs, targets_idx)
@@ -353,6 +391,16 @@ def train_lstm(validation_set, training_set, word_to_idx, vocab_size):
             epoch_validation_loss += loss.detach().numpy()
         #-------------------------------------------------
 
+        # When a model is in training mode, certain layers like Dropout and BatchNorm behave differently 
+        #  compared to when the model is in evaluation mode. Specifically, Dropout layers will randomly 
+        #  zero some of the elements of the input tensor with a given probability, which helps prevent 
+        #  overfitting. BatchNorm layers will use the statistics of the current batch rather than the 
+        #  running statistics accumulated during training.
+        #
+        # By calling net.train(), you are preparing the model net to be trained, enabling the specific 
+        #   behaviors of certain layers that are necessary for effective training. This step is typically 
+        #   followed by the actual training loop, where the model parameters are updated based on the 
+        #   loss computed from the training data.
         net.train()
         
         #-------------------------------------------------
@@ -361,11 +409,11 @@ def train_lstm(validation_set, training_set, word_to_idx, vocab_size):
             
             # One-hot encode input and target sequence
             inputs_one_hot = one_hot_encode_sequence(sequence = inputs, vocab_size = vocab_size, word_to_idx = word_to_idx)
-            targets_idx = [word_to_idx[word] for word in targets]
+            targets_idx = [word_to_idx[word] for word in targets] #see explanation above
             
             # Convert input to tensor
             inputs_one_hot = torch.Tensor(inputs_one_hot)
-            inputs_one_hot = inputs_one_hot.permute(0, 2, 1)
+            inputs_one_hot = inputs_one_hot.permute(0, 2, 1) #see explanation above
             
             # Convert target to tensor
             targets_idx = torch.LongTensor(targets_idx)
@@ -377,7 +425,9 @@ def train_lstm(validation_set, training_set, word_to_idx, vocab_size):
             loss = criterion(outputs, targets_idx)
             
             # Backward pass
-            optimizer.zero_grad()
+            #  PyTorch accumulates gradients by default. This means that if you don't reset the gradients, 
+            #    they will be summed up across multiple backward passes, leading to incorrect updates.
+            optimizer.zero_grad() 
             loss.backward()
             optimizer.step()
             
