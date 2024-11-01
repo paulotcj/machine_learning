@@ -66,7 +66,9 @@ def execute_part1():
 
     print('----')
     all_letters = string.ascii_letters + " .,;'"
+    all_letters_idx = {letter: idx for idx, letter in enumerate(all_letters)}
     print(f'\nall_letters:\n    {all_letters}')
+    print(f'all_letters_idx:\n    {all_letters_idx}')
     n_letters = len(all_letters)
     print(f'len(all_letters): {n_letters}\n')
     
@@ -101,6 +103,7 @@ def execute_part1():
     return {
         'n_letters': n_letters,
         'all_letters': all_letters,
+        'all_letters_idx': all_letters_idx
     }
 #-------------------------------------------------------------------------
 
@@ -114,38 +117,62 @@ execute1_result = execute_part1()
 ##
 ##########################################################################
 import torch
+# #-------------------------------------------------------------------------
+# def letterToIndex(letter, all_letters_idx): # Find letter index from all_letters, e.g. "a" = 0
+#    
+#     # return all_letters.find(letter)
+#
+#     return all_letters_idx[letter]
+# #-------------------------------------------------------------------------
 #-------------------------------------------------------------------------
-def letterToIndex(letter, all_letters): # Find letter index from all_letters, e.g. "a" = 0
-    
-    return all_letters.find(letter)
-#-------------------------------------------------------------------------
-#-------------------------------------------------------------------------
-def letterToTensor(letter, n_letters, all_letters): # Just for demonstration, turn a letter into a <1 x n_letters> Tensor
+def letterToTensor(letter, n_letters, all_letters_idx): # Just for demonstration, turn a letter into a <1 x n_letters> Tensor
     
     tensor = torch.zeros(1, n_letters) # fills the tensor with zeros, 1 row and n_letters columns
-    tensor[0][letterToIndex(letter = letter, all_letters = all_letters)] = 1
+    # idx_of_letter = letterToIndex(letter = letter, all_letters_idx = all_letters_idx)
+    idx_of_letter = all_letters_idx[letter]
+    tensor[0][ idx_of_letter ] = 1
     
     return tensor
 #-------------------------------------------------------------------------
 #-------------------------------------------------------------------------
-def lineToTensor(line, n_letters, all_leters): # Turn a line into a <line_length x 1 x n_letters>, or an array of one-hot letter vectors
+def lineToTensor(line, n_letters, all_letters_idx): # Turn a line into a <line_length x 1 x n_letters>, or an array of one-hot letter vectors
     
+    # fills the tensor with zeros - the one character tensor was 1 row and n_letters columns, now 
+    #   considering we will have a line or word, we will have line len, 1 row, and n_letters columns
     tensor = torch.zeros(len(line), 1, n_letters)
+
     for li, letter in enumerate(line):
-        tensor[li][0][letterToIndex(letter = letter, all_letters = all_leters)] = 1
+        idx_of_letter = all_letters_idx[letter]
+        tensor[li][0][ idx_of_letter ] = 1
     
     return tensor
 #-------------------------------------------------------------------------
 #-------------------------------------------------------------------------
-def execute_part2(n_letters, all_letters):
+def execute_part2(n_letters, all_letters_idx):
 
-    letterToTensor_result = letterToTensor('J', n_letters = n_letters, all_letters = all_letters)
+    letterToTensor_result = letterToTensor('a', n_letters = n_letters, all_letters_idx = all_letters_idx)
+    print(f'letterToTensor(\'a\'): {letterToTensor_result}')
+
+    letterToTensor_result = letterToTensor('b', n_letters = n_letters, all_letters_idx = all_letters_idx)
+    print(f'letterToTensor(\'b\'): {letterToTensor_result}')    
+
+    letterToTensor_result = letterToTensor('J', n_letters = n_letters, all_letters_idx = all_letters_idx)
     print(f'letterToTensor(\'J\'): {letterToTensor_result}')
 
-    lineToTensor_result = lineToTensor(line = 'Jones', n_letters = n_letters, all_leters = all_letters)
+    lineToTensor_result = lineToTensor(line = 'aa', n_letters = n_letters, all_letters_idx = all_letters_idx)
+    print(f'lineToTensor(\'aa\').size(): {lineToTensor_result.size()}')
+    print(f'lineToTensor(\'aa\'): {lineToTensor_result}')
+
+    lineToTensor_result = lineToTensor(line = 'ab', n_letters = n_letters, all_letters_idx = all_letters_idx)    
+    print(f'\n\nlineToTensor(\'ab\'): {lineToTensor_result}')
+
+
+    lineToTensor_result = lineToTensor(line = 'Jones', n_letters = n_letters, all_letters_idx = all_letters_idx)
     print(f'lineToTensor(\'Jones\').size(): {lineToTensor_result.size()}')
+    print(f'\n\nlineToTensor(\'Jones\'): {lineToTensor_result}')
 #-------------------------------------------------------------------------
 execute_part2(
     n_letters = execute1_result['n_letters'], 
-    all_letters = execute1_result['all_letters']
+    all_letters_idx = execute1_result['all_letters_idx']
+    
 )
