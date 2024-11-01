@@ -105,10 +105,12 @@ def execute_part1():
         'all_letters': all_letters,
         'all_letters_idx': all_letters_idx,
         'n_categories': n_categories,
+        'all_categories': all_categories,
+        'category_lines': category_lines
     }
 #-------------------------------------------------------------------------
 
-execute1_result = execute_part1()
+part1_result = execute_part1()
 
 
 
@@ -144,9 +146,13 @@ def lineToTensor(line, n_letters, all_letters_idx): # Turn a line into a <line_l
     #   considering we will have a line or word, we will have line len, 1 row, and n_letters columns
     tensor = torch.zeros(len(line), 1, n_letters)
 
-    for li, letter in enumerate(line):
-        idx_of_letter = all_letters_idx[letter]
-        tensor[li][0][ idx_of_letter ] = 1
+    # for every letter in the line, we will get the index of the letter in the all_letters_idx dictionary
+    #    and set the value of that index in the tensor to 1
+    for li, letter in enumerate(line): 
+        idx_of_letter = all_letters_idx[letter] #get the index of the letter
+
+        # in the right position for the letter being investigated set the value of target index to 1
+        tensor[li][0][ idx_of_letter ] = 1 
     
     return tensor
 #-------------------------------------------------------------------------
@@ -175,8 +181,8 @@ def execute_part2(n_letters, all_letters_idx):
     print(f'\n\nlineToTensor(\'Jones\'): {lineToTensor_result}')
 #-------------------------------------------------------------------------
 execute_part2(
-    n_letters = execute1_result['n_letters'], 
-    all_letters_idx = execute1_result['all_letters_idx']
+    n_letters = part1_result['n_letters'], 
+    all_letters_idx = part1_result['all_letters_idx']
     
 )
 
@@ -256,13 +262,17 @@ def execute_part3(n_letters, n_categories, all_letters_idx):
 
     print('\n\nThe line below is a tensor with random values so far')
     output, next_hidden = rnn(input[0], hidden)
-    print(output)    
+    print(output) 
+
+    return {
+        'output': output
+    }   
 #-------------------------------------------------------------------------
 
-execute_part3(
-    n_letters = execute1_result['n_letters'], 
-    n_categories = execute1_result['n_categories'],
-    all_letters_idx = execute1_result['all_letters_idx']
+part3_result = execute_part3(
+    n_letters = part1_result['n_letters'], 
+    n_categories = part1_result['n_categories'],
+    all_letters_idx = part1_result['all_letters_idx']
 )
 
 
@@ -271,11 +281,84 @@ execute_part3(
 ##  PART 4
 ##
 ##########################################################################
+import random
 
+#-------------------------------------------------------------------------
+def categoryFromOutput(all_categories, output):
+    # remember categories are the languages, in our example typically 18
+    #  and the number of letters also typically 57
 
-def categoryFromOutput(output):
+    # output is length 18, and the top_n is the value of the highest output, meaning the one the RNN
+    # thinks is the most likely (language), and top_i is the index of that value
     top_n, top_i = output.topk(1)
-    category_i = top_i[0].item()
-    return all_categories[category_i], category_i
+    category_i = top_i[0].item() #extract the index from top_i tensor
+    # print('----')
+    # print(f'output: {output}')
+    # print(f'top_n: {top_n}')
+    # print(f'top_i: {top_i}')
+    # print(f'category_i: {category_i}')
+    # print('----')
+    return all_categories[category_i], category_i #return the language and the index
+#-------------------------------------------------------------------------
+#-------------------------------------------------------------------------
+def randomChoice(list_input):
 
-print(categoryFromOutput(output))
+    #return a random element from the list using a random module to pick an index from 0 to the length-1 of the list
+    return list_input[ random.randint(0, len(list_input) - 1) ]
+#-------------------------------------------------------------------------
+#-------------------------------------------------------------------------
+def randomTrainingExample(all_categories, category_lines, n_letters, all_letters_idx):
+    # picks 1 category (language) and 1 name from that category, and return the tensor for
+    #   the category and the tensor for the name
+
+
+    category = randomChoice(all_categories) #pick an item from the list categories, e.g. 'Italian'
+    # for k , v in category_lines.items():
+    #     print(f'category key: {k}')
+    #     for i in v:
+    #         print(f'    {i}')
+
+    # given a string category (e.g. 'Italian') we will pick a random name from the list of names belonging
+    #   to that category
+    line = randomChoice(category_lines[category])
+
+    index_of_category = all_categories.index(category) # from all categories, find the index of the category string provided
+    category_tensor = torch.tensor([index_of_category], dtype=torch.long) #just wrap the index in a tensor, so if index was 3 it will be tensor([3])
+
+    # print(f'index_of_category: {index_of_category}')
+    # print(f'category_tensor: {category_tensor}')
+
+
+    line_tensor = lineToTensor(line = line, n_letters = n_letters, all_letters_idx = all_letters_idx)
+
+    return category, line, category_tensor, line_tensor
+#-------------------------------------------------------------------------
+#-------------------------------------------------------------------------
+def execute_part4(all_categories, output, category_lines, n_letters, all_letters_idx):
+    
+    categoryFromOutput_result = categoryFromOutput(all_categories = all_categories, output = output)
+    print(f'categoryFromOutput_result:\n{categoryFromOutput_result}\n\n')
+
+    for i in range(10):
+        category, line, category_tensor, line_tensor = randomTrainingExample(
+            all_categories = all_categories, 
+            category_lines = category_lines,
+            n_letters = n_letters,
+            all_letters_idx = all_letters_idx
+        )
+        print(f'category(language) = {category}\t- line (name)={line}')    
+
+#-------------------------------------------------------------------------
+execute_part4( 
+    all_categories  = part1_result['all_categories'],
+    output          = part3_result['output'],
+    category_lines  = part1_result['category_lines'],
+    n_letters       = part1_result['n_letters'],
+    all_letters_idx = part1_result['all_letters_idx']
+)
+
+
+
+
+
+
