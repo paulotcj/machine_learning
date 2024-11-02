@@ -416,6 +416,17 @@ def train(rnn, learning_rate, category_tensor, line_tensor):
     for p in rnn.parameters():
         p.data.add_(p.grad.data, alpha=-learning_rate)
 
+    """
+    Explanation of the code above: 
+        p.data is the raw data of the tensor
+        p.grad.data is the raw data of the gradient tensor
+        add_ is an in-place addition operation. (in-place denoted by '_') 
+        alpha=-learning_rate specifies the scaling factor for the addition
+
+    For instance: If learning_rate is 0.01, and a parameter p has a gradient of 0.1, the update 
+      would be: p.data = p.data - learning_rate * gradient -> p.data = p.data - 0.01 * 0.1
+    """
+
     return output, loss.item()    
 #-------------------------------------------------------------------------
 #-------------------------------------------------------------------------
