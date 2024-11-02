@@ -196,6 +196,9 @@ execute_part2(
 import torch.nn as nn
 import torch.nn.functional as F
 
+
+
+
 #-------------------------------------------------------------------------
 class RNN(nn.Module):
     #-------------------------------------------------------------------------
@@ -238,6 +241,15 @@ class RNN(nn.Module):
 #-------------------------------------------------------------------------
 #-------------------------------------------------------------------------
 def execute_part3(n_letters, n_categories, all_letters_idx):
+
+    if torch.cuda.is_available():
+        device = torch.device('cuda')
+        print("Torch: Running on GPU")
+    else:
+        device = torch.device('cpu')
+        print("Torch: Running on CPU")
+
+
     # remember categories are the languages, in our example typically 18
     #  and the number of letters also typically 57
     n_hidden = 128
@@ -500,7 +512,7 @@ def execute_train_rnn(rnn, n_iters, all_categories, category_lines, n_letters, a
 #-------------------------------------------------------------------------
 def execute_part5(rnn, all_categories, category_lines, n_letters, all_letters_idx):
 
-
+    print('\n\n----------\nTraining:') # give some clear separation for the training output
 
     learning_rate = 0.005 # 0.005 is typical for RNNs, higher may lead to exploding gradients, lower to vanishing gradients
 
@@ -550,30 +562,60 @@ def show_graph(all_losses):
     plt.show()
 #-------------------------------------------------------------------------
 #-------------------------------------------------------------------------
-def show_confusion_matrix(rnn, n_categories, all_categories):
+def make_prediction(rnn, line_tensor): # Just return an output given a line - used in the confusion matrix
+    hidden = rnn.initHidden()
+
+    for i in range(line_tensor.size()[0]):
+        output, hidden = rnn(line_tensor[i], hidden)
+
+    return output
+#-------------------------------------------------------------------------
+#-------------------------------------------------------------------------
+def show_confusion_matrix(rnn, n_categories, all_categories, category_lines, n_letters, all_letters_idx):
     # Keep track of correct guesses in a confusion matrix
     confusion = torch.zeros(n_categories, n_categories)
-    n_confusion = 10000
 
-    # Just return an output given a line
-    def evaluate(line_tensor):
-        hidden = rnn.initHidden()
-
-        for i in range(line_tensor.size()[0]):
-            output, hidden = rnn(line_tensor[i], hidden)
-
-        return output
-
+    #------------------
     # Go through a bunch of examples and record which are correctly guessed
+    n_confusion = 10_000
     for i in range(n_confusion):
-        category, line, category_tensor, line_tensor = randomTrainingExample()
-        output = evaluate(line_tensor)
-        guess, guess_i = categoryFromOutput(output)
-        category_i = all_categories.index(category)
-        confusion[category_i][guess_i] += 1
+        #----
+        # 1 -get the data to verify
+        category, line, category_tensor, line_tensor = randomTrainingExample(
+            all_categories  = all_categories, 
+            category_lines  = category_lines, 
+            n_letters       = n_letters, 
+            all_letters_idx = all_letters_idx
+        )
+        #----
+
+        # 2 - get the actual index of the category generated above
+        actual_category_idx = all_categories.index(category)        
+        
+        # 3 - make a prediction
+        output = make_prediction(rnn = rnn,line_tensor = line_tensor)
+
+        # 4 - from the prediction get the category and the index of the category
+        category_prediction, category_prediction_idx = categoryFromOutput(
+            all_categories  = all_categories, 
+            output          = output
+        )
+
+        # 5 - In a matix of size [n_categories x n_categories] set to +1 where the coordinates match
+        #   actual_category_idx vs category_prediction_idx. Note that ideally if the prediction is correct
+        #   then actual_category_idx must be equal to category_prediction_idx. However, in some cases this
+        #   will not happen (due to incorrect predictions). And as we run this many times over, we should
+        #   expect to see a transversal line in the matrix with 'higher' values, and everything else with
+        #   lower values or close to zero - that is, if our RNN was trained properly.
+        confusion[actual_category_idx][category_prediction_idx] += 1
+    #------------------
 
     # Normalize by dividing every row by its sum
     for i in range(n_categories):
+        # this is a bit confusing, but we get the sum() from all elements in that row, and then
+        #   we divide each element in that row by the sum. So this expression here is a bit like:
+        #   confusion[i].every_and_each / confusion[i].sum() - and the se set this as a row in the matrix
+        #   For instance: row = [1,2,3], sum = 6, then row = [1/6, 2/6, 3/6] -> [0.16666667, 0.33333333, 0.5]
         confusion[i] = confusion[i] / confusion[i].sum()
 
     # Set up plot
@@ -596,7 +638,14 @@ def show_confusion_matrix(rnn, n_categories, all_categories):
 #-------------------------------------------------------------------------
 def execute_part6(all_losses):
     show_graph(all_losses)
-    show_confusion_matrix(rnn = result_part3['rnn'], n_categories = result_part1['n_categories'], all_categories = result_part1['all_categories'])
+    show_confusion_matrix(
+        rnn             = result_part3['rnn'], 
+        n_categories    = result_part1['n_categories'], 
+        all_categories  = result_part1['all_categories'],
+        category_lines  = result_part1['category_lines'],
+        n_letters       = result_part1['n_letters'],
+        all_letters_idx = result_part1['all_letters_idx']
+    )
 #-------------------------------------------------------------------------
 execute_part6(all_losses = result_part5['all_losses'])
 
