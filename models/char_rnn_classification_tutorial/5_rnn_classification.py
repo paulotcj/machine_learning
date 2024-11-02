@@ -187,14 +187,11 @@ execute_part2(
 )
 
 
-
 ##########################################################################
 ##
 ##  PART 3
 ##
 ##########################################################################
-
-
 
 import torch.nn as nn
 import torch.nn.functional as F
@@ -359,7 +356,6 @@ execute_part4(
 )
 
 
-
 ##########################################################################
 ##
 ##  PART 5
@@ -368,21 +364,55 @@ execute_part4(
 import time
 import math
 #-------------------------------------------------------------------------
-def train(rnn, criterion , learning_rate, category_tensor, line_tensor):
+def train(rnn, learning_rate, category_tensor, line_tensor):
     hidden_state = rnn.initHidden() #initialize the hidden state to zeros
+
+    # The nn.NLLLoss() function stands for 'Negative Log Likelihood Loss'
+    #   which is commonly used in classification problems, particularly when 
+    #   the model's output is a log-probability distribution
+    criterion = nn.NLLLoss()       
 
     # reset the gradients of all the parameters in the rnn model to zero. During the backward 
     #   pass of training, gradients are accumulated into the .grad attributes of each parameter 
     #   If you do not reset these gradients, they will accumulate across multiple trainings
     rnn.zero_grad()
 
+    # remember: line_tensor is the name, it's the name's length x 1 x n_letters (one-hot encoding)
+    #   so a name of length 7 would be [7,1,57] (57 being len of all letters)
+    #   category_tensor is the language, it's just a tensor with the index of the language
+
+    # print(f'line_tensor: {line_tensor}')
+    # print(f'line_tensor[0]: {line_tensor[0]}')
+
+    #so for tensor line/name of length 7, we would have this tensor: [7,1,57], therefore looping 7 times
     for i in range(line_tensor.size()[0]):
-        output, hidden_state = rnn(line_tensor[i], hidden_state)
+        # get the predicted output and the hidden state for the current character in the name
+        #  note that only the last output is used for the loss calculation
+        output, hidden_state = rnn(line_tensor[i], hidden_state) #feed one tensor at time
 
     loss = criterion(output, category_tensor)
-    loss.backward()
+    loss.backward() 
+
+    """
+    The way things are set up here is not very intuitive, so a more vanilla approach might shed a light
+    in why we are doing this. Consider this example:
+
+        # Instantiate the model, loss function, and optimizer
+        model = SimpleRNN(input_size=10, hidden_size=20, output_size=1)
+        criterion = nn.MSELoss()
+        optimizer = optim.SGD(model.parameters(), lr=0.01)
+
+        # Dummy input and target
+        input_data = torch.randn(5, 3, 10)  # (sequence_length, batch_size, input_size)
+        target = torch.randn(3, 1)  # (batch_size, output_size)
+
+        # Forward pass
+        output = model(input_data)
+        loss = criterion(output, target)    
+    """
 
     # Add parameters' gradients to their values, multiplied by learning rate
+    #  paramaters = weights and biases
     for p in rnn.parameters():
         p.data.add_(p.grad.data, alpha=-learning_rate)
 
@@ -399,7 +429,9 @@ def timeSince(since):
 #-------------------------------------------------------------------------
 #-------------------------------------------------------------------------
 def execute_train_rnn(rnn, n_iters, all_categories, category_lines, n_letters, all_letters_idx, 
-        criterion, learning_rate, print_every, plot_every):
+        learning_rate, print_every, plot_every):
+    
+ 
 
     # Keep track of losses for plotting
     current_loss = 0
@@ -411,6 +443,7 @@ def execute_train_rnn(rnn, n_iters, all_categories, category_lines, n_letters, a
     #----------------
     for iter in range(1, n_iters + 1):
         #----
+        #fetch a random training example
         category, line, category_tensor, line_tensor = randomTrainingExample(
             all_categories  = all_categories,
             category_lines  = category_lines,
@@ -418,9 +451,9 @@ def execute_train_rnn(rnn, n_iters, all_categories, category_lines, n_letters, a
             all_letters_idx = all_letters_idx
         )
         #----
+        # train on that example
         output, loss = train(
             rnn             = rnn, 
-            criterion       = criterion, 
             learning_rate   = learning_rate,
             category_tensor = category_tensor, 
             line_tensor     = line_tensor
@@ -445,28 +478,40 @@ def execute_train_rnn(rnn, n_iters, all_categories, category_lines, n_letters, a
 
         # Add current loss avg to list of losses
         if iter % plot_every == 0:
-            all_losses.append(current_loss / plot_every)
+            all_losses.append(current_loss / plot_every) # makes an average of the loss between the plot_every iterations
             current_loss = 0
         #----------------
     #----------------
 #-------------------------------------------------------------------------
 #-------------------------------------------------------------------------
-def execute_part5(rnn):
-    criterion = nn.NLLLoss()
+def execute_part5(rnn, all_categories, category_lines, n_letters, all_letters_idx):
 
-    learning_rate = 0.005 # If you set this too high, it might explode. If too low, it might not learn
+
+
+    learning_rate = 0.005 # 0.005 is typical for RNNs, higher may lead to exploding gradients, lower to vanishing gradients
 
     n_iters = 100_000
     print_every = 5_000
     plot_every = 1_000
 
     execute_train_rnn(
-        rnn         = rnn, 
-        n_iters     = n_iters, 
-        print_every = print_every, 
-        plot_every  = plot_every
+        rnn             = rnn, 
+        n_iters         = n_iters, 
+        all_categories  = all_categories,
+        category_lines  = category_lines,
+        n_letters       = n_letters,
+        all_letters_idx = all_letters_idx,
+        learning_rate   = learning_rate,
+        print_every     = print_every, 
+        plot_every      = plot_every
     )
 
 #-------------------------------------------------------------------------
 
-execute_part5(rnn = part3_result['rnn'])
+execute_part5(
+    rnn = part3_result['rnn'],
+    all_categories = part1_result['all_categories'],
+    category_lines = part1_result['category_lines'],
+    n_letters = part1_result['n_letters'],
+    all_letters_idx = part1_result['all_letters_idx']
+)
