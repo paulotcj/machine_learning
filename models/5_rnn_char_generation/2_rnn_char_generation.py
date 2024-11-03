@@ -249,7 +249,7 @@ def timeSince(since):
     return f'{minutes}m {seconds}s'
 #-------------------------------------------------------------------------
 
-
+#-------------------------------------------------------------------------
 def execute_train(all_letters, n_letters, all_categories, n_categories, category_lines):
     rnn = RNN(input_size = n_letters, hidden_size = 128, output_size=n_letters, n_categories=n_categories)
 
@@ -261,6 +261,7 @@ def execute_train(all_letters, n_letters, all_categories, n_categories, category
 
     start = time.time()
 
+    #-----------------------
     for iter in range(1, n_iters + 1):
         output, loss = train(*randomTrainingExample(all_categories=all_categories, category_lines=category_lines, n_categories=n_categories, all_letters=all_letters, n_letters=n_letters))
         total_loss += loss
@@ -271,4 +272,7 @@ def execute_train(all_letters, n_letters, all_categories, n_categories, category
         if iter % plot_every == 0:
             all_losses.append(total_loss / plot_every)
             total_loss = 0
+    #-----------------------
+
+#-------------------------------------------------------------------------
         
