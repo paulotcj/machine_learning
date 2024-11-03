@@ -227,17 +227,7 @@ class RNN(nn.Module):
         # The structure of the forward method processes sequences of inputs one step at a time, 
         #   updating the hidden state at each step in a classic implementation of RNNs.
 
-        print('#######################################################')
-        print('#######################################################')
-        print('#######################################################')
-        print('#######################################################')
-        print('#######################################################')
-        print('#######################################################')
-        print('#######################################################')
-        print('#######################################################')
-        print('#######################################################')
-        
-
+       
         temp = self.i2h(input) + self.h2h(hidden)
         hidden = F.tanh(temp)
         output = self.h2o(hidden)
@@ -431,18 +421,16 @@ def train(rnn, learning_rate, category_tensor, line_tensor, device, is_cuda_avai
         #  note that only the last output is used for the loss calculation
 
         if is_cuda_available:
-            print('Using GPU')
             rnn.to(device)
-            line_tensor_i = line_tensor[i]
-            line_tensor_i.to(device)
-            hidden_state.to(device)
-            category_tensor.to(device)
+            line_tensor_i = line_tensor[i].to(device)
+            hidden_state = hidden_state.to(device)
+            category_tensor = category_tensor.to(device)
 
         output, hidden_state = rnn(line_tensor_i, hidden_state) #feed one tensor at time
 
         if is_cuda_available:
-            output.to(device)
-            hidden_state.to(device)
+            output = output.to(device)
+            hidden_state = hidden_state.to(device)
 
     loss = criterion(output, category_tensor)
     loss.backward() 
@@ -556,6 +544,8 @@ def execute_train_rnn(rnn, n_iters, all_categories, category_lines, n_letters, a
 #-------------------------------------------------------------------------
 def execute_part5(rnn, all_categories, category_lines, n_letters, all_letters_idx, device, is_cuda_available):
 
+    if is_cuda_available:
+        print('Torch: Running on GPU')
     print('\n\n----------\nTraining:') # give some clear separation for the training output
 
     learning_rate = 0.005 # 0.005 is typical for RNNs, higher may lead to exploding gradients, lower to vanishing gradients
