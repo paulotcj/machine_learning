@@ -394,13 +394,11 @@ execute_part2(
 
 ##########################################################################
 ##
-##  PART 2
+##  PART 3
 ##
 ##########################################################################
-
-
-
 import matplotlib.pyplot as plt
+def execute_part3(all_losses):
 
-plt.figure()
-plt.plot(all_losses)
+    plt.figure()
+    plt.plot(all_losses)
