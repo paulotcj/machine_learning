@@ -26,7 +26,10 @@ from torch.utils.data import TensorDataset, DataLoader, RandomSampler
 ##########################################################################
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-
+if torch.cuda.is_available():
+    print('Using GPU')
+else:
+    print('Using CPU')
 
 SOS_token = 0
 EOS_token = 1
@@ -36,21 +39,21 @@ class Lang:
     #-------------------------------------------------------------------------
     def __init__(self, name):
         self.name = name
-        self.word2index = {}
+        self.word2index = {} # dictionaries
         self.word2count = {}
-        self.index2word = {0: "SOS", 1: "EOS"}
+        self.index2word = {0: "SOS", 1: "EOS"} # first words, SOS: Start Of Sentence, EOS: End Of Sentence
         self.n_words = 2  # Count SOS and EOS
     #-------------------------------------------------------------------------
     #-------------------------------------------------------------------------
-    def addSentence(self, sentence):
+    def addSentence(self, sentence): # get a sentence and try to add a word to the dictionary
         for word in sentence.split(' '):
             self.addWord(word)
     #-------------------------------------------------------------------------
     #-------------------------------------------------------------------------
     def addWord(self, word):
         if word not in self.word2index:
-            self.word2index[word] = self.n_words
-            self.word2count[word] = 1
+            self.word2index[word] = self.n_words # assume the index of the word dict length, we will add 1 to this count soon
+            self.word2count[word] = 1 # word count, first occurrence
             self.index2word[self.n_words] = word
             self.n_words += 1
         else:
@@ -58,28 +61,56 @@ class Lang:
     #-------------------------------------------------------------------------
 #-------------------------------------------------------------------------
 #-------------------------------------------------------------------------
-# Turn a Unicode string to plain ASCII, thanks to
-# https://stackoverflow.com/a/518232/2809427
-def unicodeToAscii(s):
-    return ''.join(
-        c for c in unicodedata.normalize('NFD', s)
+def unicodeToAscii(input_str):
+
+    # unicodedata.normalize('NFD', input_str) -> normalize Unicode strings. Unicode normalization is 
+    #   a process that converts text to a standard form, which can be useful for string comparison, 
+    #   searching, and other text processing tasks.
+    # In this specific call, the function normalize is being used with the normalization form 'NFD'. 
+    #   The 'NFD' stands for Normalization Form D (Canonical Decomposition). This form decomposes combined 
+    #   characters into their constituent parts. For example, a character like 'é' 
+    #   (which is a single character) would be decomposed into 'e' and an accent character.
+    #
+    # if unicodedata.category(c) != 'Mn' -> In this specific case, the code is checking if the category of 
+    #   the character c is not equal to 'Mn'. The category 'Mn' stands for "Mark, Nonspacing". Nonspacing 
+    #   marks are characters that typically combine with preceding characters and do not occupy a space 
+    #   by themselves, such as accents or diacritical marks.
+    #   By using this condition, the code is likely filtering out nonspacing marks from further processing. 
+    #   This can be useful in text processing tasks where you want to ignore or remove diacritical marks 
+    #   to simplify the text or to perform operations that are sensitive to such marks. For example, 
+    #   in text normalization or in preparing text for machine learning models, it might be necessary to 
+    #   strip out these marks to ensure consistency and accuracy.    
+
+    return_str = ''.join(
+        c for c in unicodedata.normalize('NFD', input_str)
         if unicodedata.category(c) != 'Mn'
     )
+
+    return return_str
 #-------------------------------------------------------------------------
 #-------------------------------------------------------------------------
-# Lowercase, trim, and remove non-letter characters
-def normalizeString(s):
-    s = unicodeToAscii(s.lower().strip())
-    s = re.sub(r"([.!?])", r" \1", s)
-    s = re.sub(r"[^a-zA-Z!?]+", r" ", s)
-    return s.strip()    
+
+def normalizeString(param_str): # Lowercase, trim, and remove non-letter characters, also separate punctuation from words by addint 1 space
+
+    param_str = unicodeToAscii( param_str.lower().strip() ) # convert to ASCII, lowercase, and strip leading/trailing whitespaces
+
+    # insert a space before every period, exclamation mark, or question mark. ensure that 
+    #   punctuation is separated from words by a space, which helpful with text analysis
+    param_str = re.sub(r"([.!?])", r" \1", param_str)
+
+    # matches any sequence of one or more characters that are not letters, exclamation marks (!), 
+    #   or question marks (?) and replaces them with a single space
+    param_str = re.sub(r"[^a-zA-Z!?]+", r" ", param_str)
+
+    return param_str.strip()    
 #-------------------------------------------------------------------------
 #-------------------------------------------------------------------------
 def readLangs(lang1, lang2, reverse=False):
     print("Reading lines...")
 
+    file_name = f'data/{lang1}-{lang2}.txt'
     # Read the file and split into lines
-    lines = open('data/%s-%s.txt' % (lang1, lang2), encoding='utf-8').\
+    lines = open(file_name, encoding='utf-8').\
         read().strip().split('\n')
 
     # Split every line into pairs and normalize
