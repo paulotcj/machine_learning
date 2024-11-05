@@ -369,11 +369,15 @@ def execute_train(all_letters, n_letters, all_categories, n_categories, category
             total_loss = 0
     #-----------------------
 
+    return {
+        'all_losses': all_losses
+    }
+
 #-------------------------------------------------------------------------
 #-------------------------------------------------------------------------
 def execute_part2(all_letters, n_letters, all_categories, n_categories, category_lines, all_letters_idx):
 
-    execute_train(
+    result_train = execute_train(
         all_letters     = all_letters, 
         n_letters       = n_letters, 
         all_categories  = all_categories, 
@@ -381,8 +385,11 @@ def execute_part2(all_letters, n_letters, all_categories, n_categories, category
         category_lines  = category_lines,
         all_letters_idx = all_letters_idx
     )
+    return {
+        'all_losses': result_train['all_losses']
+    }
 #-------------------------------------------------------------------------
-execute_part2(
+result_part2 = execute_part2(
     all_letters     = result_part1['all_letters'], 
     n_letters       = result_part1['n_letters'], 
     all_categories  = result_part1['all_categories'], 
@@ -398,7 +405,59 @@ execute_part2(
 ##
 ##########################################################################
 import matplotlib.pyplot as plt
-def execute_part3(all_losses):
+def plot_graph(all_losses):
 
     plt.figure()
     plt.plot(all_losses)
+    plt.show() 
+#-------------------------------------------------------------------------
+# Sample from a category and starting letter
+def sample(category, start_letter='A'):
+    max_length = 20
+    with torch.no_grad():  # no need to track history in sampling
+        category_tensor = categoryTensor(category)
+        input = inputTensor(start_letter)
+        hidden = rnn.initHidden()
+
+        output_name = start_letter
+
+        for i in range(max_length):
+            output, hidden = rnn(category_tensor, input[0], hidden)
+            topv, topi = output.topk(1)
+            topi = topi[0][0]
+            if topi == n_letters - 1:
+                break
+            else:
+                letter = all_letters[topi]
+                output_name += letter
+            input = inputTensor(letter)
+
+        return output_name
+#-------------------------------------------------------------------------
+#-------------------------------------------------------------------------
+# Get multiple samples from one category and multiple starting letters
+def samples(category, start_letters='ABC'):
+    for start_letter in start_letters:
+        result_sample = sample(category = category, start_letter = start_letter)
+        print(f'category: {category}\tstart letter:{start_letter} -> {result_sample}') 
+#-------------------------------------------------------------------------
+#-------------------------------------------------------------------------
+def execute_part3(all_losses):
+
+    plot_graph(all_losses)
+
+    print('----')
+    samples(category='Russian', start_letters='RUS')
+    
+    print('----')
+    samples(category='German', start_letters='GER')
+    
+    print('----')
+    samples(category='Spanish', start_letters='SPA')
+    
+    print('----')
+    samples(category='Chinese', start_letters='CHI')  
+#-------------------------------------------------------------------------
+execute_part3(all_losses = result_part2['all_losses'])
+
+ 
