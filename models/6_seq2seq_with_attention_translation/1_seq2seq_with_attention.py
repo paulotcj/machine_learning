@@ -108,10 +108,9 @@ def normalizeString(param_str): # Lowercase, trim, and remove non-letter charact
 def readLangs(lang1, lang2, reverse=False):
     print("Reading lines...")
 
-    file_name = f'data/{lang1}-{lang2}.txt'
+    file_name = f'data/{lang1}-{lang2}.txt' # most likely: eng-fra.txt
     # Read the file and split into lines
-    lines = open(file_name, encoding='utf-8').\
-        read().strip().split('\n')
+    lines = open(file_name, encoding='utf-8').read().strip().split('\n')
 
     # Split every line into pairs and normalize
     pairs = [[normalizeString(s) for s in l.split('\t')] for l in lines]
