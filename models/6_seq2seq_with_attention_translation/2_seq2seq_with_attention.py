@@ -424,18 +424,18 @@ def tensorsFromPair(pair):
     return (input_tensor, target_tensor)
 #-------------------------------------------------------------------------
 #-------------------------------------------------------------------------
-def get_dataloader(batch_size):
+def get_dataloader(batch_size, device, max_length = 10, eos_token = 1):
     input_lang, output_lang, pairs = prepareData('eng', 'fra', True)
 
     n = len(pairs)
-    input_ids = np.zeros((n, MAX_LENGTH), dtype=np.int32)
-    target_ids = np.zeros((n, MAX_LENGTH), dtype=np.int32)
+    input_ids = np.zeros((n, max_length), dtype=np.int32)
+    target_ids = np.zeros((n, max_length), dtype=np.int32)
 
     for idx, (inp, tgt) in enumerate(pairs):
         inp_ids = indexesFromSentence(input_lang, inp)
         tgt_ids = indexesFromSentence(output_lang, tgt)
-        inp_ids.append(EOS_token)
-        tgt_ids.append(EOS_token)
+        inp_ids.append(eos_token)
+        tgt_ids.append(eos_token)
         input_ids[idx, :len(inp_ids)] = inp_ids
         target_ids[idx, :len(tgt_ids)] = tgt_ids
 
@@ -478,19 +478,20 @@ def train_epoch(dataloader, encoder, decoder, encoder_optimizer,
 import time
 import math
 
+#-------------------------------------------------------------------------
 def asMinutes(s):
     m = math.floor(s / 60)
     s -= m * 60
     return '%dm %ds' % (m, s)
-
+#-------------------------------------------------------------------------
+#-------------------------------------------------------------------------
 def timeSince(since, percent):
     now = time.time()
     s = now - since
     es = s / (percent)
     rs = es - s
     return '%s (- %s)' % (asMinutes(s), asMinutes(rs))
-
-
+#-------------------------------------------------------------------------
 #-------------------------------------------------------------------------
 def train(train_dataloader, encoder, decoder, n_epochs, learning_rate=0.001,
                print_every=100, plot_every=100):
@@ -571,9 +572,15 @@ def evaluateRandomly(encoder, decoder, n=10):
 hidden_size = 128
 batch_size = 32
 
+exit()
 input_lang, output_lang, train_dataloader = get_dataloader(batch_size)
-
+exit()
 encoder = EncoderRNN(input_lang.n_words, hidden_size).to(device)
 decoder = AttnDecoderRNN(hidden_size, output_lang.n_words).to(device)
 
 train(train_dataloader, encoder, decoder, 80, print_every=5, plot_every=5)
+
+
+encoder.eval()
+decoder.eval()
+evaluateRandomly(encoder, decoder)
