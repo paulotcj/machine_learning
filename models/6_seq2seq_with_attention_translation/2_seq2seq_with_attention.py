@@ -18,14 +18,15 @@ import torch.nn.functional as F
 import numpy as np
 from torch.utils.data import TensorDataset, DataLoader, RandomSampler
 
+import time
+import math
+
 
 ##########################################################################
 ##
 ##  PART 1
 ##
 ##########################################################################
-
-
 
 #-------------------------------------------------------------------------
 class Lang:
@@ -227,8 +228,16 @@ def execute_part1():
         reverse         = True
     )
     print(random.choice(pairs))
+
+    return {
+        'device': device,
+        'eos_token': EOS_token,
+        'sos_token': SOS_token,
+        'max_length': MAX_LENGTH,
+        'lang_prefixes': eng_prefixes
+    }
 #-------------------------------------------------------------------------
-execute_part1()
+result_part1 = execute_part1()
 
 
 ##########################################################################
@@ -316,7 +325,6 @@ class DecoderRNN(nn.Module):
     
 #-------------------------------------------------------------------------
 
-
 ##########################################################################
 ##########################################################################
 ##########################################################################
@@ -328,7 +336,6 @@ class DecoderRNN(nn.Module):
 ##########################################################################
 ##########################################################################
 ##########################################################################
-
 
 
 #-------------------------------------------------------------------------
@@ -405,8 +412,6 @@ class AttnDecoderRNN(nn.Module):
         return output, hidden, attn_weights
     #-------------------------------------------------------------------------
 #-------------------------------------------------------------------------
-
-
 #-------------------------------------------------------------------------
 def indexesFromSentence(lang, sentence):
     return [lang.word2index[word] for word in sentence.split(' ')]
@@ -424,9 +429,15 @@ def tensorsFromPair(pair):
     return (input_tensor, target_tensor)
 #-------------------------------------------------------------------------
 #-------------------------------------------------------------------------
-def get_dataloader(batch_size, device, max_length = 10, eos_token = 1):
-    input_lang, output_lang, pairs = prepareData('eng', 'fra', True)
+def get_dataloader(batch_size,lang_prefixes, device, max_length = 10, EOS_token = 1):
+    input_lang, output_lang, pairs = prepareData(
+        lang1           = 'eng', 
+        lang2           = 'fra', 
+        lang1_prefixes  = lang_prefixes,
+        reverse         = True
+    )
 
+    exit()
     n = len(pairs)
     input_ids = np.zeros((n, max_length), dtype=np.int32)
     target_ids = np.zeros((n, max_length), dtype=np.int32)
@@ -434,8 +445,8 @@ def get_dataloader(batch_size, device, max_length = 10, eos_token = 1):
     for idx, (inp, tgt) in enumerate(pairs):
         inp_ids = indexesFromSentence(input_lang, inp)
         tgt_ids = indexesFromSentence(output_lang, tgt)
-        inp_ids.append(eos_token)
-        tgt_ids.append(eos_token)
+        inp_ids.append(EOS_token)
+        tgt_ids.append(EOS_token)
         input_ids[idx, :len(inp_ids)] = inp_ids
         target_ids[idx, :len(tgt_ids)] = tgt_ids
 
@@ -473,11 +484,6 @@ def train_epoch(dataloader, encoder, decoder, encoder_optimizer,
 
     return total_loss / len(dataloader)
 #-------------------------------------------------------------------------
-
-
-import time
-import math
-
 #-------------------------------------------------------------------------
 def asMinutes(s):
     m = math.floor(s / 60)
@@ -522,13 +528,6 @@ def train(train_dataloader, encoder, decoder, n_epochs, learning_rate=0.001,
 
     showPlot(plot_losses)
 #-------------------------------------------------------------------------
-
-
-import matplotlib.pyplot as plt
-plt.switch_backend('agg')
-import matplotlib.ticker as ticker
-import numpy as np
-
 #-------------------------------------------------------------------------
 def showPlot(points):
     plt.figure()
@@ -568,19 +567,42 @@ def evaluateRandomly(encoder, decoder, n=10):
         print('<', output_sentence)
         print('')
 #-------------------------------------------------------------------------
-
-hidden_size = 128
-batch_size = 32
-
-exit()
-input_lang, output_lang, train_dataloader = get_dataloader(batch_size)
-exit()
-encoder = EncoderRNN(input_lang.n_words, hidden_size).to(device)
-decoder = AttnDecoderRNN(hidden_size, output_lang.n_words).to(device)
-
-train(train_dataloader, encoder, decoder, 80, print_every=5, plot_every=5)
+#-------------------------------------------------------------------------
+def execute_part2(device, SOS_token, EOS_token, max_length, lang_prefixes):
+    hidden_size = 128
+    batch_size = 32
 
 
-encoder.eval()
-decoder.eval()
-evaluateRandomly(encoder, decoder)
+    input_lang, output_lang, train_dataloader = get_dataloader(
+        batch_size      = batch_size,
+        lang_prefixes   = lang_prefixes,
+        device          = device,
+        max_length      = max_length,
+        EOS_token       = EOS_token
+        )
+    
+    encoder = EncoderRNN(input_size = input_lang.n_words, hidden_layer_size=hidden_size).to(device)
+    exit()
+    decoder = AttnDecoderRNN(hidden_size, output_lang.n_words).to(device)
+    
+    train(train_dataloader, encoder, decoder, 80, print_every=5, plot_every=5)
+
+
+    encoder.eval()
+    decoder.eval()
+    evaluateRandomly(encoder, decoder)    
+#-------------------------------------------------------------------------
+execute_part2(
+    device          = result_part1['device'], 
+    SOS_token       = result_part1['sos_token'], 
+    EOS_token       = result_part1['eos_token'], 
+    max_length      = result_part1['max_length'],
+    lang_prefixes   = result_part1['lang_prefixes']
+)
+
+
+import matplotlib.pyplot as plt
+plt.switch_backend('agg')
+import matplotlib.ticker as ticker
+import numpy as np
+
