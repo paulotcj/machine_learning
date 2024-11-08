@@ -350,13 +350,34 @@ class BahdanauAttention(nn.Module):
     #-------------------------------------------------------------------------
     #-------------------------------------------------------------------------
     def forward(self, query, keys):
-        scores = self.Va(torch.tanh(self.Wa(query) + self.Ua(keys)))
-        scores = scores.squeeze(2).unsqueeze(1)
+        """
+        Notes and summary:
+        query - current decoder hidden state
+        keys - encoder hidden states
+        attention scores - indicate the relevance of each encoder hidden state to the current decoder 
+            hidden state
+        attention weights - These are the normalized attention scores, representing the probability 
+            distribution over the encoder hidden states
+        context vector - A weighted sum of the encoder hidden states, which is used to generate the 
+            next decoder hidden state   
+        """
 
-        weights = F.softmax(scores, dim=-1)
-        context = torch.bmm(weights, keys)
+        
+        # attention scores
+        attention_scores = self.Va(                      # apply another linear transformation to compute the attention scores
+            torch.tanh(                        # tanh - standard thing
+                self.Wa(query) + self.Ua(keys) # apply linear transformations to the query and keys an sum them
+            )
+        )
 
-        return context, weights
+        # squeeze(2) - remove the dimension at idx 2, unsqueeze(1) - add a dimension at idx 1
+        attention_scores = attention_scores.squeeze(2).unsqueeze(1) 
+
+        attentin_weights = F.softmax(attention_scores, dim=-1) # apply softmax at the last dim to get the weights
+
+        context_vector = torch.bmm(attentin_weights, keys) # bmm -> batch matrix-matrix product to product the context vector
+
+        return context_vector, attentin_weights
     #-------------------------------------------------------------------------
 #-------------------------------------------------------------------------
 #-------------------------------------------------------------------------
