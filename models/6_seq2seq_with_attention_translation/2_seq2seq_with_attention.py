@@ -342,10 +342,11 @@ class DecoderRNN(nn.Module):
 class BahdanauAttention(nn.Module):
     #-------------------------------------------------------------------------
     def __init__(self, hidden_size):
-        super(BahdanauAttention, self).__init__()
-        self.Wa = nn.Linear(hidden_size, hidden_size)
-        self.Ua = nn.Linear(hidden_size, hidden_size)
-        self.Va = nn.Linear(hidden_size, 1)
+        super(BahdanauAttention, self).__init__() #standard thing
+
+        self.Wa = nn.Linear(hidden_size, hidden_size) # weight matrix for the query
+        self.Ua = nn.Linear(hidden_size, hidden_size) # weight matrix for the keys
+        self.Va = nn.Linear(hidden_size, 1) # weight matrix for the attention scores
     #-------------------------------------------------------------------------
     #-------------------------------------------------------------------------
     def forward(self, query, keys):
