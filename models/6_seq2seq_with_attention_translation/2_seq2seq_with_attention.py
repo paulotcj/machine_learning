@@ -365,20 +365,6 @@ class BahdanauAttention(nn.Module):
         return context_vector, attentin_weights
     #-------------------------------------------------------------------------
 #-------------------------------------------------------------------------
-##########################################################################
-##########################################################################
-##########################################################################
-#######
-#######
-#######  Done until here
-#######
-#######
-##########################################################################
-##########################################################################
-##########################################################################
-
-
-
 #-------------------------------------------------------------------------
 class AttnDecoderRNN(nn.Module):
     #-------------------------------------------------------------------------
@@ -473,16 +459,52 @@ class AttnDecoderRNN(nn.Module):
         # embedding from nn.Embedding, set the dropout
         embedded =  self.dropout(self.embedding(input))
 
+        # permute(1, 0, 2) means the first dim (idx 0) will take the place of the second dim (idx 1),
+        #   the second dim (idx 1) will take the place of the first dim (idx 0), and the third dim (idx 2)
+        #   will stay at idx 2
+        # Effectively it changes the shape from (batch_size, num_layers, hidden_size) 
+        #   to (num_layers, batch_size, hidden_size). This is done to match the input shape for 
+        #   the attention mechanism
         query = hidden.permute(1, 0, 2)
+
+        # remember self.attention is an instance of BahdanauAttention. This computes the context vector and 
+        #   attention weights. 
         context, attn_weights = self.attention(query, encoder_outputs)
+
+
+        # embedded input and context vector are concatenated along the last dimension
+        # the embedded input and the context vector are concatenated along the last dimension. This 
+        #   combined input will be fed into the GRU layer. The concatenation allows the GRU to 
+        #   consider both the current input and the context from the encoder
         input_gru = torch.cat((embedded, context), dim=2)
 
+        # GRU takes the input_gru and the hidden state from the previous step and outputs the output
+        #   and the hidden state for the current step
         output, hidden = self.gru(input_gru, hidden)
+
+        # linear layer maps the GRU output to the desired output size (number of possible output tokens). 
+        #   This transformation is necessary to produce the final output logits for each token in the 
+        #   vocabulary
         output = self.out(output)
 
         return output, hidden, attn_weights
     #-------------------------------------------------------------------------
 #-------------------------------------------------------------------------
+##########################################################################
+##########################################################################
+##########################################################################
+#######
+#######
+#######  Done until here
+#######
+#######
+##########################################################################
+##########################################################################
+##########################################################################
+
+
+
+
 #-------------------------------------------------------------------------
 def indexesFromSentence(lang, sentence):
     return [lang.word2index[word] for word in sentence.split(' ')]
