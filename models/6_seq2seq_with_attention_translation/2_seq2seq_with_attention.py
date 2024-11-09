@@ -530,6 +530,9 @@ def get_dataloader(batch_size,lang_prefixes, device, max_length = 10, EOS_token 
         reverse         = True
     )
 
+    print(f'\n\npairs: {len(pairs)}')
+    print(f'pairs first 5 rows: {pairs[:5]}')
+
     exit()
     n = len(pairs)
     input_ids = np.zeros((n, max_length), dtype=np.int32)
@@ -673,7 +676,7 @@ def execute_part2(device, SOS_token, EOS_token, max_length, lang_prefixes):
         max_length      = max_length,
         EOS_token       = EOS_token
         )
-    
+    exit()
     encoder = EncoderRNN(input_size = input_lang.n_words, hidden_layer_size=hidden_size).to(device)
     exit()
     decoder = AttnDecoderRNN(hidden_size, output_lang.n_words).to(device)
