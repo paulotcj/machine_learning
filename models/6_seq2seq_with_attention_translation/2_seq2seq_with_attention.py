@@ -322,22 +322,7 @@ class DecoderRNN(nn.Module):
         output = self.out(output)
         return output, hidden
     #-------------------------------------------------------------------------
-    
 #-------------------------------------------------------------------------
-
-##########################################################################
-##########################################################################
-##########################################################################
-#######
-#######
-#######  Done until here
-#######
-#######
-##########################################################################
-##########################################################################
-##########################################################################
-
-
 #-------------------------------------------------------------------------
 class BahdanauAttention(nn.Module):
     #-------------------------------------------------------------------------
@@ -380,26 +365,57 @@ class BahdanauAttention(nn.Module):
         return context_vector, attentin_weights
     #-------------------------------------------------------------------------
 #-------------------------------------------------------------------------
+##########################################################################
+##########################################################################
+##########################################################################
+#######
+#######
+#######  Done until here
+#######
+#######
+##########################################################################
+##########################################################################
+##########################################################################
+
+
+
 #-------------------------------------------------------------------------
 class AttnDecoderRNN(nn.Module):
     #-------------------------------------------------------------------------
-    def __init__(self, hidden_size, output_size, dropout_p=0.1):
+    def __init__(self, hidden_size, output_size, device, sos_token, dropout_p=0.1, max_length=10):
         super(AttnDecoderRNN, self).__init__()
-        self.embedding = nn.Embedding(output_size, hidden_size)
-        self.attention = BahdanauAttention(hidden_size)
-        self.gru = nn.GRU(2 * hidden_size, hidden_size, batch_first=True)
+
+        # 1 - embedding layer
+        self.embedding = nn.Embedding(output_size, hidden_size) 
+
+        # 2 - attention layer
+        self.attention = BahdanauAttention(hidden_size) 
+
+        # 3 - GRU layer. The GRU input size is 2 * hidden_size as it concatenates the embedded input 
+        #   and the context vector from the attention mechanism. The output size is hidden_size
+        self.gru = nn.GRU(2 * hidden_size, hidden_size, batch_first=True) 
+
+        # 4 - linear layer that maps the GRU output to the desired output size (number of possible 
+        #   output tokens).
         self.out = nn.Linear(hidden_size, output_size)
+
+
         self.dropout = nn.Dropout(dropout_p)
+
+        # internal aux variables
+        self.device = device
+        self.SOS_token = sos_token
+        self.max_length = max_length
     #-------------------------------------------------------------------------
     #-------------------------------------------------------------------------
     def forward(self, encoder_outputs, encoder_hidden, target_tensor=None):
         batch_size = encoder_outputs.size(0)
-        decoder_input = torch.empty(batch_size, 1, dtype=torch.long, device=device).fill_(SOS_token)
+        decoder_input = torch.empty(batch_size, 1, dtype=torch.long, device=self.device).fill_(self.sos_token)
         decoder_hidden = encoder_hidden
         decoder_outputs = []
         attentions = []
 
-        for i in range(MAX_LENGTH):
+        for i in range(self.max_length):
             decoder_output, decoder_hidden, attn_weights = self.forward_step(
                 decoder_input, decoder_hidden, encoder_outputs
             )
