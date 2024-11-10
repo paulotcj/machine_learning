@@ -569,11 +569,20 @@ def get_dataloader(batch_size,lang_prefixes, device, max_length = 10, EOS_token 
 
     train_sampler = RandomSampler(data_source = train_data)
 
+    # generally speaking, the DataLoader will take the dataset from train_data, shuffle it, create slots/buckets
+    #   of the size of the batch_size. So suppose you have 1000 sentences, and a batch size of 20, you will have
+    #   50 buckets, each with 20 sentences, and the sentences will all be randomly shuffled
     train_dataloader = DataLoader(
-        dataset     = train_data, 
-        sampler     = train_sampler, 
+        dataset     = train_data, # train data holds the input and target sentences
+        sampler     = train_sampler, # defines the strategy to draw samples from the dataset
         batch_size  = batch_size 
     )
+
+
+    print(f'\n\ntrain_data len: {len(train_data)}')
+    print(f'train_sampler len: {len(train_sampler)}')
+    print(f'train_dataloader len: {len(train_dataloader)}')
+    print(f'batch_size: {batch_size}')
 
     return input_lang_obj, output_lang_obj, train_dataloader
 #-------------------------------------------------------------------------
@@ -612,11 +621,24 @@ def train_epoch(dataloader : DataLoader, encoder : EncoderRNN, decoder : Decoder
     total_loss = 0
     print(f'reached train_epoch')
 
+    print(f'dataloader len: {len(dataloader)}')
 
+
+
+
+    
 
     #----------------------------
-    for data in dataloader:
+    for idx, data in enumerate(dataloader):
+
+        print(f'idx: {idx}')
+        print(f'data len: {len(data)}')
+        continue
         print(f'data: {data}') 
+        print(f'data len: {len(data)}')
+        print(f'\n\ndata[0]: {data[0]}')
+        print(f'data[0] len: {len(data[0])}')
+
         exit()
         input_tensor, target_tensor = data
 
@@ -637,6 +659,7 @@ def train_epoch(dataloader : DataLoader, encoder : EncoderRNN, decoder : Decoder
 
         total_loss += loss.item()
     #----------------------------
+    exit()
 
     return total_loss / len(dataloader)
 #-------------------------------------------------------------------------
