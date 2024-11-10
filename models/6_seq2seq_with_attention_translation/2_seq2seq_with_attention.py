@@ -27,7 +27,11 @@ import math
 ##  PART 1
 ##
 ##########################################################################
-
+#-------------------------------------------------------------------------
+def is_debug_mode():
+    # return True
+    return False
+#-------------------------------------------------------------------------
 #-------------------------------------------------------------------------
 class Lang:
     #-------------------------------------------------------------------------
@@ -101,7 +105,15 @@ def normalizeString(param_str): # Lowercase, trim, and remove non-letter charact
 def readLangs(lang1, lang2, reverse=False):
     print("Reading lines...")
 
-    file_name = f'data/{lang1}-{lang2}.txt' # most likely: eng-fra.txt
+    added_path = ''
+    if is_debug_mode():
+        print("Running in debug mode")
+        added_path = 'models/6_seq2seq_with_attention_translation/'
+    else:
+        print("Running in normal mode")
+
+
+    file_name = f'{added_path}data/{lang1}-{lang2}.txt' # most likely: eng-fra.txt
     # Read the file and split into lines
     full_file = open(file_name, encoding='utf-8').read().strip().split('\n')
 
@@ -181,7 +193,7 @@ def prepareData(lang1, lang2, lang1_prefixes, reverse=False):
         lang_prefixes   = lang1_prefixes
     )
 
-
+    
     print("Trimmed to %s sentence pairs" % len(sentences_pairs))
 
     print("Counting words...")
@@ -221,13 +233,14 @@ def execute_part1():
         "they are", "they re "
     )    
 
-    input_lang, output_lang, pairs = prepareData(
-        lang1           = 'eng', 
-        lang2           = 'fra', 
-        lang1_prefixes  = eng_prefixes,  
-        reverse         = True
-    )
-    print(random.choice(pairs))
+    # we dont need this here - it takes a long time to read the data
+    # input_lang, output_lang, pairs = prepareData(
+    #     lang1           = 'eng', 
+    #     lang2           = 'fra', 
+    #     lang1_prefixes  = eng_prefixes,  
+    #     reverse         = True
+    # )
+    # print(random.choice(pairs))
 
     return {
         'device': device,
@@ -490,6 +503,80 @@ class AttnDecoderRNN(nn.Module):
         return output, hidden, attn_weights
     #-------------------------------------------------------------------------
 #-------------------------------------------------------------------------
+#-------------------------------------------------------------------------
+def indexesFromSentence(lang_obj, sentence):
+    return_list = [
+        lang_obj.word2index[word]  # 2 - get the index of the word from the known dictionary
+        for word in sentence.split(' ') # 1 - from the sentence split into words
+    ]
+    return return_list # return a list of indexes (from the dictionary) for each word in the sentence
+#-------------------------------------------------------------------------
+#-------------------------------------------------------------------------
+def get_dataloader(batch_size,lang_prefixes, device, max_length = 10, EOS_token = 1):
+
+    input_lang_obj, output_lang_obj, pairs = prepareData(
+        lang1           = 'eng', 
+        lang2           = 'fra', 
+        lang1_prefixes  = lang_prefixes,
+        reverse         = True
+    )
+
+
+    print(f'\n\npairs: {len(pairs)}')
+    print(f'pairs first 5 rows: {pairs[:5]}')
+
+    
+    pairs_len = len(pairs)
+    input_ids = np.zeros((pairs_len, max_length), dtype=np.int32) # matrix of size all sentences x max_length
+    target_ids = np.zeros((pairs_len, max_length), dtype=np.int32)
+
+    #------------------
+    for idx, (input_sentence, target_sentence) in enumerate(pairs):
+
+        # provide an input and target sentence and get the dictionary indexes of each word from the sentence
+        input_sentence_indexes  = indexesFromSentence(lang_obj = input_lang_obj , sentence = input_sentence )
+        target_sentence_indexes = indexesFromSentence(lang_obj = output_lang_obj, sentence = target_sentence)
+
+        # append the EOS token to the end of the sentences
+        input_sentence_indexes.append(EOS_token)
+        target_sentence_indexes.append(EOS_token)
+
+
+        # at row idx, fill from the beginning to the length of the sentence (where len is non inclusive)
+        #   so:  [ at_row_idx, from_begining_column, to_len_of_sentence_-1 ]
+        input_ids[idx, :len(input_sentence_indexes)] = input_sentence_indexes # at row idx, fill the columns with the indexes
+        target_ids[idx, :len(target_sentence_indexes)] = target_sentence_indexes
+
+        # print(f'input_ids first 5 rows: {input_ids[:5]}')
+        # print(f'target_ids first 5 rows: {target_ids[:5]}')
+
+    #------------------
+
+    # print(f'input_ids type: {type(input_ids)}')
+    # print(f'target_ids type: {type(target_ids)}')
+
+
+    # this tensor dataset interwoven the input and target at the same index. If you were to access
+    #   train_data[0] you would get the same sentence in both languages
+    train_data = TensorDataset(
+        torch.LongTensor(input_ids).to(device),
+        torch.LongTensor(target_ids).to(device)
+    )
+
+    # print(f'train_data[0]: {train_data[0]}')  
+    # print(f'train_data[200]: {train_data[200]}')    
+
+
+    train_sampler = RandomSampler(data_source = train_data)
+
+    train_dataloader = DataLoader(
+        dataset     = train_data, 
+        sampler     = train_sampler, 
+        batch_size  = batch_size 
+    )
+
+    return input_lang_obj, output_lang_obj, train_dataloader
+#-------------------------------------------------------------------------
 ##########################################################################
 ##########################################################################
 ##########################################################################
@@ -505,10 +592,7 @@ class AttnDecoderRNN(nn.Module):
 
 
 
-#-------------------------------------------------------------------------
-def indexesFromSentence(lang, sentence):
-    return [lang.word2index[word] for word in sentence.split(' ')]
-#-------------------------------------------------------------------------
+
 #-------------------------------------------------------------------------
 def tensorFromSentence(lang, sentence):
     indexes = indexesFromSentence(lang, sentence)
@@ -522,43 +606,18 @@ def tensorsFromPair(pair):
     return (input_tensor, target_tensor)
 #-------------------------------------------------------------------------
 #-------------------------------------------------------------------------
-def get_dataloader(batch_size,lang_prefixes, device, max_length = 10, EOS_token = 1):
-    input_lang, output_lang, pairs = prepareData(
-        lang1           = 'eng', 
-        lang2           = 'fra', 
-        lang1_prefixes  = lang_prefixes,
-        reverse         = True
-    )
-
-    print(f'\n\npairs: {len(pairs)}')
-    print(f'pairs first 5 rows: {pairs[:5]}')
-
-    exit()
-    n = len(pairs)
-    input_ids = np.zeros((n, max_length), dtype=np.int32)
-    target_ids = np.zeros((n, max_length), dtype=np.int32)
-
-    for idx, (inp, tgt) in enumerate(pairs):
-        inp_ids = indexesFromSentence(input_lang, inp)
-        tgt_ids = indexesFromSentence(output_lang, tgt)
-        inp_ids.append(EOS_token)
-        tgt_ids.append(EOS_token)
-        input_ids[idx, :len(inp_ids)] = inp_ids
-        target_ids[idx, :len(tgt_ids)] = tgt_ids
-
-    train_data = TensorDataset(torch.LongTensor(input_ids).to(device),
-                               torch.LongTensor(target_ids).to(device))
-
-    train_sampler = RandomSampler(train_data)
-    train_dataloader = DataLoader(train_data, sampler=train_sampler, batch_size=batch_size)
-    return input_lang, output_lang, train_dataloader
-#-------------------------------------------------------------------------
-#-------------------------------------------------------------------------
-def train_epoch(dataloader, encoder, decoder, encoder_optimizer,
+def train_epoch(dataloader : DataLoader, encoder : EncoderRNN, decoder : DecoderRNN, encoder_optimizer,
           decoder_optimizer, criterion):
 
     total_loss = 0
+    print(f'reached train_epoch')
+
+
+
+    #----------------------------
     for data in dataloader:
+        print(f'data: {data}') 
+        exit()
         input_tensor, target_tensor = data
 
         encoder_optimizer.zero_grad()
@@ -577,6 +636,7 @@ def train_epoch(dataloader, encoder, decoder, encoder_optimizer,
         decoder_optimizer.step()
 
         total_loss += loss.item()
+    #----------------------------
 
     return total_loss / len(dataloader)
 #-------------------------------------------------------------------------
@@ -595,19 +655,34 @@ def timeSince(since, percent):
     return '%s (- %s)' % (asMinutes(s), asMinutes(rs))
 #-------------------------------------------------------------------------
 #-------------------------------------------------------------------------
-def train(train_dataloader, encoder, decoder, n_epochs, learning_rate=0.001,
-               print_every=100, plot_every=100):
+def train(train_dataloader : DataLoader, encoder : EncoderRNN, decoder : DecoderRNN, n_epochs : int, 
+          learning_rate=0.001, print_every=100, plot_every=100
+    ):
+    
+
     start = time.time()
     plot_losses = []
     print_loss_total = 0  # Reset every print_every
     plot_loss_total = 0  # Reset every plot_every
 
-    encoder_optimizer = optim.Adam(encoder.parameters(), lr=learning_rate)
+    # the encoder is (if no changes is made in this script) EncoderRNN and the decoder is AttnDecoderRNN
+    encoder_optimizer = optim.Adam(encoder.parameters(), lr=learning_rate) #define the optimizers
     decoder_optimizer = optim.Adam(decoder.parameters(), lr=learning_rate)
     criterion = nn.NLLLoss()
 
     for epoch in range(1, n_epochs + 1):
-        loss = train_epoch(train_dataloader, encoder, decoder, encoder_optimizer, decoder_optimizer, criterion)
+
+        #------------
+        loss = train_epoch(
+            dataloader          = train_dataloader, 
+            encoder             = encoder, 
+            decoder             = decoder, 
+            encoder_optimizer   = encoder_optimizer, 
+            decoder_optimizer   = decoder_optimizer, 
+            criterion           = criterion
+        )
+        #------------
+
         print_loss_total += loss
         plot_loss_total += loss
 
@@ -669,6 +744,7 @@ def execute_part2(device, SOS_token, EOS_token, max_length, lang_prefixes):
     batch_size = 32
 
 
+    # input_lang and output_lang are instances of the Lang class, train_dataloader is a DataLoader instance
     input_lang, output_lang, train_dataloader = get_dataloader(
         batch_size      = batch_size,
         lang_prefixes   = lang_prefixes,
@@ -676,17 +752,31 @@ def execute_part2(device, SOS_token, EOS_token, max_length, lang_prefixes):
         max_length      = max_length,
         EOS_token       = EOS_token
         )
-    exit()
-    encoder = EncoderRNN(input_size = input_lang.n_words, hidden_layer_size=hidden_size).to(device)
-    exit()
-    decoder = AttnDecoderRNN(hidden_size, output_lang.n_words).to(device)
+
+    encoder_rnn = EncoderRNN(input_size = input_lang.n_words, hidden_layer_size=hidden_size).to(device)
     
-    train(train_dataloader, encoder, decoder, 80, print_every=5, plot_every=5)
+    decoder_attn_rnn = AttnDecoderRNN(
+        hidden_size = hidden_size, 
+        output_size = output_lang.n_words,
+        device = device,
+        sos_token = SOS_token,
+        dropout_p=0.1,
+        max_length = max_length
+    ).to(device)
+    
+    train( 
+        train_dataloader    = train_dataloader, 
+        encoder             = encoder_rnn, 
+        decoder             = decoder_attn_rnn, 
+        n_epochs            = 80, 
+        print_every         = 5, 
+        plot_every          = 5
+    )
 
 
-    encoder.eval()
-    decoder.eval()
-    evaluateRandomly(encoder, decoder)    
+    encoder_rnn.eval()
+    decoder_attn_rnn.eval()
+    evaluateRandomly(encoder_rnn, decoder_attn_rnn)    
 #-------------------------------------------------------------------------
 execute_part2(
     device          = result_part1['device'], 
