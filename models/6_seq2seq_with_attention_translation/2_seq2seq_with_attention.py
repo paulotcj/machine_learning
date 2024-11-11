@@ -802,16 +802,22 @@ def evaluateRandomly(encoder_rnn, decoder_rnn, pairs, input_lang_obj,
         )
         
         output_sentence = ' '.join(output_words)
-
+        temp_pair1 = f'{pair[1]} <EOS>'
         print(f'original  : {pair[0]}')
-        print(f'expected  : {pair[1]}')
+        print(f'expected  : {temp_pair1}')
         print(f'generated : {output_sentence}')
-        print(f'Is expected equals to generated?: {pair[1] == output_sentence}\n')
+        print(f'Is expected equals to generated?: {temp_pair1 == output_sentence}\n')
 
     #---------------
 #-------------------------------------------------------------------------
+# #-------------------------------------------------------------------------
+# def tensorsFromPair(pair, input_lang, output_lang): # probably not needed
+#     input_tensor  = tensorFromSentence(lang_obj = input_lang, sentence  = pair[0], EOS_token = EOS_token, device = device)
+#     target_tensor = tensorFromSentence(lang_obj = output_lang, sentence = pair[1], EOS_token = EOS_token, device = device)
+#     return (input_tensor, target_tensor)
+# #-------------------------------------------------------------------------
 #-------------------------------------------------------------------------
-def execute_part2(device, SOS_token, EOS_token, max_length, lang_prefixes):
+def execute_part2(device, SOS_token, EOS_token, max_length, lang_prefixes, n_epochs=80):
     hidden_size = 128
     batch_size = 32
 
@@ -839,8 +845,7 @@ def execute_part2(device, SOS_token, EOS_token, max_length, lang_prefixes):
         max_length  = max_length
     ).to(device)
     
-    n_epochs = 80
-    n_epochs = 1
+
     result_train = train( 
         train_dataloader    = train_dataloader, 
         encoder             = encoder_rnn, 
@@ -850,7 +855,43 @@ def execute_part2(device, SOS_token, EOS_token, max_length, lang_prefixes):
         plot_every          = 5
     )
 
+    return {
+        'plot_losses': result_train['plot_losses'],
+        'device': device,
+        'SOS_token': SOS_token,
+        'EOS_token': EOS_token,
+        'encoder_rnn': encoder_rnn,
+        'decoder_attn_rnn': decoder_attn_rnn,
+        'input_lang': input_lang,
+        'output_lang': output_lang,
+        'pairs': pairs
+    }
+
     
+
+#-------------------------------------------------------------------------
+result_part2 = execute_part2(
+    device          = result_part1['device'], 
+    SOS_token       = result_part1['SOS_token'], 
+    EOS_token       = result_part1['EOS_token'], 
+    max_length      = result_part1['max_length'],
+    lang_prefixes   = result_part1['lang_prefixes'],
+    n_epochs        = 1
+)
+
+
+
+
+
+
+
+##########################################################################
+##
+##  PART 3
+##
+##########################################################################
+#-------------------------------------------------------------------------
+def execute_part3(encoder_rnn, decoder_attn_rnn, input_lang, output_lang, device, EOS_token, pairs, plot_losses):
     encoder_rnn.eval()
     decoder_attn_rnn.eval()
 
@@ -865,33 +906,18 @@ def execute_part2(device, SOS_token, EOS_token, max_length, lang_prefixes):
         n_executions    = 10
     ) 
 
-    showPlot(points = result_train['plot_losses'])
+    showPlot(points = plot_losses)
 #-------------------------------------------------------------------------
-execute_part2(
-    device          = result_part1['device'], 
-    SOS_token       = result_part1['SOS_token'], 
-    EOS_token       = result_part1['EOS_token'], 
-    max_length      = result_part1['max_length'],
-    lang_prefixes   = result_part1['lang_prefixes']
+execute_part3(
+    encoder_rnn     = result_part2['encoder_rnn'], 
+    decoder_attn_rnn = result_part2['decoder_attn_rnn'], 
+    input_lang      = result_part2['input_lang'], 
+    output_lang     = result_part2['output_lang'], 
+    device          = result_part2['device'], 
+    EOS_token       = result_part2['EOS_token'], 
+    pairs           = result_part2['pairs'], 
+    plot_losses     = result_part2['plot_losses']
 )
-
-
-
-
-##########################################################################
-##########################################################################
-##########################################################################
-##########################################################################
-##########################################################################
-##########################################################################
-#-------------------------------------------------------------------------
-def tensorsFromPair(pair, input_lang, output_lang): # probably not needed
-    input_tensor  = tensorFromSentence(lang_obj = input_lang, sentence  = pair[0], EOS_token = EOS_token, device = device)
-    target_tensor = tensorFromSentence(lang_obj = output_lang, sentence = pair[1], EOS_token = EOS_token, device = device)
-    return (input_tensor, target_tensor)
-#-------------------------------------------------------------------------
-
-
 
 
 
