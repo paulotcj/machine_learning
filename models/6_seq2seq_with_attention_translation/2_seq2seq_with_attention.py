@@ -20,6 +20,9 @@ from torch.utils.data import TensorDataset, DataLoader, RandomSampler
 
 import time
 import math
+import matplotlib.pyplot as plt
+import matplotlib.ticker as ticker
+# plt.switch_backend('agg')
 
 
 ##########################################################################
@@ -244,8 +247,8 @@ def execute_part1():
 
     return {
         'device': device,
-        'eos_token': EOS_token,
-        'sos_token': SOS_token,
+        'EOS_token': EOS_token,
+        'SOS_token': SOS_token,
         'max_length': MAX_LENGTH,
         'lang_prefixes': eng_prefixes
     }
@@ -371,7 +374,7 @@ class BahdanauAttention(nn.Module):
         # squeeze(2) - remove the dimension at idx 2, unsqueeze(1) - add a dimension at idx 1
         attention_scores = attention_scores.squeeze(2).unsqueeze(1) 
 
-        attentin_weights = F.softmax(attention_scores, dim=-1) # apply softmax at the last dim to get the weights
+        attentin_weights = torch_F.softmax(attention_scores, dim=-1) # apply softmax at the last dim to get the weights
 
         context_vector = torch.bmm(attentin_weights, keys) # bmm -> batch matrix-matrix product to product the context vector
 
@@ -381,7 +384,7 @@ class BahdanauAttention(nn.Module):
 #-------------------------------------------------------------------------
 class AttnDecoderRNN(nn.Module):
     #-------------------------------------------------------------------------
-    def __init__(self, hidden_size, output_size, device, sos_token, dropout_p=0.1, max_length=10):
+    def __init__(self, hidden_size, output_size, device, SOS_token, dropout_p=0.1, max_length=10):
         super(AttnDecoderRNN, self).__init__()
 
         # 1 - embedding layer
@@ -403,7 +406,7 @@ class AttnDecoderRNN(nn.Module):
 
         # internal aux variables
         self.device = device
-        self.SOS_token = sos_token
+        self.SOS_token = SOS_token
         self.max_length = max_length
     #-------------------------------------------------------------------------
     #-------------------------------------------------------------------------
@@ -416,7 +419,7 @@ class AttnDecoderRNN(nn.Module):
             1, 
             dtype=torch.long, 
             device=self.device
-        ).fill_(self.sos_token)
+        ).fill_(self.SOS_token)
         
         decoder_hidden = encoder_hidden # initializes the decoder hidden state with the encoder hidden state
         decoder_outputs = []
@@ -586,103 +589,92 @@ def get_dataloader(batch_size,lang_prefixes, device, max_length = 10, EOS_token 
 
     return input_lang_obj, output_lang_obj, train_dataloader
 #-------------------------------------------------------------------------
-##########################################################################
-##########################################################################
-##########################################################################
-#######
-#######
-#######  Done until here
-#######
-#######
-##########################################################################
-##########################################################################
-##########################################################################
-
-
-
-
-
 #-------------------------------------------------------------------------
-def tensorFromSentence(lang, sentence):
-    indexes = indexesFromSentence(lang, sentence)
-    indexes.append(EOS_token)
-    return torch.tensor(indexes, dtype=torch.long, device=device).view(1, -1)
+def asMinutes(seconds):
+    minutes = math.floor(seconds / 60)
+    seconds = math.floor(seconds - minutes * 60) #float
+    return f'{minutes}m {seconds}s'
 #-------------------------------------------------------------------------
 #-------------------------------------------------------------------------
-def tensorsFromPair(pair):
-    input_tensor = tensorFromSentence(input_lang, pair[0])
-    target_tensor = tensorFromSentence(output_lang, pair[1])
-    return (input_tensor, target_tensor)
+def timeSince(since, percent):
+    now = time.time()
+    time_diff = now - since
+    estimated_seconds = time_diff / (percent) # suppose: time_diff = 43, percent = 0.5, then estimated_seconds = 86
+    remaining_seconds_estimate = estimated_seconds - time_diff # then remaining_seconds_estimate = 86 - 43 = 43
+
+    return f't. elap.: {asMinutes(time_diff)} (t. remain.: {asMinutes(remaining_seconds_estimate)})'
 #-------------------------------------------------------------------------
 #-------------------------------------------------------------------------
 def train_epoch(dataloader : DataLoader, encoder : EncoderRNN, decoder : DecoderRNN, encoder_optimizer,
           decoder_optimizer, criterion):
 
     total_loss = 0
-    print(f'reached train_epoch')
-
-    print(f'dataloader len: {len(dataloader)}')
-
-
-
-
-    
 
     #----------------------------
+    # from the example dataloader is expected to have a len of 358 (you can't access it through direct indexing)
+    #   and data contains 2 tensors, one for the input and one for the target. Each tensor (input and target)
+    #   contains 32 sentences (batch size)
     for idx, data in enumerate(dataloader):
 
-        print(f'idx: {idx}')
-        print(f'data len: {len(data)}')
-        continue
-        print(f'data: {data}') 
-        print(f'data len: {len(data)}')
-        print(f'\n\ndata[0]: {data[0]}')
-        print(f'data[0] len: {len(data[0])}')
+        # print(f'idx: {idx}')
+        # print(f'data len: {len(data)}')
+        # print(f'data[0] len: {len(data[0])}')
+        # print(f'data[0]: {data[0]}')
 
-        exit()
-        input_tensor, target_tensor = data
 
+        input_tensor, target_tensor = data # unroll the data into input and target tensors
+
+        # if you do not reset the gradients at each iteration, the gradients from the previous iteration 
+        #   will be added to the current gradients, leading to incorrect updates
         encoder_optimizer.zero_grad()
         decoder_optimizer.zero_grad()
+        
 
-        encoder_outputs, encoder_hidden = encoder(input_tensor)
-        decoder_outputs, _, _ = decoder(encoder_outputs, encoder_hidden, target_tensor)
+        encoder_outputs, encoder_hidden_state = encoder(input = input_tensor) # forward pass through the EncoderRNN
+        
+        decoder_outputs, _, _ = decoder(
+            encoder_outputs = encoder_outputs, 
+            encoder_hidden  = encoder_hidden_state, 
+            target_tensor   = target_tensor
+        ) # forward pass through the DecoderRNN - the return is decoder_outputs, decoder_hidden, None, the last 2 we ignore
 
+        # decoder_outputs shape: torch.Size([32, 10, 4489]) (32 = batch_size, 10 = max sentence len, 2991 unqiue words)
+        # print(f'decoder_outputs shape: {decoder_outputs.shape}')
+        # print(f'decoder_outputs[0][0] len: {decoder_outputs[0][0].shape}')
+        # print(f'decoder_outputs[0][0]: {decoder_outputs[0][0]}')
+
+
+        # print(f'target_tensor shape: {target_tensor.shape}')
+        # print(f'target_tensor: {target_tensor}')
+        # print(f'target_tensor view: {target_tensor.view(-1)}')
+
+
+        # note: criterion = nn.NLLLoss() - negative log likelihood loss
+        #   calculate the loss between the decoder outputs and the target
+        # note 2: the view(-1) reshapes the tensor to have 1 dimension, without affecting the original tensor
+        #   the -1 means to infer the size of the dimension from the length of the tensor and the remaining dimensions
         loss = criterion(
-            decoder_outputs.view(-1, decoder_outputs.size(-1)),
-            target_tensor.view(-1)
+            input   = decoder_outputs.view(-1, decoder_outputs.size(-1)),
+            target  = target_tensor.view(-1)
         )
-        loss.backward()
 
-        encoder_optimizer.step()
+        loss.backward() # backpropagation
+
+        encoder_optimizer.step() # update the weights
         decoder_optimizer.step()
 
-        total_loss += loss.item()
+        total_loss += loss.item() # add the loss to the total loss
     #----------------------------
-    exit()
 
-    return total_loss / len(dataloader)
-#-------------------------------------------------------------------------
-#-------------------------------------------------------------------------
-def asMinutes(s):
-    m = math.floor(s / 60)
-    s -= m * 60
-    return '%dm %ds' % (m, s)
-#-------------------------------------------------------------------------
-#-------------------------------------------------------------------------
-def timeSince(since, percent):
-    now = time.time()
-    s = now - since
-    es = s / (percent)
-    rs = es - s
-    return '%s (- %s)' % (asMinutes(s), asMinutes(rs))
+
+    return total_loss / len(dataloader) # return the average loss
 #-------------------------------------------------------------------------
 #-------------------------------------------------------------------------
 def train(train_dataloader : DataLoader, encoder : EncoderRNN, decoder : DecoderRNN, n_epochs : int, 
           learning_rate=0.001, print_every=100, plot_every=100
     ):
     
-
+    n_epochs = 10 # remove this
     start = time.time()
     plot_losses = []
     print_loss_total = 0  # Reset every print_every
@@ -712,8 +704,11 @@ def train(train_dataloader : DataLoader, encoder : EncoderRNN, decoder : Decoder
         if epoch % print_every == 0:
             print_loss_avg = print_loss_total / print_every
             print_loss_total = 0
-            print('%s (%d %d%%) %.4f' % (timeSince(start, epoch / n_epochs),
-                                        epoch, epoch / n_epochs * 100, print_loss_avg))
+            percent_epochs_completed = epoch / n_epochs
+
+            result_timesince = timeSince(start, percent_epochs_completed)
+
+            print(f'{result_timesince}\t(epoch:{epoch} {(percent_epochs_completed * 100):.0f}%)\t{print_loss_avg:.4f}')
 
         if epoch % plot_every == 0:
             plot_loss_avg = plot_loss_total / plot_every
@@ -721,6 +716,32 @@ def train(train_dataloader : DataLoader, encoder : EncoderRNN, decoder : Decoder
             plot_loss_total = 0
 
     showPlot(plot_losses)
+#-------------------------------------------------------------------------
+
+##########################################################################
+##########################################################################
+##########################################################################
+#######
+#######
+#######  Done until here
+#######
+#######
+##########################################################################
+##########################################################################
+##########################################################################
+
+
+#-------------------------------------------------------------------------
+def tensorFromSentence(lang, sentence):
+    indexes = indexesFromSentence(lang, sentence)
+    indexes.append(EOS_token)
+    return torch.tensor(indexes, dtype=torch.long, device=device).view(1, -1)
+#-------------------------------------------------------------------------
+#-------------------------------------------------------------------------
+def tensorsFromPair(pair):
+    input_tensor = tensorFromSentence(input_lang, pair[0])
+    target_tensor = tensorFromSentence(output_lang, pair[1])
+    return (input_tensor, target_tensor)
 #-------------------------------------------------------------------------
 #-------------------------------------------------------------------------
 def showPlot(points):
@@ -782,7 +803,7 @@ def execute_part2(device, SOS_token, EOS_token, max_length, lang_prefixes):
         hidden_size = hidden_size, 
         output_size = output_lang.n_words,
         device = device,
-        sos_token = SOS_token,
+        SOS_token = SOS_token,
         dropout_p=0.1,
         max_length = max_length
     ).to(device)
@@ -796,22 +817,22 @@ def execute_part2(device, SOS_token, EOS_token, max_length, lang_prefixes):
         plot_every          = 5
     )
 
-
+    exit()
     encoder_rnn.eval()
     decoder_attn_rnn.eval()
     evaluateRandomly(encoder_rnn, decoder_attn_rnn)    
 #-------------------------------------------------------------------------
 execute_part2(
     device          = result_part1['device'], 
-    SOS_token       = result_part1['sos_token'], 
-    EOS_token       = result_part1['eos_token'], 
+    SOS_token       = result_part1['SOS_token'], 
+    EOS_token       = result_part1['EOS_token'], 
     max_length      = result_part1['max_length'],
     lang_prefixes   = result_part1['lang_prefixes']
 )
 
 
-import matplotlib.pyplot as plt
-plt.switch_backend('agg')
-import matplotlib.ticker as ticker
-import numpy as np
+
+
+
+
 
