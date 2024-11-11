@@ -587,7 +587,7 @@ def get_dataloader(batch_size,lang_prefixes, device, max_length = 10, EOS_token 
     print(f'train_dataloader len: {len(train_dataloader)}')
     print(f'batch_size: {batch_size}')
 
-    return input_lang_obj, output_lang_obj, train_dataloader
+    return input_lang_obj, output_lang_obj, train_dataloader, pairs
 #-------------------------------------------------------------------------
 #-------------------------------------------------------------------------
 def asMinutes(seconds):
@@ -605,8 +605,8 @@ def timeSince(since, percent):
     return f't. elap.: {asMinutes(time_diff)} (t. remain.: {asMinutes(remaining_seconds_estimate)})'
 #-------------------------------------------------------------------------
 #-------------------------------------------------------------------------
-def train_epoch(dataloader : DataLoader, encoder : EncoderRNN, decoder : DecoderRNN, encoder_optimizer,
-          decoder_optimizer, criterion):
+def train_epoch(dataloader : DataLoader, encoder : EncoderRNN, decoder : DecoderRNN, 
+                encoder_optimizer, decoder_optimizer, criterion):
 
     total_loss = 0
 
@@ -670,11 +670,10 @@ def train_epoch(dataloader : DataLoader, encoder : EncoderRNN, decoder : Decoder
     return total_loss / len(dataloader) # return the average loss
 #-------------------------------------------------------------------------
 #-------------------------------------------------------------------------
-def train(train_dataloader : DataLoader, encoder : EncoderRNN, decoder : DecoderRNN, n_epochs : int, 
-          learning_rate=0.001, print_every=100, plot_every=100
+def train(train_dataloader : DataLoader, encoder : EncoderRNN, decoder : DecoderRNN, 
+          n_epochs : int, learning_rate=0.001, print_every=100, plot_every=100
     ):
     
-    n_epochs = 10 # remove this
     start = time.time()
     plot_losses = []
     print_loss_total = 0  # Reset every print_every
@@ -715,33 +714,12 @@ def train(train_dataloader : DataLoader, encoder : EncoderRNN, decoder : Decoder
             plot_losses.append(plot_loss_avg)
             plot_loss_total = 0
 
-    showPlot(plot_losses)
-#-------------------------------------------------------------------------
 
-##########################################################################
-##########################################################################
-##########################################################################
-#######
-#######
-#######  Done until here
-#######
-#######
-##########################################################################
-##########################################################################
-##########################################################################
-
-
-#-------------------------------------------------------------------------
-def tensorFromSentence(lang, sentence):
-    indexes = indexesFromSentence(lang, sentence)
-    indexes.append(EOS_token)
-    return torch.tensor(indexes, dtype=torch.long, device=device).view(1, -1)
-#-------------------------------------------------------------------------
-#-------------------------------------------------------------------------
-def tensorsFromPair(pair):
-    input_tensor = tensorFromSentence(input_lang, pair[0])
-    target_tensor = tensorFromSentence(output_lang, pair[1])
-    return (input_tensor, target_tensor)
+    print(f'plot_losses: {plot_losses}')
+    
+    return {
+        'plot_losses': plot_losses
+    }
 #-------------------------------------------------------------------------
 #-------------------------------------------------------------------------
 def showPlot(points):
@@ -751,36 +729,86 @@ def showPlot(points):
     loc = ticker.MultipleLocator(base=0.2)
     ax.yaxis.set_major_locator(loc)
     plt.plot(points)
+    plt.show()
 #-------------------------------------------------------------------------
 #-------------------------------------------------------------------------
-def evaluate(encoder, decoder, sentence, input_lang, output_lang):
+def tensorFromSentence(lang_obj, sentence, EOS_token, device):
+    indexes = indexesFromSentence(lang_obj, sentence) # get the dict indexes of the words in the sentence
+
+    if indexes[-1] != EOS_token:
+        indexes.append(EOS_token)
+
+    # creates a view tensor, with 1 row and infer the number of columns from the length of the indexes
+    return_obj = torch.tensor(indexes, dtype=torch.long, device=device).view(1, -1) 
+    return return_obj
+#-------------------------------------------------------------------------
+#-------------------------------------------------------------------------
+def evaluate(encoder_rnn, decoder_rnn, sentence, input_lang_obj, output_lang_obj, device, EOS_token):
+    #---------------
+    # temporarily disable gradient calculation - we are making predictions with a trained model and we don't
+    #   need to update the model's weights
     with torch.no_grad():
-        input_tensor = tensorFromSentence(input_lang, sentence)
+        input_tensor = tensorFromSentence(
+            lang_obj    = input_lang_obj, 
+            sentence    = sentence, 
+            EOS_token   = EOS_token, 
+            device      = device
+        )
 
-        encoder_outputs, encoder_hidden = encoder(input_tensor)
-        decoder_outputs, decoder_hidden, decoder_attn = decoder(encoder_outputs, encoder_hidden)
+        encoder_outputs, encoder_hidden = encoder_rnn(input = input_tensor)
 
-        _, topi = decoder_outputs.topk(1)
-        decoded_ids = topi.squeeze()
+        decoder_outputs, decoder_hidden, decoder_attn = decoder_rnn(
+            encoder_outputs = encoder_outputs, 
+            encoder_hidden = encoder_hidden
+        )
 
-        decoded_words = []
-        for idx in decoded_ids:
-            if idx.item() == EOS_token:
-                decoded_words.append('<EOS>')
+
+        _, topi = decoder_outputs.topk(1) # get the top prediction, we don't need the value only the index
+
+        decoded_ids = topi.squeeze() # topi shape: [1, 10, 1] -> [1-sentence, 10-words, 1-index_words]
+
+
+        decoded_words_list = []
+
+        #----
+        for i_tensor in decoded_ids: #note i_tensor is a toch.Tensor object
+
+            if i_tensor.item() == EOS_token: # end of sentence - stop
+                decoded_words_list.append('<EOS>')
                 break
-            decoded_words.append(output_lang.index2word[idx.item()])
-    return decoded_words, decoder_attn
+            decoded_word = output_lang_obj.index2word[ i_tensor.item() ] # get the word from the index to word dictionary
+            decoded_words_list.append(decoded_word) # get the word from the 
+        #----
+    #---------------
+    return decoded_words_list, decoder_attn
 #-------------------------------------------------------------------------
 #-------------------------------------------------------------------------
-def evaluateRandomly(encoder, decoder, n=10):
-    for i in range(n):
+def evaluateRandomly(encoder_rnn, decoder_rnn, pairs, input_lang_obj, 
+                     output_lang_obj, device, EOS_token, n_executions=10 ):
+    #---------------
+    for i in range(n_executions):
+
         pair = random.choice(pairs)
-        print('>', pair[0])
-        print('=', pair[1])
-        output_words, _ = evaluate(encoder, decoder, pair[0], input_lang, output_lang)
+        
+        # get the decoded words and the attention - we don't need the attention here, so it's ignored
+        output_words, _ = evaluate(
+            encoder_rnn     = encoder_rnn, 
+            decoder_rnn     = decoder_rnn, 
+            sentence        = pair[0], 
+            input_lang_obj  = input_lang_obj, 
+            output_lang_obj = output_lang_obj,
+            device          = device,
+            EOS_token       = EOS_token
+        )
+        
         output_sentence = ' '.join(output_words)
-        print('<', output_sentence)
-        print('')
+
+        print(f'original  : {pair[0]}')
+        print(f'expected  : {pair[1]}')
+        print(f'generated : {output_sentence}')
+        print(f'Is expected equals to generated?: {pair[1] == output_sentence}\n')
+
+    #---------------
 #-------------------------------------------------------------------------
 #-------------------------------------------------------------------------
 def execute_part2(device, SOS_token, EOS_token, max_length, lang_prefixes):
@@ -789,7 +817,7 @@ def execute_part2(device, SOS_token, EOS_token, max_length, lang_prefixes):
 
 
     # input_lang and output_lang are instances of the Lang class, train_dataloader is a DataLoader instance
-    input_lang, output_lang, train_dataloader = get_dataloader(
+    input_lang, output_lang, train_dataloader, pairs = get_dataloader(
         batch_size      = batch_size,
         lang_prefixes   = lang_prefixes,
         device          = device,
@@ -797,30 +825,47 @@ def execute_part2(device, SOS_token, EOS_token, max_length, lang_prefixes):
         EOS_token       = EOS_token
         )
 
-    encoder_rnn = EncoderRNN(input_size = input_lang.n_words, hidden_layer_size=hidden_size).to(device)
+    encoder_rnn = EncoderRNN(
+        input_size          = input_lang.n_words, 
+        hidden_layer_size   = hidden_size
+    ).to(device)
     
     decoder_attn_rnn = AttnDecoderRNN(
         hidden_size = hidden_size, 
         output_size = output_lang.n_words,
-        device = device,
-        SOS_token = SOS_token,
-        dropout_p=0.1,
-        max_length = max_length
+        device      = device,
+        SOS_token   = SOS_token,
+        dropout_p   = 0.1,
+        max_length  = max_length
     ).to(device)
     
-    train( 
+    n_epochs = 80
+    n_epochs = 1
+    result_train = train( 
         train_dataloader    = train_dataloader, 
         encoder             = encoder_rnn, 
         decoder             = decoder_attn_rnn, 
-        n_epochs            = 80, 
+        n_epochs            = n_epochs, 
         print_every         = 5, 
         plot_every          = 5
     )
 
-    exit()
+    
     encoder_rnn.eval()
     decoder_attn_rnn.eval()
-    evaluateRandomly(encoder_rnn, decoder_attn_rnn)    
+
+    evaluateRandomly(
+        encoder_rnn     = encoder_rnn, 
+        decoder_rnn     = decoder_attn_rnn, 
+        pairs           = pairs,
+        input_lang_obj  = input_lang, 
+        output_lang_obj = output_lang, 
+        device          = device,
+        EOS_token       = EOS_token,
+        n_executions    = 10
+    ) 
+
+    showPlot(points = result_train['plot_losses'])
 #-------------------------------------------------------------------------
 execute_part2(
     device          = result_part1['device'], 
@@ -829,6 +874,24 @@ execute_part2(
     max_length      = result_part1['max_length'],
     lang_prefixes   = result_part1['lang_prefixes']
 )
+
+
+
+
+##########################################################################
+##########################################################################
+##########################################################################
+##########################################################################
+##########################################################################
+##########################################################################
+#-------------------------------------------------------------------------
+def tensorsFromPair(pair, input_lang, output_lang): # probably not needed
+    input_tensor  = tensorFromSentence(lang_obj = input_lang, sentence  = pair[0], EOS_token = EOS_token, device = device)
+    target_tensor = tensorFromSentence(lang_obj = output_lang, sentence = pair[1], EOS_token = EOS_token, device = device)
+    return (input_tensor, target_tensor)
+#-------------------------------------------------------------------------
+
+
 
 
 
