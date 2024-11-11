@@ -876,8 +876,52 @@ result_part2 = execute_part2(
     EOS_token       = result_part1['EOS_token'], 
     max_length      = result_part1['max_length'],
     lang_prefixes   = result_part1['lang_prefixes'],
-    n_epochs        = 80
+    n_epochs        = 1
 )
+
+
+
+
+
+
+
+##########################################################################
+##
+##  PART 3
+##
+##########################################################################
+#-------------------------------------------------------------------------
+def execute_part3(encoder_rnn, decoder_attn_rnn, input_lang, output_lang, device, EOS_token, pairs, plot_losses):
+    encoder_rnn.eval()
+    decoder_attn_rnn.eval()
+
+    evaluateRandomly(
+        encoder_rnn     = encoder_rnn, 
+        decoder_rnn     = decoder_attn_rnn, 
+        pairs           = pairs,
+        input_lang_obj  = input_lang, 
+        output_lang_obj = output_lang, 
+        device          = device,
+        EOS_token       = EOS_token,
+        n_executions    = 10
+    ) 
+
+    showPlot(points = plot_losses)
+#-------------------------------------------------------------------------
+execute_part3(
+    encoder_rnn     = result_part2['encoder_rnn'], 
+    decoder_attn_rnn = result_part2['decoder_attn_rnn'], 
+    input_lang      = result_part2['input_lang'], 
+    output_lang     = result_part2['output_lang'], 
+    device          = result_part2['device'], 
+    EOS_token       = result_part2['EOS_token'], 
+    pairs           = result_part2['pairs'], 
+    plot_losses     = result_part2['plot_losses']
+)
+
+
+
+
 
 
 
