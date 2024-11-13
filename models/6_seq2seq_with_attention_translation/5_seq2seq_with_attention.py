@@ -342,7 +342,7 @@ class BahdanauAttention(nn.Module):
     #-------------------------------------------------------------------------
     #-------------------------------------------------------------------------
     def forward(self, query, keys):
-        """
+        ("""
         Notes and summary:
         query - sort of current decoder hidden state - it has the same data but instead is shapped as:
              hidden [32, 1, 128] ->  query [1, 32, 128]
@@ -354,10 +354,10 @@ class BahdanauAttention(nn.Module):
             distribution over the encoder hidden states
         context vector - A weighted sum of the encoder hidden states, which is used to generate the 
             next decoder hidden state   
-        """
-
+        """)
         print('BahdanauAttention - forward')
 
+        #-----------------------------
         # shape [32, 1, 128] - linear transformation of the query (hidden state from the encoder 
         #   that goes through transformations on the decoder phase)
         linear_Wa_query = self.Wa(query)
@@ -365,32 +365,76 @@ class BahdanauAttention(nn.Module):
         # shape [32, 10, 128] - linear transformation of the keys (encoder outputs)
         linear_Ua_keys = self.Ua(keys)
 
+        (
+        # here is a tricky operation because the shape don't align, so what happens is what pytorch
+        #   calls broadcasting, it will replicate the tensor to match the shape of the other tensor
+        # See the example below:
+        # Tensor A: torch.Size([3, 3, 3])
+        #     tensor([[[ 1,  1,  1],
+        #              [ 3,  3,  3],
+        #              [ 5,  5,  5]],
+        #
+        #             [[ 7,  7,  7],
+        #              [11, 11, 11],
+        #              [13, 13, 13]],
+        #
+        #             [[17, 17, 17],
+        #              [19, 19, 19],
+        #              [23, 23, 23]]])
+        #
+        # Tensor B: torch.Size([3, 1, 3])
+        #     tensor([[[29, 29, 29]],
+        #
+        #             [[41, 41, 41]],
+        #
+        #             [[53, 53, 53]]])
+        #
+        # Sum A + B:
+        #     tensor([[[30, 30, 30],
+        #              [32, 32, 32],
+        #              [34, 34, 34]],
+        #
+        #             [[48, 48, 48],
+        #              [52, 52, 52],
+        #              [54, 54, 54]],
+        #
+        #             [[70, 70, 70],
+        #              [72, 72, 72],
+        #              [76, 76, 76]]])
+        # 
+        # notice the pattern where the rows with 1, 3 and 5 are added with only 29 (broadcasting)
+        #   and the same for 7, 11, 13 added with 41      
+        )
+        # shape [32, 10, 128] - sum of the linear transformations of the query and keys using
+        #   broadcasting to match the shapes
         sum_Wa_query_Ua_keys = linear_Wa_query + linear_Ua_keys
 
-        print(f'linear_Wa_query shape: {linear_Wa_query.shape}')
-        print(f'linear_Ua_keys shape: {linear_Ua_keys.shape}')
-        print(f'sum_Wa_query_Ua_keys shape: {sum_Wa_query_Ua_keys.shape}')
+        # shape [32, 10, 128] - values are squashed between -1 and 1
+        tanh_sum_Wa_query_Ua_keys = torch.tanh(sum_Wa_query_Ua_keys)
 
-        print('\n\n')
-        print(f'linear_Wa_query type: {type(linear_Wa_query)}')
-        print(f'linear_Ua_keys type: {type(linear_Ua_keys)}')
-        print(f'sum_Wa_query_Ua_keys type: {type(sum_Wa_query_Ua_keys)}')
-        
-        # print(f'linear_Wa_query: {linear_Wa_query}')
-        # print(f'linear_Ua_keys: {linear_Ua_keys}')
-        exit()
-        
-        # attention scores
-        attention_scores = self.Va(            # apply another linear transformation to compute the attention scores
-            torch.tanh(                        # tanh - standard thing
-                self.Wa(query) + self.Ua(keys) # apply linear transformations to the query and keys an sum them
-            )
-        )
+        # attention scores - shape [32, 10, 1] - thing to remember: this linear transf. takes 
+        #   input size of 'hidden_size' and outputs 1 value, hence the 1 at the end of shape
+        attention_scores = self.Va(tanh_sum_Wa_query_Ua_keys) # apply another linear transformation to compute the attention scores
+    
+        #-----------------------------
 
         # squeeze(2) - remove the dimension at idx 2, unsqueeze(1) - add a dimension at idx 1
+        #   is goes from shape [32, 10, 1] to [32, 1, 10]
         attention_scores = attention_scores.squeeze(2).unsqueeze(1) 
 
+
+        print(f'attention_scores shape: {attention_scores.shape}')
+        # print(f'attention_scores: \n{attention_scores}')
+
+
+        # softmax - transform these values into (somewhat the model understand as) 
+        #   probabilities (ranging 0 to 1)
         attentin_weights = torch_F.softmax(attention_scores, dim=-1) # apply softmax at the last dim to get the weights
+
+
+        print(f'attentin_weights shape: {attentin_weights.shape}')
+        print(f'attentin_weights: \n{attentin_weights}')
+        exit()
 
         context_vector = torch.bmm(attentin_weights, keys) # bmm -> batch matrix-matrix product to product the context vector
 
@@ -910,7 +954,7 @@ result_part2 = execute_part2(
     EOS_token       = result_part1['EOS_token'], 
     max_length      = result_part1['max_length'],
     lang_prefixes   = result_part1['lang_prefixes'],
-    n_epochs        = 1
+    n_epochs        = 80
 )
 
 ##########################################################################
