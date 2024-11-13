@@ -370,6 +370,12 @@ class BahdanauAttention(nn.Module):
         print(f'linear_Wa_query shape: {linear_Wa_query.shape}')
         print(f'linear_Ua_keys shape: {linear_Ua_keys.shape}')
         print(f'sum_Wa_query_Ua_keys shape: {sum_Wa_query_Ua_keys.shape}')
+
+        print('\n\n')
+        print(f'linear_Wa_query type: {type(linear_Wa_query)}')
+        print(f'linear_Ua_keys type: {type(linear_Ua_keys)}')
+        print(f'sum_Wa_query_Ua_keys type: {type(sum_Wa_query_Ua_keys)}')
+        
         # print(f'linear_Wa_query: {linear_Wa_query}')
         # print(f'linear_Ua_keys: {linear_Ua_keys}')
         exit()
