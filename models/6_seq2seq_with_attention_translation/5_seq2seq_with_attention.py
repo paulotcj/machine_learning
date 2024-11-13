@@ -292,7 +292,13 @@ class EncoderRNN(nn.Module):
 
 
         embedded = self.dropout(embedding_result)
+
+
+        # note: the final hidden state is exactly the same as the last output of the GRU
+        #   in other words, the output is a collection of the hidden states
+        #   hiden_state shape [1, 32, 128], output shape [32, 10, 128]
         output, hidden_state = self.gru(embedded)
+
 
         # to recap, the output shape will be [32,10,128] -> (batch size, sentence max length, hidden size)
         #   the hidden state will be [1, 32, 128] -> (1, batch size, hidden size) - and we return
@@ -330,9 +336,9 @@ class BahdanauAttention(nn.Module):
 
         print('BahdanauAttention - __init__')
 
-        self.Wa = nn.Linear(hidden_size, hidden_size) # weight matrix for the query
-        self.Ua = nn.Linear(hidden_size, hidden_size) # weight matrix for the keys
-        self.Va = nn.Linear(hidden_size, 1) # weight matrix for the attention scores
+        self.Wa = nn.Linear(in_features=hidden_size, out_features=hidden_size) # weight matrix for the query
+        self.Ua = nn.Linear(in_features=hidden_size, out_features=hidden_size) # weight matrix for the keys
+        self.Va = nn.Linear(in_features=hidden_size, out_features=1)           # weight matrix for the attention scores
     #-------------------------------------------------------------------------
     #-------------------------------------------------------------------------
     def forward(self, query, keys):
@@ -341,7 +347,7 @@ class BahdanauAttention(nn.Module):
         query - sort of current decoder hidden state - it has the same data but instead is shapped as:
              hidden [32, 1, 128] ->  query [1, 32, 128]
         keys - encoder outputs
-        
+
         attention scores - indicate the relevance of each encoder hidden state to the current decoder 
             hidden state
         attention weights - These are the normalized attention scores, representing the probability 
@@ -351,9 +357,25 @@ class BahdanauAttention(nn.Module):
         """
 
         print('BahdanauAttention - forward')
+
+        # shape [32, 1, 128] - linear transformation of the query (hidden state from the encoder 
+        #   that goes through transformations on the decoder phase)
+        linear_Wa_query = self.Wa(query)
+
+        # shape [32, 10, 128] - linear transformation of the keys (encoder outputs)
+        linear_Ua_keys = self.Ua(keys)
+
+        sum_Wa_query_Ua_keys = linear_Wa_query + linear_Ua_keys
+
+        print(f'linear_Wa_query shape: {linear_Wa_query.shape}')
+        print(f'linear_Ua_keys shape: {linear_Ua_keys.shape}')
+        print(f'sum_Wa_query_Ua_keys shape: {sum_Wa_query_Ua_keys.shape}')
+        # print(f'linear_Wa_query: {linear_Wa_query}')
+        # print(f'linear_Ua_keys: {linear_Ua_keys}')
+        exit()
         
         # attention scores
-        attention_scores = self.Va(                      # apply another linear transformation to compute the attention scores
+        attention_scores = self.Va(            # apply another linear transformation to compute the attention scores
             torch.tanh(                        # tanh - standard thing
                 self.Wa(query) + self.Ua(keys) # apply linear transformations to the query and keys an sum them
             )
@@ -378,22 +400,23 @@ class AttnDecoderRNN(nn.Module):
         print('AttnDecoderRNN - __init__')
 
         # 1 - embedding layer (2991, 128) (words in english, hidden size)
-        self.embedding = nn.Embedding(output_size, hidden_size) 
+        self.embedding = nn.Embedding(num_embeddings=output_size, embedding_dim=hidden_size) 
 
 
         # 2 - attention layer
-        self.attention = BahdanauAttention(hidden_size) 
+        self.attention = BahdanauAttention(hidden_size=hidden_size) 
 
         # 3 - GRU layer. The GRU input size is 2 * hidden_size as it concatenates the embedded input 
         #   and the context vector from the attention mechanism. The output size is hidden_size
-        self.gru = nn.GRU(2 * hidden_size, hidden_size, batch_first=True) 
+        gru_input_size = 2 * hidden_size
+        self.gru = nn.GRU(input_size = gru_input_size, hidden_size = hidden_size, batch_first=True) 
 
         # 4 - linear layer that maps the GRU output to the desired output size (number of possible 
         #   output tokens).
-        self.out = nn.Linear(hidden_size, output_size)
+        self.out = nn.Linear(in_features=hidden_size, out_features=output_size)
 
 
-        self.dropout = nn.Dropout(dropout_p)
+        self.dropout = nn.Dropout(p = dropout_p)
 
         # internal aux variables
         self.device = device
@@ -645,7 +668,7 @@ def train_epoch(dataloader : DataLoader, encoder_rnn, decoder_attn_rnn,
         decoder_optimizer.zero_grad()
         
 
-        # the input tensor has shape [32, 10] -> (batch size, sentence max length)
+        # the input tensor has shape [32, 10] -> (batch size, sentence max length) 32 sentences of lenght 10 words or less
         # the output shape is [32, 10, 128] -> (batch size, sentence max length, hidden size)
         # the hidden state shape is [1, 32, 128] -> (1, batch size, hidden size)
         encoder_outputs, encoder_hidden_state = encoder_rnn(input = input_tensor) # forward pass through the EncoderRNN
