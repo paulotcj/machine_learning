@@ -423,20 +423,17 @@ class BahdanauAttention(nn.Module):
         attention_scores = attention_scores.squeeze(2).unsqueeze(1) 
 
 
-        print(f'attention_scores shape: {attention_scores.shape}')
-        # print(f'attention_scores: \n{attention_scores}')
 
-
-        # softmax - transform these values into (somewhat the model understand as) 
-        #   probabilities (ranging 0 to 1)
+        # attentin_weights shape [32, 10, 128] - apply softmax - transform these values into 
+        #   (somewhat the model understand as) probabilities (ranging 0 to 1)
         attentin_weights = torch_F.softmax(attention_scores, dim=-1) # apply softmax at the last dim to get the weights
 
 
-        print(f'attentin_weights shape: {attentin_weights.shape}')
-        print(f'attentin_weights: \n{attentin_weights}')
-        exit()
-
+        # "batch matrix-matrix product" - attentin_weights [32, 10, 128] * keys [32, 10, 128]
         context_vector = torch.bmm(attentin_weights, keys) # bmm -> batch matrix-matrix product to product the context vector
+
+
+        exit()
 
         return context_vector, attentin_weights
     #-------------------------------------------------------------------------
