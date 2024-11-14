@@ -284,14 +284,14 @@ class EncoderRNN(nn.Module):
     #-------------------------------------------------------------------------
     def forward(self, input):
         #input: tensor of shape (batch_size, sentence_max_len), normally (32, 10)
-
         print('EncoderRNN - forward')
+
 
         # embedding_result: tensor of shape [32, 10, 128] -> (batch size, sentence max length, hidden size)
         embedding_result = self.embedding(input)
 
 
-        embedded = self.dropout(embedding_result)
+        embedded = self.dropout(embedding_result) # [32,10,128]
 
 
         # note: the final hidden state is exactly the same as the last output of the GRU
@@ -344,9 +344,9 @@ class BahdanauAttention(nn.Module):
     def forward(self, query, keys):
         ("""
         Notes and summary:
-        query - sort of current decoder hidden state - it has the same data but instead is shapped as:
-             hidden [32, 1, 128] ->  query [1, 32, 128]
-        keys - encoder outputs
+        query - shape [32, 1, 128] - sort of current decoder hidden state - it has the same data but instead 
+          is shapped as: hidden [1, 32, 128] ->  query [32, 1, 128]
+        keys - shape [32, 10, 128] - encoder outputs
 
         attention scores - indicate the relevance of each encoder hidden state to the current decoder 
             hidden state
@@ -362,8 +362,12 @@ class BahdanauAttention(nn.Module):
         #   that goes through transformations on the decoder phase)
         linear_Wa_query = self.Wa(query)
 
+ 
+
         # shape [32, 10, 128] - linear transformation of the keys (encoder outputs)
         linear_Ua_keys = self.Ua(keys)
+
+          
 
         (
         # here is a tricky operation because the shape don't align, so what happens is what pytorch
@@ -405,16 +409,21 @@ class BahdanauAttention(nn.Module):
         # notice the pattern where the rows with 1, 3 and 5 are added with only 29 (broadcasting)
         #   and the same for 7, 11, 13 added with 41      
         )
-        # shape [32, 10, 128] - sum of the linear transformations of the query and keys using
-        #   broadcasting to match the shapes
+        # shape [32, 10, 128] - sum of the linear_Wa_query [32, 1, 128] and 
+        #   linear_Ua_keys [32, 10, 128] using broadcasting to match the shapes
         sum_Wa_query_Ua_keys = linear_Wa_query + linear_Ua_keys
+
+          
 
         # shape [32, 10, 128] - values are squashed between -1 and 1
         tanh_sum_Wa_query_Ua_keys = torch.tanh(sum_Wa_query_Ua_keys)
 
+         
+
         # attention scores - shape [32, 10, 1] - thing to remember: this linear transf. takes 
         #   input size of 'hidden_size' and outputs 1 value, hence the 1 at the end of shape
         attention_scores = self.Va(tanh_sum_Wa_query_Ua_keys) # apply another linear transformation to compute the attention scores
+        
     
         #-----------------------------
 
@@ -424,17 +433,17 @@ class BahdanauAttention(nn.Module):
 
 
 
-        # attentin_weights shape [32, 10, 128] - apply softmax - transform these values into 
+        # attentin_weights shape [32, 1, 10] - apply softmax - transform these values into 
         #   (somewhat the model understand as) probabilities (ranging 0 to 1)
         attentin_weights = torch_F.softmax(attention_scores, dim=-1) # apply softmax at the last dim to get the weights
 
 
-        # "batch matrix-matrix product" - attentin_weights [32, 10, 128] * keys [32, 10, 128]
+        # "batch matrix-matrix product" - attentin_weights [32, 1, 10] * keys [32, 10, 128]
+        #   the result is context_vector [32, 1, 128]
         context_vector = torch.bmm(attentin_weights, keys) # bmm -> batch matrix-matrix product to product the context vector
 
-
-        exit()
-
+ 
+        #      [32, 1, 128]    [32, 1, 10]  
         return context_vector, attentin_weights
     #-------------------------------------------------------------------------
 #-------------------------------------------------------------------------
@@ -474,17 +483,15 @@ class AttnDecoderRNN(nn.Module):
     def forward(self, encoder_outputs, encoder_hidden, target_tensor=None):
         print('AttnDecoderRNN - forward')
 
-        # encoder_outputs: tensor of shape (batch_size, sentence_max_len, hidden_size) -> (32, 10, 128)
-        # encoder_hidden: tensor of shape (1, batch_size, hidden_size) -> (1, 32, 128)
-        # target_tensor: tensor of shape (batch_size, sentence_max_len) -> (32, 10)
+        # encoder_outputs: tensor of shape [32, 10, 128] -> (batch_size, sentence_max_len, hidden_size) -> 
+        # encoder_hidden: tensor of shape [1, 32, 128] ->(1, batch_size, hidden_size)
+        # target_tensor: tensor of shape [32, 10] ->(batch_size, sentence_max_len)
 
-
-        
         #---------------
         batch_size = encoder_outputs.size(0) # batch size is defined by the encoder outputs
         
-        # initializes the decoder_input with SOS token - the size is batch_size x 1 -> [32,1]
-        #   and SOS token is 0
+        # shape [32, 1] - initializes the decoder_input with SOS token - the size is batch_size x 1 
+        # and SOS token is 0
         decoder_input = torch.empty( 
             batch_size, 
             1, 
@@ -493,24 +500,32 @@ class AttnDecoderRNN(nn.Module):
         ).fill_(self.SOS_token)
         #---------------
         
-        decoder_hidden = encoder_hidden # initializes the decoder hidden state with the encoder hidden state
+        decoder_hidden = encoder_hidden # [1, 32, 128] - initializes the decoder hidden state with the encoder hidden state
         decoder_outputs = []
         attentions = []
         
+   
 
         #---------------------------
         for i in range(self.max_length): # loops through the max output length (10)
-
 
             #-------------
             # note: observe the teacher forcing part below, if the target tensor is provided, then we use
             #   the data provided as decoder input, otherwise we use the output from the previous step of
             #   the decoder (to predict the next token)
+            # decoder_output [32, 1, 2991], decoder_hidden [1, 32, 128], attn_weights [32, 1, 10]
             decoder_output, decoder_hidden, attn_weights = self.forward_step(
-                input           = decoder_input,   # can be from the target tensor or from the previous step, on step 0 this is [32,1] of 0s
-                hidden          = decoder_hidden,  # hidden state from the previous step
-                encoder_outputs = encoder_outputs  # encoder outputs from paramater
+                input           = decoder_input,   # [32, 1] can be from the target tensor or from the previous step, on step 0 this is [32,1] of 0s
+                hidden          = decoder_hidden,  # [1, 32, 128] hidden state from the previous step
+                encoder_outputs = encoder_outputs  # [32, 10, 128] encoder outputs from paramater
             )
+
+            print(f'decoder_input shape: {decoder_input.shape}')
+            print(f'decoder_hidden shape: {decoder_hidden.shape}')
+            print(f'encoder_outputs shape: {encoder_outputs.shape}')
+
+
+            exit()              
             #-------------
 
 
@@ -548,9 +563,9 @@ class AttnDecoderRNN(nn.Module):
     #-------------------------------------------------------------------------
     #-------------------------------------------------------------------------
     def forward_step(self, input, hidden, encoder_outputs):
-        # input: tensor of shape (batch_size, 1) -> (32, 1)
-        # hidden: tensor of shape (1, batch_size, hidden_size) -> (1, 32, 128)
-        # encoder_outputs: tensor of shape (batch_size, sentence_max_len, hidden_size) -> (32, 10, 128)
+        # input: tensor of shape [32, 1] -> (batch_size, 1)
+        # hidden: tensor of shape [1, 32, 128] (1, batch_size, hidden_size)
+        # encoder_outputs: tensor of shape [32, 10, 128] -> (batch_size, sentence_max_len, hidden_size)
         print('AttnDecoderRNN - forward_step')
 
 
@@ -562,38 +577,42 @@ class AttnDecoderRNN(nn.Module):
         # permute(1, 0, 2) means the first dim (idx 0) will take the place of the second dim (idx 1),
         #   the second dim (idx 1) will take the place of the first dim (idx 0), and the third dim (idx 2)
         #   will stay at idx 2
-        # Effectively it changes the shape from (batch_size, num_layers, hidden_size) 
-        #   to (num_layers, batch_size, hidden_size). This is done to match the input shape for 
-        #   the attention mechanism
-        query = hidden.permute(1, 0, 2) # hidden [32, 1, 128] ->  query [1, 32, 128]
-
+        query = hidden.permute(1, 0, 2) # hidden [1, 32, 128] ->  query [32, 1, 128]
 
         
-        # remember self.attention is an instance of BahdanauAttention. This computes the context vector and 
-        #   attention weights. 
+        # remember self.attention is an instance of BahdanauAttention
+        #   - attn_weights [32, 1, 10] is the direct result of the softmax operation, therefore a probability
+        #       distribution of what the network thinks
+        #   - context [32, 1, 128]
         context, attn_weights = self.attention(query = query, keys = encoder_outputs)
 
-        print(f'context shape: {context.shape}')
-        print(f'attn_weights shape: {attn_weights.shape}')
-        exit()
 
 
-        # embedded input and context vector are concatenated along the last dimension
-        # the embedded input and the context vector are concatenated along the last dimension. This 
-        #   combined input will be fed into the GRU layer. The concatenation allows the GRU to 
+
+        # embedded [32, 1, 128] input and context [32, 1, 128] vector are concatenated along the last dimension
+        # This combined input will be fed into the GRU layer. The concatenation allows the GRU to 
         #   consider both the current input and the context from the encoder
+        # input_gru [32, 1, 256]
         input_gru = torch.cat((embedded, context), dim=2)
 
-        # GRU takes the input_gru and the hidden state from the previous step and outputs the output
-        #   and the hidden state for the current step
+      
+
+        # GRU takes the input_gru [32, 1, 256] and the hidden state [1, 32, 128] from the previous step 
+        # and outputs the variables output [32, 1, 128] and the hidden state [1, 32, 128] for the current step
         output, hidden = self.gru(input_gru, hidden)
 
-        # linear layer maps the GRU output to the desired output size (number of possible output tokens). 
-        #   This transformation is necessary to produce the final output logits for each token in the 
-        #   vocabulary
+
+
+        # linear layer maps the GRU output [32, 1, 128] to the desired output size (number of possible 
+        #   output tokens). This transformation is necessary to produce the final output logits for 
+        #   each token in the vocabulary
+        # output [32, 1, 2991]
         output = self.out(output)
 
-        return output, hidden, attn_weights
+        
+
+        #      [32, 1, 2991]    [1, 32, 128]    [32, 1, 10]
+        return output,          hidden,         attn_weights
     #-------------------------------------------------------------------------
 #-------------------------------------------------------------------------
 #-------------------------------------------------------------------------
@@ -709,6 +728,8 @@ def train_epoch(dataloader : DataLoader, encoder_rnn, decoder_attn_rnn,
 
         input_tensor, target_tensor = data # unroll the data into input and target tensors
 
+
+
         # if you do not reset the gradients at each iteration, the gradients from the previous iteration 
         #   will be added to the current gradients, leading to incorrect updates
         encoder_optimizer.zero_grad()
@@ -716,17 +737,19 @@ def train_epoch(dataloader : DataLoader, encoder_rnn, decoder_attn_rnn,
         
 
         # the input tensor has shape [32, 10] -> (batch size, sentence max length) 32 sentences of lenght 10 words or less
-        # the output shape is [32, 10, 128] -> (batch size, sentence max length, hidden size)
-        # the hidden state shape is [1, 32, 128] -> (1, batch size, hidden size)
+        # the encoder_outputs shape is [32, 10, 128] -> (batch size, sentence max length, hidden size)
+        # the encoder_hidden_state shape is [1, 32, 128] -> (1, batch size, hidden size)
         encoder_outputs, encoder_hidden_state = encoder_rnn(input = input_tensor) # forward pass through the EncoderRNN
         
+
+
 
         # after encoding the batch input, send the encoder_outputs ( 32 sentences, 10 words, 128 hidden size) 
         #   and the encoder_hidden_state (1, 32, 128) to the decoder
         decoder_outputs, _, _ = decoder_attn_rnn(
-            encoder_outputs = encoder_outputs, 
-            encoder_hidden  = encoder_hidden_state, 
-            target_tensor   = target_tensor
+            encoder_outputs = encoder_outputs,       # [32, 10, 128]
+            encoder_hidden  = encoder_hidden_state,  # [1,  32, 128]
+            target_tensor   = target_tensor          # [32, 10]  
         ) # forward pass through the DecoderRNN - the return is decoder_outputs, decoder_hidden, None, the last 2 we ignore
 
         
