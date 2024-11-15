@@ -216,6 +216,7 @@ def prepareData(lang1_obj, lang2_obj, lang1_prefixes, reverse=False):
 def execute_part1():
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    device = torch.device("cpu")
 
     if torch.cuda.is_available():
         print('Using GPU')
@@ -750,13 +751,12 @@ def train_epoch(dataloader : DataLoader, encoder_rnn, decoder_attn_rnn,
 
         # after encoding the batch input, send the encoder_outputs ( 32 sentences, 10 words, 128 hidden size) 
         #   and the encoder_hidden_state (1, 32, 128) to the decoder
-        decoder_outputs, _, _ = decoder_attn_rnn(
+        # [32, 10, 2991] - decoder_outputs
+        decoder_outputs, _ , _ = decoder_attn_rnn(
             encoder_outputs = encoder_outputs,       # [32, 10, 128]
             encoder_hidden  = encoder_hidden_state,  # [1,  32, 128]
             target_tensor   = target_tensor          # [32, 10]  
         ) # forward pass through the DecoderRNN - the return is decoder_outputs, decoder_hidden, None, the last 2 we ignore
-
-        
 
 
 
