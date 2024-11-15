@@ -284,7 +284,6 @@ class EncoderRNN(nn.Module):
     #-------------------------------------------------------------------------
     def forward(self, input):
         #input: tensor of shape (batch_size, sentence_max_len), normally (32, 10)
-        print('EncoderRNN - forward')
 
 
         # embedding_result: tensor of shape [32, 10, 128] -> (batch size, sentence max length, hidden size)
@@ -355,7 +354,6 @@ class BahdanauAttention(nn.Module):
         context vector - A weighted sum of the encoder hidden states, which is used to generate the 
             next decoder hidden state   
         """)
-        print('BahdanauAttention - forward')
 
         #-----------------------------
         # shape [32, 1, 128] - linear transformation of the query (hidden state from the encoder 
@@ -481,7 +479,6 @@ class AttnDecoderRNN(nn.Module):
     #-------------------------------------------------------------------------
     #-------------------------------------------------------------------------
     def forward(self, encoder_outputs, encoder_hidden, target_tensor=None):
-        print('AttnDecoderRNN - forward')
 
         # encoder_outputs: tensor of shape [32, 10, 128] -> (batch_size, sentence_max_len, hidden_size) -> 
         # encoder_hidden: tensor of shape [1, 32, 128] ->(1, batch_size, hidden_size)
@@ -565,8 +562,6 @@ class AttnDecoderRNN(nn.Module):
         #   after the torch.cat(...) the shape will be [32, 10, 10]
         attentions_list = torch.cat(attentions_list, dim=1) # concatenate the attentions on dim 1
 
-        print(f'attentions_list shape: {attentions_list.shape}')
-
 
         #      [32, 10, 2991]        [1, 32, 128]    [32, 10, 10]
         return decoder_outputs_list, decoder_hidden, attentions_list
@@ -576,7 +571,6 @@ class AttnDecoderRNN(nn.Module):
         # input: tensor of shape [32, 1] -> (batch_size, 1)
         # hidden: tensor of shape [1, 32, 128] (1, batch_size, hidden_size)
         # encoder_outputs: tensor of shape [32, 10, 128] -> (batch_size, sentence_max_len, hidden_size)
-        print('AttnDecoderRNN - forward_step')
 
 
         # embedding from nn.Embedding, set the dropout
