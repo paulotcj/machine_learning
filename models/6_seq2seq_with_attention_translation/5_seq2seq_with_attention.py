@@ -336,9 +336,9 @@ class BahdanauAttention(nn.Module):
 
         print('BahdanauAttention - __init__')
 
-        self.Wa = nn.Linear(in_features=hidden_size, out_features=hidden_size) # weight matrix for the query
-        self.Ua = nn.Linear(in_features=hidden_size, out_features=hidden_size) # weight matrix for the keys
-        self.Va = nn.Linear(in_features=hidden_size, out_features=1)           # weight matrix for the attention scores
+        self.Wa = nn.Linear(in_features=hidden_size, out_features=hidden_size) # weight matrix for the query - encoder hidden state transformation matrix
+        self.Ua = nn.Linear(in_features=hidden_size, out_features=hidden_size) # weight matrix for the keys - encoder full set of hidden states matrix
+        self.Va = nn.Linear(in_features=hidden_size, out_features=1)           # weight matrix for the attention scores - attention scores matrix
     #-------------------------------------------------------------------------
     #-------------------------------------------------------------------------
     def forward(self, query, keys):
