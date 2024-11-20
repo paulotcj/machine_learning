@@ -15,20 +15,21 @@ class MultiHeadAttention(nn.Module):
         assert d_model % num_heads == 0, "d_model must be divisible by num_heads"
         
         # Initialize dimensions
-        self.d_model = d_model # Model's dimension
-        self.num_heads = num_heads # Number of attention heads
-        self.dim_key = d_model // num_heads # Dimension of each head's key, query, and value
+        self.d_model    = d_model # Model's dimension
+        self.num_heads  = num_heads # Number of attention heads to split the input into
+        self.dim_key    = d_model // num_heads # Dimension of each head's key, query, and value
         
         # Linear layers for transforming inputs
-        self.Weight_query = nn.Linear(d_model, d_model) # Query transformation
-        self.Weight_key = nn.Linear(d_model, d_model) # Key transformation
-        self.Weight_value = nn.Linear(d_model, d_model) # Value transformation
-        self.Weight_output = nn.Linear(d_model, d_model) # Output transformation
+        self.weight_query   = nn.Linear(d_model, d_model) # Query transformation
+        self.weight_key     = nn.Linear(d_model, d_model) # Key transformation
+        self.weight_value   = nn.Linear(d_model, d_model) # Value transformation
+        self.weight_output  = nn.Linear(d_model, d_model) # Output transformation
     #-------------------------------------------------------------------------
     #-------------------------------------------------------------------------
-    def scaled_dot_product_attention(self, Query, Key, Value, mask=None):
-        # Calculate attention scores
-        attn_scores = torch.matmul(Query, Key.transpose(-2, -1)) / math.sqrt(self.dim_key)
+    def scaled_dot_product_attention(self, query, key, value, mask=None):
+        # Calculate attention scores - the attention scores are calculated by taking the dot product of queries and keys
+        #   and then scaling by the square root of the key dimension
+        attn_scores = torch.matmul(query, key.transpose(-2, -1)) / math.sqrt(self.dim_key)
         
         # Apply mask if provided (useful for preventing attention to certain parts like padding)
         if mask is not None:
@@ -38,33 +39,38 @@ class MultiHeadAttention(nn.Module):
         attn_probs = torch.softmax(attn_scores, dim=-1)
         
         # Multiply by values to obtain the final output
-        output = torch.matmul(attn_probs, Value)
+        output = torch.matmul(attn_probs, value)
         return output
     #-------------------------------------------------------------------------
     #-------------------------------------------------------------------------  
     def split_heads(self, x):
-        # Reshape the input to have num_heads for multi-head attention
+        # Reshape the input x into the shape (batch_size, num_heads, seq_length, dim_key). It enables the model to 
+        #   process multiple attention heads concurrently, allowing for parallel computation
+
         batch_size, seq_length, d_model = x.size()
         return x.view(batch_size, seq_length, self.num_heads, self.dim_key).transpose(1, 2)
     #-------------------------------------------------------------------------
     #-------------------------------------------------------------------------    
     def combine_heads(self, x):
-        # Combine the multiple heads back to original shape
+        # After applying attention to each head separately, this method combines the results back into a single tensor 
+        #   of shape (batch_size, seq_length, d_model). This prepares the result for further processing
         batch_size, _, seq_length, d_k = x.size()
         return x.transpose(1, 2).contiguous().view(batch_size, seq_length, self.d_model)
     #-------------------------------------------------------------------------
     #------------------------------------------------------------------------- 
-    def forward(self, Q, K, V, mask=None):
-        # Apply linear transformations and split heads
-        Q = self.split_heads(self.Weight_query(Q))
-        K = self.split_heads(self.Weight_key(K))
-        V = self.split_heads(self.Weight_value(V))
+    def forward(self, query, key, value, mask=None):
+        # 1 - Apply Linear Transformations: The queries, keys, and values are first passed through linear transformations 
+        #   using the weights defined in the initialization
+        # 2 - Split Heads: The transformed query, key, value are split into multiple heads using the split_heads method
+        query   = self.split_heads( self.weight_query(query) )
+        key     = self.split_heads( self.weight_key(key)     )
+        value   = self.split_heads( self.weight_value(value) )
         
-        # Perform scaled dot-product attention
-        attn_output = self.scaled_dot_product_attention(Q, K, V, mask)
+        # Apply Scaled Dot-Product Attention. The scaled_dot_product_attention method is called on the split heads
+        attn_output = self.scaled_dot_product_attention(query, key, value, mask)
         
-        # Combine heads and apply output transformation
-        output = self.Weight_output(self.combine_heads(attn_output))
+        # Combine Heads - The results from each head are combined back into a single tensor using the combine_heads method
+        output = self.weight_output(self.combine_heads(attn_output))
         return output
     #-------------------------------------------------------------------------
 #------------------------------------------------------------------------- 
@@ -72,18 +78,23 @@ class MultiHeadAttention(nn.Module):
 
 #-------------------------------------------------------------------------
 class PositionWiseFeedForward(nn.Module):
+    #-------------------------------------------------------------------------
     def __init__(self, d_model, d_ff):
         super(PositionWiseFeedForward, self).__init__()
-        self.fc1 = nn.Linear(d_model, d_ff)
-        self.fc2 = nn.Linear(d_ff, d_model)
+        
+        self.fc1  = nn.Linear( d_model, d_ff )
+        self.fc2  = nn.Linear( d_ff, d_model )
         self.relu = nn.ReLU()
-
+    #-------------------------------------------------------------------------
+    #-------------------------------------------------------------------------
     def forward(self, x):
         return self.fc2(self.relu(self.fc1(x)))
+    #-------------------------------------------------------------------------
 #-------------------------------------------------------------------------   
 
 #-------------------------------------------------------------------------
 class PositionalEncoding(nn.Module):
+    #-------------------------------------------------------------------------
     def __init__(self, d_model, max_seq_length):
         super(PositionalEncoding, self).__init__()
         
@@ -95,12 +106,15 @@ class PositionalEncoding(nn.Module):
         pe[:, 1::2] = torch.cos(position * div_term)
         
         self.register_buffer('pe', pe.unsqueeze(0))
-        
+    #-------------------------------------------------------------------------
+    #-------------------------------------------------------------------------
     def forward(self, x):
         return x + self.pe[:, :x.size(1)]
+    #-------------------------------------------------------------------------
 #-------------------------------------------------------------------------   
 #-------------------------------------------------------------------------
 class EncoderLayer(nn.Module):
+    #-------------------------------------------------------------------------
     def __init__(self, d_model, num_heads, d_ff, dropout):
         super(EncoderLayer, self).__init__()
         self.self_attn = MultiHeadAttention(d_model, num_heads)
@@ -108,17 +122,20 @@ class EncoderLayer(nn.Module):
         self.norm1 = nn.LayerNorm(d_model)
         self.norm2 = nn.LayerNorm(d_model)
         self.dropout = nn.Dropout(dropout)
-        
+    #-------------------------------------------------------------------------
+    #-------------------------------------------------------------------------        
     def forward(self, x, mask):
         attn_output = self.self_attn(x, x, x, mask)
         x = self.norm1(x + self.dropout(attn_output))
         ff_output = self.feed_forward(x)
         x = self.norm2(x + self.dropout(ff_output))
         return x
+    #-------------------------------------------------------------------------
 #-------------------------------------------------------------------------   
 
 #-------------------------------------------------------------------------
 class DecoderLayer(nn.Module):
+    #-------------------------------------------------------------------------
     def __init__(self, d_model, num_heads, d_ff, dropout):
         super(DecoderLayer, self).__init__()
         self.self_attn = MultiHeadAttention(d_model, num_heads)
@@ -128,7 +145,8 @@ class DecoderLayer(nn.Module):
         self.norm2 = nn.LayerNorm(d_model)
         self.norm3 = nn.LayerNorm(d_model)
         self.dropout = nn.Dropout(dropout)
-        
+    #-------------------------------------------------------------------------
+    #-------------------------------------------------------------------------    
     def forward(self, x, enc_output, src_mask, tgt_mask):
         attn_output = self.self_attn(x, x, x, tgt_mask)
         x = self.norm1(x + self.dropout(attn_output))
@@ -137,10 +155,12 @@ class DecoderLayer(nn.Module):
         ff_output = self.feed_forward(x)
         x = self.norm3(x + self.dropout(ff_output))
         return x
+    #-------------------------------------------------------------------------
 #-------------------------------------------------------------------------   
 
 #-------------------------------------------------------------------------
 class Transformer(nn.Module):
+    #-------------------------------------------------------------------------
     def __init__(self, src_vocab_size, tgt_vocab_size, d_model, num_heads, num_layers, d_ff, max_seq_length, dropout):
         super(Transformer, self).__init__()
         self.encoder_embedding = nn.Embedding(src_vocab_size, d_model)
@@ -152,7 +172,8 @@ class Transformer(nn.Module):
 
         self.fc = nn.Linear(d_model, tgt_vocab_size)
         self.dropout = nn.Dropout(dropout)
-
+    #-------------------------------------------------------------------------
+    #-------------------------------------------------------------------------
     def generate_mask(self, src, tgt):
         src_mask = (src != 0).unsqueeze(1).unsqueeze(2)
         tgt_mask = (tgt != 0).unsqueeze(1).unsqueeze(3)
@@ -160,7 +181,8 @@ class Transformer(nn.Module):
         nopeak_mask = (1 - torch.triu(torch.ones(1, seq_length, seq_length), diagonal=1)).bool()
         tgt_mask = tgt_mask & nopeak_mask
         return src_mask, tgt_mask
-
+    #-------------------------------------------------------------------------
+    #-------------------------------------------------------------------------
     def forward(self, src, tgt):
         src_mask, tgt_mask = self.generate_mask(src, tgt)
         src_embedded = self.dropout(self.positional_encoding(self.encoder_embedding(src)))
@@ -176,6 +198,7 @@ class Transformer(nn.Module):
 
         output = self.fc(dec_output)
         return output
+    #-------------------------------------------------------------------------
 #-------------------------------------------------------------------------   
 
 
