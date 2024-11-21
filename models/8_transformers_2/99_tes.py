@@ -244,15 +244,27 @@ class Transformer(nn.Module):
     #-------------------------------------------------------------------------
     def __init__(self, src_vocab_size, tgt_vocab_size, d_model, num_heads, num_layers, d_ff, max_seq_length, dropout):
         super(Transformer, self).__init__()
-        self.encoder_embedding   = nn.Embedding( src_vocab_size, d_model )
-        self.decoder_embedding   = nn.Embedding( tgt_vocab_size, d_model )
-        self.positional_encoding = PositionalEncoding( d_model, max_seq_length )
 
-        self.encoder_layers = nn.ModuleList([EncoderLayer(d_model, num_heads, d_ff, dropout) for _ in range(num_layers)])
-        self.decoder_layers = nn.ModuleList([DecoderLayer(d_model, num_heads, d_ff, dropout) for _ in range(num_layers)])
+        """
+        src_vocab_size: Source vocabulary size.
+        tgt_vocab_size: Target vocabulary size.
+        d_model: The dimensionality of the model's embeddings.
+        num_heads: Number of attention heads in the multi-head attention mechanism.
+        num_layers: Number of layers for both the encoder and the decoder.
+        d_ff: Dimensionality of the inner layer in the feed-forward network.
+        max_seq_length: Maximum sequence length for positional encoding.
+        dropout: Dropout rate for regularization.        
+        """
 
-        self.fc      = nn.Linear( d_model, tgt_vocab_size )
-        self.dropout = nn.Dropout( dropout )
+        self.encoder_embedding   = nn.Embedding( src_vocab_size, d_model )        # Embedding layer for the source sequence.
+        self.decoder_embedding   = nn.Embedding( tgt_vocab_size, d_model )        # Embedding layer for the target sequence
+        self.positional_encoding = PositionalEncoding( d_model, max_seq_length )  # Positional encoding component
+
+        self.encoder_layers = nn.ModuleList([EncoderLayer(d_model, num_heads, d_ff, dropout) for _ in range(num_layers)]) # A list of encoder layers
+        self.decoder_layers = nn.ModuleList([DecoderLayer(d_model, num_heads, d_ff, dropout) for _ in range(num_layers)]) # A list of decoder layers
+
+        self.fc      = nn.Linear( d_model, tgt_vocab_size ) # Final fully connected (linear) layer mapping to target vocabulary size
+        self.dropout = nn.Dropout( dropout ) # Dropout layer
     #-------------------------------------------------------------------------
     #-------------------------------------------------------------------------
     def generate_mask(self, src, tgt):
