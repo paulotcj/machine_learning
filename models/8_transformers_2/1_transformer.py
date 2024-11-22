@@ -134,15 +134,19 @@ class PositionalEncoding(nn.Module):
     the input tensor x, which is expected to have shape (batch_size, seq_length, d_model).    
     """
     #-------------------------------------------------------------------------
-    def __init__(self, d_model, max_seq_length):
+    def __init__(self, dim_model_input, max_seq_length):
         super(PositionalEncoding, self).__init__()
 
-        # d_model: The dimension of the model's input
+        # dim_model_input: The dimension of the model's input
         # max_seq_length: The maximum length of the sequence for which positional encodings are pre-computed
         
-        pe = torch.zeros(max_seq_length, d_model) # tensor filled with zeros, which will be populated with positional encodings
+        pe = torch.zeros(max_seq_length, dim_model_input) # tensor filled with zeros, which will be populated with positional encodings
+        
         position = torch.arange(0, max_seq_length, dtype=torch.float).unsqueeze(1) # tensor containing the position indices for each position in the sequence
-        div_term = torch.exp(torch.arange(0, d_model, 2).float() * -(math.log(10000.0) / d_model)) # term used to scale the position indices in a specific way
+        
+        div_term = torch.exp(
+            torch.arange(0, dim_model_input, 2).float() * -(math.log(10000.0) / dim_model_input)
+        ) # term used to scale the position indices in a specific way
         
         # the sine function is applied to the even indices and the cosine function to the odd indices of pe
         pe[:, 0::2] = torch.sin(position * div_term)
@@ -258,28 +262,50 @@ class Transformer(nn.Module):
       produce corresponding output sequences    
     """
     #-------------------------------------------------------------------------
-    def __init__(self, src_vocab_size, tgt_vocab_size, d_model, num_heads, num_layers, d_ff, max_seq_length, dropout):
+    def __init__(self, src_vocab_size, tgt_vocab_size, dim_model_embeddings, num_heads, 
+                 num_layers, dim_inner_feedforward, max_seq_length, dropout):
         super(Transformer, self).__init__()
 
         """
         src_vocab_size: Source vocabulary size.
         tgt_vocab_size: Target vocabulary size.
-        d_model: The dimensionality of the model's embeddings.
+        dim_model_embeddings: The dimensionality of the model's embeddings.
         num_heads: Number of attention heads in the multi-head attention mechanism.
         num_layers: Number of layers for both the encoder and the decoder.
-        d_ff: Dimensionality of the inner layer in the feed-forward network.
+        dim_inner_feedforward: Dimensionality of the inner layer in the feed-forward network.
         max_seq_length: Maximum sequence length for positional encoding.
         dropout: Dropout rate for regularization.        
         """
 
-        self.encoder_embedding   = nn.Embedding( src_vocab_size, d_model )        # Embedding layer for the source sequence.
-        self.decoder_embedding   = nn.Embedding( tgt_vocab_size, d_model )        # Embedding layer for the target sequence
-        self.positional_encoding = PositionalEncoding( d_model, max_seq_length )  # Positional encoding component
+        self.encoder_embedding   = nn.Embedding( src_vocab_size, dim_model_embeddings )        # Embedding layer for the source sequence.
+        self.decoder_embedding   = nn.Embedding( tgt_vocab_size, dim_model_embeddings )        # Embedding layer for the target sequence
+        self.positional_encoding = PositionalEncoding( dim_model_embeddings, max_seq_length )  # Positional encoding component
 
-        self.encoder_layers = nn.ModuleList([EncoderLayer(d_model, num_heads, d_ff, dropout) for _ in range(num_layers)]) # A list of encoder layers
-        self.decoder_layers = nn.ModuleList([DecoderLayer(d_model, num_heads, d_ff, dropout) for _ in range(num_layers)]) # A list of decoder layers
+        #-------
+        list_encoder_layers = []
+        list_decoder_layers = []
+        for _ in range(num_layers):
+            temp = EncoderLayer(
+                d_model     = dim_model_embeddings, 
+                num_heads   = num_heads, 
+                d_ff        = dim_inner_feedforward, 
+                dropout     = dropout
+            )
+            list_encoder_layers.append( temp )
 
-        self.fc      = nn.Linear( d_model, tgt_vocab_size ) # Final fully connected (linear) layer mapping to target vocabulary size
+            temp = DecoderLayer(
+                d_model     = dim_model_embeddings,  
+                num_heads   = num_heads, 
+                d_ff        = dim_inner_feedforward, 
+                dropout     = dropout
+            ) 
+            list_decoder_layers.append( temp )
+
+        self.encoder_layers = nn.ModuleList(list_encoder_layers) # A list of encoder layers
+        self.decoder_layers = nn.ModuleList(list_decoder_layers) # A list of decoder layers
+        #-------
+
+        self.fc      = nn.Linear( dim_model_embeddings, tgt_vocab_size ) # Final fully connected (linear) layer mapping to target vocabulary size
         self.dropout = nn.Dropout( dropout ) # Dropout layer
     #-------------------------------------------------------------------------
     #-------------------------------------------------------------------------
@@ -339,21 +365,30 @@ def sample_data_preparation():
       and evaluated on actual sequence-to-sequence tasks, such as machine translation or text 
       summarization    
     """
-    src_vocab_size = 5000
-    tgt_vocab_size = 5000
-    d_model = 512 # Dimensionality of the model's embeddings, set to 512
-    num_heads = 8
-    num_layers = 6 # Number of layers for both the encoder and the decoder
-    d_ff = 2048 # Dimension of the inner layer in the feed-forward network
-    max_seq_length = 100
-    dropout = 0.1
+    src_vocab_size  = 5000
+    tgt_vocab_size  = 5000
+    d_model         = 512 # Dimensionality of the model's embeddings, set to 512
+    num_heads       = 8
+    num_layers      = 6 # Number of layers for both the encoder and the decoder
+    d_ff            = 2048 # Dimension of the inner layer in the feed-forward network
+    max_seq_length  = 100
+    dropout         = 0.1
 
-    transformer = Transformer(src_vocab_size, tgt_vocab_size, d_model, num_heads, num_layers, d_ff, max_seq_length, dropout)
+    transformer = Transformer(
+        src_vocab_size          = src_vocab_size, 
+        tgt_vocab_size          = tgt_vocab_size, 
+        dim_model_embeddings    = d_model, 
+        num_heads               = num_heads, 
+        num_layers              = num_layers, 
+        dim_inner_feedforward   = d_ff, 
+        max_seq_length          = max_seq_length, 
+        dropout                 = dropout
+    )
 
     # Generate random sample data
     #  Random integers between 1 and tgt_vocab_size, representing a batch of target sequences with shape (64, max_seq_length)
-    src_data = torch.randint(1, src_vocab_size, (64, max_seq_length))  # (batch_size, seq_length)
-    tgt_data = torch.randint(1, tgt_vocab_size, (64, max_seq_length))  # (batch_size, seq_length)
+    src_data = torch.randint( low = 1, high = src_vocab_size, size = (64, max_seq_length) )  # (batch_size, seq_length)
+    tgt_data = torch.randint( low = 1, high = tgt_vocab_size, size = (64, max_seq_length) )  # (batch_size, seq_length)
 
     return {
         'transformer'       : transformer,
