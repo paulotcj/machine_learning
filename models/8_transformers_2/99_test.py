@@ -234,7 +234,6 @@ class DecoderLayer(nn.Module):
         return x # Output: The processed tensor is returned as the output of the decoder layer.
     #-------------------------------------------------------------------------
 #-------------------------------------------------------------------------   
-
 #-------------------------------------------------------------------------
 class Transformer(nn.Module):
     """
@@ -461,7 +460,6 @@ result_part2 = execute_part2(
     tgt_data        = result_part1['tgt_data'], 
     tgt_vocab_size  = result_part1['tgt_vocab_size']
 )
-
 execute_part3(
     transformer     = result_part1['transformer'], 
     src_vocab_size  = result_part1['src_vocab_size'], 
