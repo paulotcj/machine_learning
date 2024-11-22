@@ -5,7 +5,6 @@ import torch.utils.data as data
 import math
 import copy
 
-
 #-------------------------------------------------------------------------
 class MultiHeadAttention(nn.Module):
 
@@ -82,8 +81,6 @@ class MultiHeadAttention(nn.Module):
         return output
     #-------------------------------------------------------------------------
 #------------------------------------------------------------------------- 
-
-
 #-------------------------------------------------------------------------
 class PositionWiseFeedForward(nn.Module):
     """
@@ -116,7 +113,6 @@ class PositionWiseFeedForward(nn.Module):
         return self.fc2(self.relu(self.fc1(x)))
     #-------------------------------------------------------------------------
 #-------------------------------------------------------------------------   
-
 #-------------------------------------------------------------------------
 class PositionalEncoding(nn.Module):
     """
@@ -346,11 +342,12 @@ def sample_data_preparation():
     tgt_data = torch.randint(1, tgt_vocab_size, (64, max_seq_length))  # (batch_size, seq_length)
 
     return {
-        'transformer'   : transformer,
-        'src_data'      : src_data,
-        'tgt_data'      : tgt_data,
-        'tgt_vocab_size': tgt_vocab_size,
-        'src_vocab_size': src_vocab_size,
+        'transformer'       : transformer,
+        'src_data'          : src_data,
+        'tgt_data'          : tgt_data,
+        'tgt_vocab_size'    : tgt_vocab_size,
+        'src_vocab_size'    : src_vocab_size,
+        'max_seq_length'    : max_seq_length
     }
 #-------------------------------------------------------------------------  
 #-------------------------------------------------------------------------  
@@ -362,6 +359,7 @@ def execute_part1():
         'tgt_data'      : result_sample_data_preparation['tgt_data'],
         'tgt_vocab_size': result_sample_data_preparation['tgt_vocab_size'],
         'src_vocab_size': result_sample_data_preparation['src_vocab_size'],
+        'max_seq_length': result_sample_data_preparation['max_seq_length']
     }
 #-------------------------------------------------------------------------  
 #-------------------------------------------------------------------------  
@@ -394,27 +392,19 @@ def training(transformer, src_data, tgt_data, tgt_vocab_size):
         optimizer.step()
         print(f"Epoch: {epoch+1}, Loss: {loss.item()}")
 
+    return {
+        'criterion': criterion
+    }
 #-------------------------------------------------------------------------
 #-------------------------------------------------------------------------
 def execute_part2(transformer, src_data, tgt_data, tgt_vocab_size):
-    training(transformer=transformer, src_data = src_data, tgt_data = tgt_data, tgt_vocab_size = tgt_vocab_size)
+    result_training = training(transformer=transformer, src_data = src_data, tgt_data = tgt_data, tgt_vocab_size = tgt_vocab_size)
+    return {
+        'criterion': result_training['criterion']
+    }
 #-------------------------------------------------------------------------
-
-result_part1 = execute_part1()
-execute_part2(
-    transformer     = result_part1['transformer'], 
-    src_data        = result_part1['src_data'], 
-    tgt_data        = result_part1['tgt_data'], 
-    tgt_vocab_size  = result_part1['tgt_vocab_size']
-)
-exit()
-
-
-
-
-
 #-------------------------------------------------------------------------
-def execute_part3(transformer, src_vocab_size, tgt_vocab_size, max_seq_length, criterion):
+def model_performance_evaluation(transformer, src_vocab_size, tgt_vocab_size, max_seq_length, criterion):
     """
     This code snippet evaluates the transformer model on a randomly generated validation dataset, 
     computes the validation loss, and prints it. In a real-world scenario, the random validation 
@@ -450,5 +440,32 @@ def execute_part3(transformer, src_vocab_size, tgt_vocab_size, max_seq_length, c
         #   the previously defined cross-entropy loss function
         val_loss = criterion(val_output.contiguous().view(-1, tgt_vocab_size), val_tgt_data[:, 1:].contiguous().view(-1))
         print(f"Validation Loss: {val_loss.item()}")
-    
+#-------------------------------------------------------------------------
+#-------------------------------------------------------------------------
+def execute_part3(transformer, src_vocab_size, tgt_vocab_size, max_seq_length, criterion):
+    model_performance_evaluation(
+        transformer=transformer,
+        src_vocab_size=src_vocab_size,
+        tgt_vocab_size=tgt_vocab_size,
+        max_seq_length=max_seq_length,
+        criterion=criterion
+    )
 #-------------------------------------------------------------------------    
+
+
+
+result_part1 = execute_part1()
+result_part2 = execute_part2(
+    transformer     = result_part1['transformer'], 
+    src_data        = result_part1['src_data'], 
+    tgt_data        = result_part1['tgt_data'], 
+    tgt_vocab_size  = result_part1['tgt_vocab_size']
+)
+
+execute_part3(
+    transformer     = result_part1['transformer'], 
+    src_vocab_size  = result_part1['src_vocab_size'], 
+    tgt_vocab_size  = result_part1['tgt_vocab_size'], 
+    max_seq_length  = result_part1['max_seq_length'],
+    criterion       = result_part2['criterion']
+)
