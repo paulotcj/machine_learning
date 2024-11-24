@@ -136,29 +136,100 @@ class PositionalEncoding(nn.Module):
     #-------------------------------------------------------------------------
     def __init__(self, dim_model_input, max_seq_length):
         super(PositionalEncoding, self).__init__()
-        # dim_model_input: The dimension of the model's input
-        # max_seq_length: The maximum length of the sequence for which positional encodings are pre-computed
+        # dim_model_input: The dimension of the model's input - 512
+        # max_seq_length: The maximum length of the sequence for which positional encodings are pre-computed - 100
 
         print(f'\nPositionalEncoding - __init__')
-        
-        pos_encodings = torch.zeros(max_seq_length, dim_model_input) # tensor filled with zeros, which will be populated with positional encodings
-        
-        position = torch.arange(0, max_seq_length, dtype=torch.float).unsqueeze(1) # tensor containing the position indices for each position in the sequence
-        
-        print(f'pos_encodings shape: {pos_encodings.shape}')
-        print(f'position shape: {position.shape}')
-        exit()
-        div_term = torch.exp(
-            torch.arange(0, dim_model_input, 2).float() * -(math.log(10000.0) / dim_model_input)
-        ) # term used to scale the position indices in a specific way
-        
-        print(f'div_term shape: {div_term.shape}')
-        # print(f'div_term: {div_term}')
+        print(f'dim_model_input: {dim_model_input}')
+        print(f'max_seq_length:  {max_seq_length}')
 
-        # the sine function is applied to the even indices and the cosine function to the odd indices of pe
-        pos_encodings[:, 0::2] = torch.sin(position * div_term)
-        pos_encodings[:, 1::2] = torch.cos(position * div_term)
+        #                           100             512                torch.Size([100, 512])
+        pos_encodings = torch.zeros(max_seq_length, dim_model_input) # tensor filled with zeros, which will be populated with positional encodings
+
+        #---------
+        #                                        100                                               torch.Size([100, 1])
+        position = torch.arange(start = 0, end = max_seq_length, dtype=torch.float).unsqueeze(1) # tensor containing the position indices for each position in the sequence
+        # generates a 1-dimensional tensor, from 0 to max_seq_length -1 (99). Then unsqueeze(1) adds 
+        #   a dimension at index 1. So if originally the tensor was [0.0, 1.0, 2.0, ..., 99.0], now is: [[0.0], [1.0], [2.0], ..., [99.0]]
+        #---------
+
+        #---------
+        temp_value1 = (math.log(10000.0) / dim_model_input) * -1 # value used to scale the position indices in a specific way (-0.017988946039015984)
+
+        # new tensor with len 256 with elements resulting from the exponentiation of 'e'. e.g.: torch.exp(torch.tensor([1, 2, 3])) -> 
+        #   (e^1, e^2, e^3) -> tensor([ 2.7183,  7.3891, 20.0855])
+        div_term = torch.exp(
+            # tensor                      512  (efffectively 256 len)   
+            torch.arange(start = 0, end = dim_model_input, step = 2).float() *  temp_value1
+        ) # term used to scale the position indices in a specific way
+        #---------
         
+
+        #             [100,1]    [256]  (both torch.Tensor) -> [100, 256]
+        temp_value2 = position * div_term
+
+
+        
+        
+        #----------------------------
+        # the sine function is applied to the even indices and the cosine function to the odd indices of pe
+        # note that temp_value has shape of [100,256] and pos_encodings has shape of [100,512], so we will
+        #   be using the same number twice, but in one case we will use sin and in the other cos
+        # ---------
+        #   all the rows as denoted by [ :, ... ] then from column 0 to its lenght, use 2 as step, denoted by
+        #   [ ... , 0::2]
+        pos_encodings[:, 0::2] = torch.sin(temp_value2)
+
+        #  all the rows as denoted by [ :, ... ] then from column 1 to its lenght, use 2 as step, denoted by
+        #   [ ... , 1::2]
+        pos_encodings[:, 1::2] = torch.cos(temp_value2)
+        #----------------------------
+
+        #-------------------------------------------------------------------------
+        def data_check():
+            print('----')
+            print(f'temp_value2[0][0]: {temp_value2[0][0]}')   # 0.0
+            print(f'temp_value2[0][1]: {temp_value2[0][1]}')   # 0.0
+            print(f'temp_value2[0][2]: {temp_value2[0][2]}')   # 0.0
+            print(f'temp_value2[0][3]: {temp_value2[0][3]}')   # 0.0
+            print(f'temp_value2[0][98]: {temp_value2[0][98]}') # 0.0
+            print(f'temp_value2[0][99]: {temp_value2[0][99]}') # 0.0
+            print('----')
+            print(f'temp_value2[1][0]: {temp_value2[1][0]}')   # 1.0
+            print(f'temp_value2[1][1]: {temp_value2[1][1]}')   # 0.9646615982055664
+            print(f'temp_value2[1][2]: {temp_value2[1][2]}')   # 0.9305720329284668
+            print(f'temp_value2[1][3]: {temp_value2[1][3]}')   # 0.8976871371269226
+            print(f'temp_value2[1][98]: {temp_value2[1][98]}') # 0.02942727319896221
+            print(f'temp_value2[1][99]: {temp_value2[1][99]}') # 0.02838735654950142
+            print('----')
+            print(f'temp_value2[2][0]: {temp_value2[2][0]}')   # 2.0
+            print(f'temp_value2[2][1]: {temp_value2[2][1]}')   # 1.9293231964111328
+            print(f'temp_value2[2][2]: {temp_value2[2][2]}')   # 1.8611440658569336
+            print(f'temp_value2[2][3]: {temp_value2[2][3]}')   # 1.7953742742538452
+            print(f'temp_value2[2][98]: {temp_value2[2][98]}') # 0.05885454639792442
+            print(f'temp_value2[2][99]: {temp_value2[2][99]}') # 0.05677471309900284            
+            print('----')
+            print(f'pos_encodings[0][0]: {pos_encodings[0][0]}') # 0.0
+            print(f'pos_encodings[0][1]: {pos_encodings[0][1]}') # 1.0
+            print(f'pos_encodings[0][2]: {pos_encodings[0][2]}') # 0.0
+            print(f'pos_encodings[0][3]: {pos_encodings[0][3]}') # 1.0
+            print('----')
+            print(f'pos_encodings[1][0]: {pos_encodings[1][0]}') # 0.8414709568023682
+            print(f'pos_encodings[1][1]: {pos_encodings[1][1]}') # 0.5403023362159729
+            print(f'pos_encodings[1][2]: {pos_encodings[1][2]}') # 0.8218562006950378
+            print(f'pos_encodings[1][3]: {pos_encodings[1][3]}') # 0.5696950554847717
+            print('----')
+            print(f'pos_encodings[2][0]: {pos_encodings[2][0]}')   # 0.9092974066734314
+            print(f'pos_encodings[2][1]: {pos_encodings[2][1]}')   # -0.416146844625473
+            print(f'pos_encodings[2][2]: {pos_encodings[2][2]}')   # 0.9364147782325745
+            print(f'pos_encodings[2][3]: {pos_encodings[2][3]}')   # -0.3508951663970947
+            print(f'pos_encodings[2][98]: {pos_encodings[2][98]}') # 0.33639633655548096
+            print(f'pos_encodings[2][99]: {pos_encodings[2][99]}') # 0.9417204856872559
+            exit()
+        #-------------------------------------------------------------------------
+        # data_check()
+        
+
         # pe is registered as a buffer, which means it will be part of the module's state but will not be considered a trainable parameter
         self.register_buffer('pe', pos_encodings.unsqueeze(0))
     #-------------------------------------------------------------------------
@@ -274,39 +345,40 @@ class Transformer(nn.Module):
         super(Transformer, self).__init__()
 
         """
-        src_vocab_size: Source vocabulary size.
-        tgt_vocab_size: Target vocabulary size.
-        dim_model_embeddings: The dimensionality of the model's embeddings.
-        num_heads: Number of attention heads in the multi-head attention mechanism.
-        num_layers: Number of layers for both the encoder and the decoder.
-        dim_inner_feedforward: Dimensionality of the inner layer in the feed-forward network.
-        max_seq_length: Maximum sequence length for positional encoding.
-        dropout: Dropout rate for regularization.        
+        src_vocab_size: Source vocabulary size                                               - 5000
+        tgt_vocab_size: Target vocabulary size                                               - 5000
+        dim_model_embeddings: The dimensionality of the model's embeddings                   - 512
+        num_heads: Number of attention heads in the multi-head attention mechanism           - 8
+        num_layers: Number of layers for both the encoder and the decoder                    - 6
+        dim_inner_feedforward: Dimensionality of the inner layer in the feed-forward network - 2048
+        max_seq_length: Maximum sequence length for positional encoding                      - 100
+        dropout: Dropout rate for regularization                                             - 0.1
         """
 
         print('\n\nTransformer - __init__')
-        print(f'vocab_size:            {src_vocab_size}')
-        print(f'dim_model_embeddings:  {dim_model_embeddings}')
-        print(f'num_heads:             {num_heads}')
-        print(f'num_layers:            {num_layers}')
-        print(f'dim_inner_feedforward: {dim_inner_feedforward}')
-        print(f'max_seq_length:        {max_seq_length}')
+        # print(f'src_vocab_size:        {src_vocab_size}')
+        # print(f'tgt_vocab_size:        {tgt_vocab_size}')
+        # print(f'dim_model_embeddings:  {dim_model_embeddings}')
+        # print(f'num_heads:             {num_heads}')
+        # print(f'num_layers:            {num_layers}')
+        # print(f'dim_inner_feedforward: {dim_inner_feedforward}')
+        # print(f'max_seq_length:        {max_seq_length}')
+        # print(f'dropout:               {dropout}')
         
 
-        self.encoder_embedding = nn.Embedding( # Embedding layer for the source sequence
-            num_embeddings  = src_vocab_size, 
-            embedding_dim   = dim_model_embeddings 
+        self.encoder_embedding = nn.Embedding( # Embedding layer for the source sequence - Embedding(5000, 512)
+            num_embeddings  = src_vocab_size,       #5000
+            embedding_dim   = dim_model_embeddings  #512
         )    
-        print(f'\nself.encoder_embedding { self.encoder_embedding }')
+
         
 
-        self.decoder_embedding = nn.Embedding( # Embedding layer for the target sequence
-            num_embeddings  = tgt_vocab_size, 
-            embedding_dim   = dim_model_embeddings 
+        self.decoder_embedding = nn.Embedding( # Embedding layer for the target sequence - Embedding(5000, 512)
+            num_embeddings  = tgt_vocab_size,       #5000
+            embedding_dim   = dim_model_embeddings  #512
         )
-        print(f'self.decoder_embedding { self.decoder_embedding }')
           
-        
+
         self.positional_encoding = PositionalEncoding( dim_model_embeddings, max_seq_length )  # Positional encoding component
 
         #-------
