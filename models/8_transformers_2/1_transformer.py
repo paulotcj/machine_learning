@@ -17,7 +17,7 @@ import copy
 ##########################################################################
 #-------------------------------------------------------------------------
 class MultiHeadAttention(nn.Module):
-    """
+    r"""
     the MultiHeadAttention class encapsulates the multi-head attention mechanism commonly used in transformer models. 
     It takes care of splitting the input into multiple attention heads, applying attention to each head, and then combining 
     the results. By doing so, the model can capture various relationships in the input data at different scales, improving 
@@ -25,21 +25,30 @@ class MultiHeadAttention(nn.Module):
     """
 
     #-------------------------------------------------------------------------
-    def __init__(self, d_model, num_heads):
+    def __init__(self, dim_model, num_heads):
         super(MultiHeadAttention, self).__init__()
         # Ensure that the model dimension (d_model) is divisible by the number of heads
-        assert d_model % num_heads == 0, "d_model must be divisible by num_heads"
+        print(f'MultiHeadAttention - __init__')
         
+        assert dim_model % num_heads == 0, "d_model must be divisible by num_heads"
+
+
         # Initialize dimensions
-        self.d_model    = d_model              # Model's dimension
-        self.num_heads  = num_heads            # Number of attention heads to split the input into
-        self.dim_key    = d_model // num_heads # Dimension of each head's key, query, and value
+        self.dim_model  = dim_model              # Model's dimension
+        self.num_heads  = num_heads              # Number of attention heads to split the input into
+        self.dim_key    = dim_model // num_heads # Dimension of each head's key, query, and value
+
+        # Typically:
+        # self.dim_model : 512
+        # self.num_heads : 8
+        #self.dim_key    : 64
+
         
         # Linear layers for transforming inputs
-        self.weight_query   = nn.Linear(d_model, d_model) # Query transformation
-        self.weight_key     = nn.Linear(d_model, d_model) # Key transformation
-        self.weight_value   = nn.Linear(d_model, d_model) # Value transformation
-        self.weight_output  = nn.Linear(d_model, d_model) # Output transformation
+        self.weight_query   = nn.Linear(in_features = dim_model, out_features = dim_model) # Query transformation
+        self.weight_key     = nn.Linear(in_features = dim_model, out_features = dim_model) # Key transformation
+        self.weight_value   = nn.Linear(in_features = dim_model, out_features = dim_model) # Value transformation
+        self.weight_output  = nn.Linear(in_features = dim_model, out_features = dim_model) # Output transformation
     #-------------------------------------------------------------------------
     #-------------------------------------------------------------------------
     def scaled_dot_product_attention(self, query, key, value, mask=None):
@@ -71,7 +80,7 @@ class MultiHeadAttention(nn.Module):
         # After applying attention to each head separately, this method combines the results back into a single tensor 
         #   of shape (batch_size, seq_length, d_model). This prepares the result for further processing
         batch_size, _, seq_length, d_k = x.size()
-        return x.transpose(1, 2).contiguous().view(batch_size, seq_length, self.d_model)
+        return x.transpose(1, 2).contiguous().view(batch_size, seq_length, self.dim_model)
     #-------------------------------------------------------------------------
     #------------------------------------------------------------------------- 
     def forward(self, query, key, value, mask=None):
@@ -99,15 +108,22 @@ class PositionWiseFeedForward(nn.Module):
     attention mechanisms within the transformer, acting as an additional processing step for the attention outputs
     """
     #-------------------------------------------------------------------------
-    def __init__(self, d_model, d_ff):
+    def __init__(self, dim_model, dim_feedforward):
         super(PositionWiseFeedForward, self).__init__()
-        # notes: 
-        # d_model: Dimensionality of the model's input and output
-        # d_ff: Dimensionality of the inner layer in the feed-forward network
-        
-        # self.fc1 and self.fc2 - two fully connected (linear) layers with input and output dimensions as defined by d_model and d_ff
-        self.fc1  = nn.Linear( d_model, d_ff )
-        self.fc2  = nn.Linear( d_ff, d_model )
+        r"""
+        dim_model: Dimensionality of the model's input and output
+        dim_feedforward: Dimensionality of the inner layer in the feed-forward network
+        """
+        print('PositionWiseFeedForward - __init__')
+
+        # dim_model:       512
+        # dim_feedforward: 2048
+
+       
+        # self.full_conn_layer_1 and self.full_conn_layer_2 - two fully connected (linear) layers 
+        #   with input and output dimensions as defined by dim_model and dim_feedforward
+        self.full_conn_layer_1  = nn.Linear( in_features = dim_model, out_features = dim_feedforward ) # 512 , 2048
+        self.full_conn_layer_2  = nn.Linear( in_features = dim_feedforward, out_features = dim_model ) # 2048, 512
         self.relu = nn.ReLU() # activation function, which introduces non-linearity between the two linear layers
     #-------------------------------------------------------------------------
     #-------------------------------------------------------------------------
@@ -119,7 +135,7 @@ class PositionWiseFeedForward(nn.Module):
         #   all negative values with zeros, introducing non-linearity into the model.
         # self.fc2(...): The activated output is then passed through the second linear layer (fc2), producing 
         #   the final output.        
-        return self.fc2(self.relu(self.fc1(x)))
+        return self.full_conn_layer_2(self.relu(self.full_conn_layer_1(x)))
     #-------------------------------------------------------------------------
 #-------------------------------------------------------------------------   
 #-------------------------------------------------------------------------
@@ -140,8 +156,7 @@ class PositionalEncoding(nn.Module):
         # max_seq_length: The maximum length of the sequence for which positional encodings are pre-computed - 100
 
         print(f'\nPositionalEncoding - __init__')
-        print(f'dim_model_input: {dim_model_input}')
-        print(f'max_seq_length:  {max_seq_length}')
+
 
         #                           100             512                torch.Size([100, 512])
         pos_encodings = torch.zeros(max_seq_length, dim_model_input) # tensor filled with zeros, which will be populated with positional encodings
@@ -228,10 +243,14 @@ class PositionalEncoding(nn.Module):
             exit()
         #-------------------------------------------------------------------------
         # data_check()
-        
+    
+
+
+        # [1, 100, 512]
+        pos_encodings = pos_encodings.unsqueeze(0) # from originally [100, 512] to [1, 100, 512]
 
         # pe is registered as a buffer, which means it will be part of the module's state but will not be considered a trainable parameter
-        self.register_buffer('pe', pos_encodings.unsqueeze(0))
+        self.register_buffer(name = 'pe', tensor = pos_encodings)
     #-------------------------------------------------------------------------
     #-------------------------------------------------------------------------
     def forward(self, x):
@@ -251,19 +270,27 @@ class EncoderLayer(nn.Module):
     of a transformer model    
     """
     #-------------------------------------------------------------------------
-    def __init__(self, d_model, num_heads, d_ff, dropout):
+    def __init__(self, dim_model, num_heads, dim_feedforward, dropout):
         super(EncoderLayer, self).__init__()
+        r"""
+        dim_model: The dimensionality of the input. 
+        num_heads: The number of attention heads in the multi-head attention.
+        dim_feedforward: The dimensionality of the inner layer in the position-wise feed-forward network.
+        dropout: The dropout rate used for regularization
+        """
+        # dim_model:       512
+        # num_heads:       8
+        # dim_feedforward: 2048
+        # dropout:         0.1
 
-        # d_model: The dimensionality of the input.
-        # num_heads: The number of attention heads in the multi-head attention.
-        # d_ff: The dimensionality of the inner layer in the position-wise feed-forward network.
-        # dropout: The dropout rate used for regularization
+        print('EncoderLayer - __init__')
 
-        self.self_attn    = MultiHeadAttention(d_model, num_heads) # Multi-head attention mechanism
-        self.feed_forward = PositionWiseFeedForward(d_model, d_ff) # Position-wise feed-forward neural network
-        self.norm1   = nn.LayerNorm(d_model) # self.norm1 and self.norm2: Layer normalization, applied to smooth the layer's input
-        self.norm2   = nn.LayerNorm(d_model) # see above
-        self.dropout = nn.Dropout(dropout)   # Dropout layer, used to prevent overfitting by randomly setting some activations to zero during training
+
+        self.self_mult_head_attn = MultiHeadAttention(dim_model = dim_model, num_heads = num_heads) # Multi-head attention mechanism
+        self.feed_forward = PositionWiseFeedForward(dim_model = dim_model, dim_feedforward = dim_feedforward) # Position-wise feed-forward neural network
+        self.layer_norm1  = nn.LayerNorm(normalized_shape = dim_model) # self.layer_norm1 and self.layer_norm2: Layer normalization, applied to smooth the layer's input
+        self.layer_norm2  = nn.LayerNorm(normalized_shape = dim_model) # see above
+        self.dropout = nn.Dropout(p = dropout)   # Dropout layer, used to prevent overfitting by randomly setting some activations to zero during training
     #-------------------------------------------------------------------------
     #-------------------------------------------------------------------------        
     def forward(self, x, mask):
@@ -271,10 +298,10 @@ class EncoderLayer(nn.Module):
         # x: The input to the encoder layer.
         # mask: Optional mask to ignore certain parts of the input.
 
-        attn_output = self.self_attn( x, x, x, mask )             # Self-Attention: The input x is passed through the multi-head self-attention mechanism
-        x           = self.norm1( x + self.dropout(attn_output) ) # Add & Normalize (after Attention): The attention output is added to the original input (residual connection), followed by dropout and normalization using norm1
+        attn_output = self.self_mult_head_attn( x, x, x, mask )             # Self-Attention: The input x is passed through the multi-head self-attention mechanism
+        x           = self.layer_norm1( x + self.dropout(attn_output) ) # Add & Normalize (after Attention): The attention output is added to the original input (residual connection), followed by dropout and normalization using norm1
         ff_output   = self.feed_forward( x )                      # Feed-Forward Network: The output from the previous step is passed through the position-wise feed-forward network
-        x           = self.norm2( x + self.dropout(ff_output) )   # Add & Normalize (after Feed-Forward): Similar to step 2, the feed-forward output is added to the input of this stage (residual connection), followed by dropout and normalization using norm2
+        x           = self.layer_norm2( x + self.dropout(ff_output) )   # Add & Normalize (after Feed-Forward): Similar to step 2, the feed-forward output is added to the input of this stage (residual connection), followed by dropout and normalization using norm2
 
         return x # Output: The processed tensor is returned as the output of the encoder layer
     #-------------------------------------------------------------------------
@@ -291,21 +318,23 @@ class DecoderLayer(nn.Module):
     decoder part of a transformer model.    
     """
     #-------------------------------------------------------------------------
-    def __init__(self, d_model, num_heads, d_ff, dropout):
+    def __init__(self, dim_model, num_heads, dim_feedforward, dropout):
         super(DecoderLayer, self).__init__()
 
-        # d_model: The dimensionality of the input.
+        # dim_model: The dimensionality of the input.
         # num_heads: The number of attention heads in the multi-head attention.
-        # d_ff: The dimensionality of the inner layer in the feed-forward network.
+        # dim_feedforward: The dimensionality of the inner layer in the feed-forward network.
         # dropout: The dropout rate for regularization.
 
-        self.self_attn    = MultiHeadAttention(d_model, num_heads) # Multi-head self-attention mechanism for the target sequence
-        self.cross_attn   = MultiHeadAttention(d_model, num_heads) # Multi-head attention mechanism that attends to the encoder's output
-        self.feed_forward = PositionWiseFeedForward(d_model, d_ff) # Position-wise feed-forward neural network
-        self.norm1        = nn.LayerNorm(d_model)                  # Layer normalization components
-        self.norm2        = nn.LayerNorm(d_model)                  # same as above
-        self.norm3        = nn.LayerNorm(d_model)                  # same as above
-        self.dropout      = nn.Dropout(dropout)                    # Dropout layer for regularization
+        print('DecoderLayer - __init__')
+
+        self.self_mult_head_attn  = MultiHeadAttention(dim_model = dim_model, num_heads = num_heads) # Multi-head self-attention mechanism for the target sequence
+        self.cross_mult_head_attn = MultiHeadAttention(dim_model = dim_model, num_heads = num_heads) # Multi-head attention mechanism that attends to the encoder's output
+        self.feed_forward = PositionWiseFeedForward(dim_model, dim_feedforward) # Position-wise feed-forward neural network
+        self.norm_layer1  = nn.LayerNorm(dim_model) # Layer normalization components
+        self.norm_layer2  = nn.LayerNorm(dim_model) # same as above
+        self.norm_layer3  = nn.LayerNorm(dim_model) # same as above
+        self.dropout      = nn.Dropout(dropout)     # Dropout layer for regularization
     #-------------------------------------------------------------------------
     #-------------------------------------------------------------------------    
     def forward(self, x, enc_output, src_mask, tgt_mask):
@@ -315,12 +344,12 @@ class DecoderLayer(nn.Module):
         src_mask: Source mask to ignore certain parts of the encoder's output.
         tgt_mask: Target mask to ignore certain parts of the decoder's input
         """
-        attn_output = self.self_attn( x, x, x, tgt_mask )                    # Self-Attention on Target Sequence: The input x is processed through a self-attention mechanism.
-        x           = self.norm1( x + self.dropout(attn_output) )            # Add & Normalize (after Self-Attention): The output from self-attention is added to the original x, followed by dropout and normalization using norm1.
-        attn_output = self.cross_attn( x, enc_output, enc_output, src_mask ) # Cross-Attention with Encoder Output: The normalized output from the previous step is processed through a cross-attention mechanism that attends to the encoder's output enc_output.
-        x           = self.norm2( x + self.dropout(attn_output) )            # Add & Normalize (after Cross-Attention): The output from cross-attention is added to the input of this stage, followed by dropout and normalization using norm2.
+        attn_output = self.self_mult_head_attn( x, x, x, tgt_mask )                    # Self-Attention on Target Sequence: The input x is processed through a self-attention mechanism.
+        x           = self.norm_layer1( x + self.dropout(attn_output) )            # Add & Normalize (after Self-Attention): The output from self-attention is added to the original x, followed by dropout and normalization using norm1.
+        attn_output = self.cross_mult_head_attn( x, enc_output, enc_output, src_mask ) # Cross-Attention with Encoder Output: The normalized output from the previous step is processed through a cross-attention mechanism that attends to the encoder's output enc_output.
+        x           = self.norm_layer2( x + self.dropout(attn_output) )            # Add & Normalize (after Cross-Attention): The output from cross-attention is added to the input of this stage, followed by dropout and normalization using norm2.
         ff_output   = self.feed_forward( x)                                  # Feed-Forward Network: The output from the previous step is passed through the feed-forward network.
-        x           = self.norm3( x + self.dropout(ff_output) )              # Add & Normalize (after Feed-Forward): The feed-forward output is added to the input of this stage, followed by dropout and normalization using norm3.
+        x           = self.norm_layer3( x + self.dropout(ff_output) )              # Add & Normalize (after Feed-Forward): The feed-forward output is added to the input of this stage, followed by dropout and normalization using norm3.
 
         return x # Output: The processed tensor is returned as the output of the decoder layer.
     #-------------------------------------------------------------------------
@@ -379,33 +408,44 @@ class Transformer(nn.Module):
         )
           
 
-        self.positional_encoding = PositionalEncoding( dim_model_embeddings, max_seq_length )  # Positional encoding component
+        
+        self.positional_encoding = PositionalEncoding(  # Positional encoding component
+            dim_model_input = dim_model_embeddings, # 512
+            max_seq_length  = max_seq_length        # 100
+        )  
 
         #-------
         list_encoder_layers = []
         list_decoder_layers = []
+
+        print('\n-------------')
+        print('Loop object creation')
+        print('-------------')
         for _ in range(num_layers):
+            
             temp = EncoderLayer(
-                d_model     = dim_model_embeddings, 
-                num_heads   = num_heads, 
-                d_ff        = dim_inner_feedforward, 
-                dropout     = dropout
+                dim_model       = dim_model_embeddings,  # 512
+                num_heads       = num_heads,             # 8
+                dim_feedforward = dim_inner_feedforward, # 2048
+                dropout         = dropout                # 0.1
             )
             list_encoder_layers.append( temp )
-
+            print('---')
             temp = DecoderLayer(
-                d_model     = dim_model_embeddings,  
-                num_heads   = num_heads, 
-                d_ff        = dim_inner_feedforward, 
-                dropout     = dropout
+                dim_model       = dim_model_embeddings,  # 512
+                num_heads       = num_heads,             # 8
+                dim_feedforward = dim_inner_feedforward, # 2048
+                dropout         = dropout                # 0.1
             ) 
             list_decoder_layers.append( temp )
+            
+        print('-------------')
 
-        self.encoder_layers = nn.ModuleList(list_encoder_layers) # A list of encoder layers
-        self.decoder_layers = nn.ModuleList(list_decoder_layers) # A list of decoder layers
+        self.encoder_layers = nn.ModuleList(modules = list_encoder_layers) # A list of encoder layers
+        self.decoder_layers = nn.ModuleList(modules = list_decoder_layers) # A list of decoder layers
         #-------
 
-        self.fc      = nn.Linear( dim_model_embeddings, tgt_vocab_size ) # Final fully connected (linear) layer mapping to target vocabulary size
+        self.fully_connected_layer = nn.Linear( in_features = dim_model_embeddings, out_features = tgt_vocab_size ) # Final fully connected (linear) layer mapping to target vocabulary size
         self.dropout = nn.Dropout( dropout ) # Dropout layer
     #-------------------------------------------------------------------------
     #-------------------------------------------------------------------------
@@ -446,7 +486,7 @@ class Transformer(nn.Module):
         for dec_layer in self.decoder_layers:
             dec_output = dec_layer(dec_output, enc_output, src_mask, tgt_mask)
 
-        output = self.fc(dec_output)
+        output = self.fully_connected_layer(dec_output)
         return output # output is a tensor representing the model's predictions for the target sequence
     #-------------------------------------------------------------------------
 #-------------------------------------------------------------------------   
@@ -484,6 +524,8 @@ def sample_data_preparation():
         max_seq_length          = max_seq_length, 
         dropout                 = dropout
     )
+    print(f'transformer object created')
+    exit()
 
     # Generate random sample data
     #  Random integers between 1 and tgt_vocab_size, representing a batch of target sequences with shape (64, max_seq_length)
