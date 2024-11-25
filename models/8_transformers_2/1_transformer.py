@@ -463,7 +463,7 @@ class Transformer(nn.Module):
         return src_mask, tgt_mask
     #-------------------------------------------------------------------------
     #-------------------------------------------------------------------------
-    def forward(self, src, tgt):
+    def forward(self, source_data, target_data):
         """
         Input Embedding and Positional Encoding: The source and target sequences are first embedded using 
           their respective embedding layers and then added to their positional encodings.
@@ -474,9 +474,9 @@ class Transformer(nn.Module):
         Final Linear Layer: The decoder's output is mapped to the target vocabulary size using a fully 
           connected (linear) layer.        
         """
-        src_mask, tgt_mask  = self.generate_mask(src, tgt)
-        src_embedded        = self.dropout(self.positional_encoding(self.encoder_embedding(src)))
-        tgt_embedded        = self.dropout(self.positional_encoding(self.decoder_embedding(tgt)))
+        src_mask, tgt_mask  = self.generate_mask(source_data, target_data)
+        src_embedded        = self.dropout(self.positional_encoding(self.encoder_embedding(source_data)))
+        tgt_embedded        = self.dropout(self.positional_encoding(self.decoder_embedding(target_data)))
 
         enc_output = src_embedded
         for enc_layer in self.encoder_layers:
@@ -588,22 +588,32 @@ def training(transformer, src_data, tgt_data, tgt_vocab_size):
 
     criterion = nn.CrossEntropyLoss(ignore_index=0)
 
-    # Defines the optimizer as Adam with a learning rate of 0.0001 and specific beta values
+    r"""
+    Defines the optimizer as Adam with a learning rate of 0.0001 and specific beta values
+    b1 Controls the exponential decay rate for the moving average of the gradients  m_t
+    b2 Controls the exponential decay rate for the moving average of the squared gradients  v_t
+    Betas default values are (0.9, 0.999) - for noisy gradients try to reduce b1 to 0.8, and for
+    sparse data decrease b2 to 0.9
+    eps is a very small number to prevent division by zero
+    """
     optimizer = optim.Adam(params = transformer.parameters(), lr=0.0001, betas=(0.9, 0.98), eps=1e-9)
 
     # Sets the transformer model to training mode, enabling behaviors like dropout that only apply during training
     transformer.train()
 
+    #------------------------------
     for epoch in range(100):
         optimizer.zero_grad() # Clears the gradients from the previous iteration
 
         # Passes the source data and the target data (excluding the last token in each sequence) through the 
         #   transformer. This is common in sequence-to-sequence tasks where the target is shifted by one token
-        output = transformer(src_data, tgt_data[:, :-1])
+        output = transformer(source_data = src_data, target_data = tgt_data[:, :-1])
+        exit()
         loss = criterion(output.contiguous().view(-1, tgt_vocab_size), tgt_data[:, 1:].contiguous().view(-1))
         loss.backward()
         optimizer.step()
         print(f"Epoch: {epoch+1}, Loss: {loss.item()}")
+    #------------------------------
 
     return {
         'criterion': criterion
