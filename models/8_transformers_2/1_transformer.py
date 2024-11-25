@@ -578,13 +578,6 @@ def training(transformer, src_data, tgt_data, tgt_vocab_size):
     # Defines the loss function as cross-entropy loss. The ignore_index argument is set to 0, meaning 
     #   the loss will not consider targets with an index of 0 (typically reserved for padding tokens)
 
-    print(f'-------------------')
-    print(f'training')
-    print(f'src_data.shape: {src_data.shape}')
-    print(f'tgt_data.shape: {tgt_data.shape}')
-    print(f'tgt_vocab_size: {tgt_vocab_size}')
-    exit()
-
 
     criterion = nn.CrossEntropyLoss(ignore_index=0)
 
@@ -598,6 +591,14 @@ def training(transformer, src_data, tgt_data, tgt_vocab_size):
     """
     optimizer = optim.Adam(params = transformer.parameters(), lr=0.0001, betas=(0.9, 0.98), eps=1e-9)
 
+    print(f'tgt_data shape: {tgt_data.shape}')
+    print(f'tgt_data:\n{tgt_data}')
+    print(f'\n\ntgt_data[:, :-1]:\n{tgt_data[:, :-1]}')
+    exit()
+
+
+
+
     # Sets the transformer model to training mode, enabling behaviors like dropout that only apply during training
     transformer.train()
 
@@ -609,6 +610,7 @@ def training(transformer, src_data, tgt_data, tgt_vocab_size):
         #   transformer. This is common in sequence-to-sequence tasks where the target is shifted by one token
         output = transformer(source_data = src_data, target_data = tgt_data[:, :-1])
         exit()
+        
         loss = criterion(output.contiguous().view(-1, tgt_vocab_size), tgt_data[:, 1:].contiguous().view(-1))
         loss.backward()
         optimizer.step()
