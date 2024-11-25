@@ -513,6 +513,9 @@ def sample_data_preparation():
     d_ff            = 2048 # Dimension of the inner layer in the feed-forward network
     max_seq_length  = 100
     dropout         = 0.1
+    batch_size      = 64
+    min_value       = 1
+
 
     transformer = Transformer(
         src_vocab_size          = src_vocab_size, 
@@ -524,21 +527,24 @@ def sample_data_preparation():
         max_seq_length          = max_seq_length, 
         dropout                 = dropout
     )
-    print(f'transformer object created')
-    exit()
+
+
 
     # Generate random sample data
     #  Random integers between 1 and tgt_vocab_size, representing a batch of target sequences with shape (64, max_seq_length)
-    src_data = torch.randint( low = 1, high = src_vocab_size, size = (64, max_seq_length) )  # (batch_size, seq_length)
-    tgt_data = torch.randint( low = 1, high = tgt_vocab_size, size = (64, max_seq_length) )  # (batch_size, seq_length)
+    #                               1                 5000                    64          100
+    src_data = torch.randint( low = min_value, high = src_vocab_size, size = (batch_size, max_seq_length) )  # (batch_size, seq_length) [64,100]
+    tgt_data = torch.randint( low = min_value, high = tgt_vocab_size, size = (batch_size, max_seq_length) )  # (batch_size, seq_length) [64,100]
 
+    
     return {
         'transformer'       : transformer,
-        'src_data'          : src_data,
-        'tgt_data'          : tgt_data,
-        'tgt_vocab_size'    : tgt_vocab_size,
-        'src_vocab_size'    : src_vocab_size,
-        'max_seq_length'    : max_seq_length
+        'src_data'          : src_data,        # [64,100]
+        'tgt_data'          : tgt_data,        # [64,100]
+        'tgt_vocab_size'    : tgt_vocab_size,  # 5000
+        'src_vocab_size'    : src_vocab_size,  # 5000
+        'max_seq_length'    : max_seq_length,  # 100
+        'batch_size'        : batch_size       # 64
     }
 #-------------------------------------------------------------------------  
 #-------------------------------------------------------------------------  
@@ -552,9 +558,9 @@ def execute_part1():
         'src_vocab_size': result_sample_data_preparation['src_vocab_size'],
         'max_seq_length': result_sample_data_preparation['max_seq_length']
     }
+
 #-------------------------------------------------------------------------  
 result_part1 = execute_part1()
-
 ##########################################################################
 ##
 ##  PART 2
@@ -571,10 +577,19 @@ def training(transformer, src_data, tgt_data, tgt_vocab_size):
     """
     # Defines the loss function as cross-entropy loss. The ignore_index argument is set to 0, meaning 
     #   the loss will not consider targets with an index of 0 (typically reserved for padding tokens)
+
+    print(f'-------------------')
+    print(f'training')
+    print(f'src_data.shape: {src_data.shape}')
+    print(f'tgt_data.shape: {tgt_data.shape}')
+    print(f'tgt_vocab_size: {tgt_vocab_size}')
+    exit()
+
+
     criterion = nn.CrossEntropyLoss(ignore_index=0)
 
     # Defines the optimizer as Adam with a learning rate of 0.0001 and specific beta values
-    optimizer = optim.Adam(transformer.parameters(), lr=0.0001, betas=(0.9, 0.98), eps=1e-9)
+    optimizer = optim.Adam(params = transformer.parameters(), lr=0.0001, betas=(0.9, 0.98), eps=1e-9)
 
     # Sets the transformer model to training mode, enabling behaviors like dropout that only apply during training
     transformer.train()
@@ -596,7 +611,13 @@ def training(transformer, src_data, tgt_data, tgt_vocab_size):
 #-------------------------------------------------------------------------
 #-------------------------------------------------------------------------
 def execute_part2(transformer, src_data, tgt_data, tgt_vocab_size):
-    result_training = training(transformer=transformer, src_data = src_data, tgt_data = tgt_data, tgt_vocab_size = tgt_vocab_size)
+    result_training = training(
+        transformer     = transformer, 
+        src_data        = src_data, 
+        tgt_data        = tgt_data, 
+        tgt_vocab_size  = tgt_vocab_size
+    )
+
     return {
         'criterion': result_training['criterion']
     }
