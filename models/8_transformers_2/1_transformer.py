@@ -575,10 +575,13 @@ def training(transformer, src_data, tgt_data, tgt_vocab_size):
     you would replace the random source and target sequences with actual data from your task, such 
     as machine translation
     """
+    
+    # src_data: [64, 100] -> [batch_size, max_seq_length]
+    # tgt_data: [64, 100] -> [batch_size, max_seq_length]
+    
+    
     # Defines the loss function as cross-entropy loss. The ignore_index argument is set to 0, meaning 
     #   the loss will not consider targets with an index of 0 (typically reserved for padding tokens)
-
-
     criterion = nn.CrossEntropyLoss(ignore_index=0)
 
     r"""
@@ -591,12 +594,6 @@ def training(transformer, src_data, tgt_data, tgt_vocab_size):
     """
     optimizer = optim.Adam(params = transformer.parameters(), lr=0.0001, betas=(0.9, 0.98), eps=1e-9)
 
-    print(f'tgt_data shape: {tgt_data.shape}')
-    print(f'tgt_data:\n{tgt_data}')
-    print(f'\n\ntgt_data[:, :-1]:\n{tgt_data[:, :-1]}')
-    exit()
-
-
 
 
     # Sets the transformer model to training mode, enabling behaviors like dropout that only apply during training
@@ -608,10 +605,35 @@ def training(transformer, src_data, tgt_data, tgt_vocab_size):
 
         # Passes the source data and the target data (excluding the last token in each sequence) through the 
         #   transformer. This is common in sequence-to-sequence tasks where the target is shifted by one token
-        output = transformer(source_data = src_data, target_data = tgt_data[:, :-1])
+        # So with the explanation above in mind note that tgt_data[:, :-1] means, select all rows and all columns
+        #   except the last one
+        output = transformer(source_data = src_data, target_data = tgt_data[:, :-1]) # [64, 99, 5000] -> [batch_size, max_seq_length - 1, tgt_vocab_size]
+
+
+        # reshapes the output tensor to a 2D tensor -1 tells pytorch to infer the size of the dimension
+        #   from other dimentions, and tgt_vocab_size is the size of the last dimension of the output tensor
+        #   therefore the output tensor is shaped (batch_size * (max_seq_length - 1), tgt_vocab_size)
+        #   [64, 99, 5000] -> [64*99, 5000] -> [6336, 5000]
+        # note: the contiguous() method allocates a contiguous memory region, which can help avoid potential 
+        #   issues with subsequent operations
+        temp_input_data = output.contiguous().view(-1, tgt_vocab_size) # [6336, 5000]
+        temp_target_data = tgt_data[:, 1:].contiguous().view(-1)
+
+
+        print(f'output type: {type(output)}')
+        print(f'output shape: {output.shape}')
+        print(f'temp_input_data type: {type(temp_input_data)}')
+        print(f'temp_input_data shape: {temp_input_data.shape}')
+        print(f'temp_target_data type: {type(temp_target_data)}')
+        print(f'temp_target_data shape: {temp_target_data.shape}')
         exit()
         
-        loss = criterion(output.contiguous().view(-1, tgt_vocab_size), tgt_data[:, 1:].contiguous().view(-1))
+        loss = criterion(
+            input = temp_input_data, 
+            target = temp_target_data
+        )
+        print('after criterion')
+        exit()
         loss.backward()
         optimizer.step()
         print(f"Epoch: {epoch+1}, Loss: {loss.item()}")
