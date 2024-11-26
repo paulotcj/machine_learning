@@ -454,11 +454,85 @@ class Transformer(nn.Module):
         This method is used to create masks for the source and target sequences, ensuring that padding 
         tokens are ignored and that future tokens are not visible during training for the target sequence
         """
-        src_mask    = (source_data != 0).unsqueeze(1).unsqueeze(2)
-        tgt_mask    = (target_data != 0).unsqueeze(1).unsqueeze(3)
-        seq_length  = target_data.size(1)
-        nopeak_mask = (1 - torch.triu(torch.ones(1, seq_length, seq_length), diagonal=1)).bool()
-        tgt_mask    = tgt_mask & nopeak_mask
+
+        # source_data : [64,100] -> [batch_size, max_seq_length]
+        # target_data : [64,99] -> [batch_size, max_seq_length - 1]
+
+        """
+        (source_data != 0) -> creates a tensor where each element is True if the corresponding 
+          element is not equal to 0 (and false otherwise)
+        .unsqueeze(1) -> adds a dimension at index 1
+        .unsqueeze(2) -> adds a dimension at index 2
+        """
+        src_mask      = (source_data != 0).unsqueeze(1).unsqueeze(2) # [64, 1, 1, 100]
+        tgt_mask_temp = (target_data != 0).unsqueeze(1).unsqueeze(3) # [64, 1, 99, 1]
+        seq_length    = target_data.size(1)                          # [64,99] idx 1 -> 99
+
+        ones_3d_matrix = torch.ones(1, seq_length, seq_length)         # [1, 99, 99]
+
+        """
+        tensor([[0., 1., 1.,  ..., 1., 1., 1.],
+                [0., 0., 1.,  ..., 1., 1., 1.],
+                [0., 0., 0.,  ..., 1., 1., 1.],
+                ...,
+                [0., 0., 0.,  ..., 0., 1., 1.],
+                [0., 0., 0.,  ..., 0., 0., 1.],
+                [0., 0., 0.,  ..., 0., 0., 0.]])
+        """
+        upper_triangular_mask = torch.triu(ones_3d_matrix, diagonal=1) # [1, 99, 99]
+
+        """
+        this will transform the upper_triangular_mask, the new values are now True or False, and
+          where it was 0 before now it's True, and where it was 1 before now it's False
+        
+            tensor([[ True, False, False,  ..., False, False, False],
+                    [ True,  True, False,  ..., False, False, False],
+                    [ True,  True,  True,  ..., False, False, False],
+                    ...,
+                    [ True,  True,  True,  ...,  True, False, False],
+                    [ True,  True,  True,  ...,  True,  True, False],
+                    [ True,  True,  True,  ...,  True,  True,  True]])        
+        """
+        nopeak_mask   = (1 - upper_triangular_mask).bool()  # [1, 99, 99]
+
+        #               [64, 1, 99, 1]  [1, 99, 99]
+        tgt_mask      = tgt_mask_temp & nopeak_mask         # [64, 1, 99, 99]
+
+
+        #-------------------------------------------------------------------------
+        def check_data():
+
+            print(f'\n\nsrc_mask shape: {src_mask.shape}')
+            print(f'tgt_mask_temp shape: {tgt_mask_temp.shape}')
+            print(f'seq_length: {seq_length}')
+            
+            print('\n\n')
+            
+
+            print(f'ones_3d_matrix shape: {ones_3d_matrix.shape}')
+            for k, v in enumerate(ones_3d_matrix):
+                print(f'k: {k} - \n{v}')
+
+            print(f'\n\nupper_triangular_mask shape: {upper_triangular_mask.shape}')
+            for k, v in enumerate(upper_triangular_mask):
+                print(f'k: {k} - \n{v}')
+
+
+            print(f'\n\nnopeak_mask shape: {nopeak_mask.shape}')
+            for k, v in enumerate(nopeak_mask):
+                print(f'k: {k} - \n{v}')
+
+            print(f'\n\ntgt_mask shape: {tgt_mask.shape}')
+            for k, v in enumerate(tgt_mask):
+                print(f'k: {k} - \n{v}')
+
+            print('\n\n')
+            print(f'tgt_mask_temp shape: {tgt_mask_temp.shape}')
+            print(f'nopeak_mask shape: {nopeak_mask.shape}')
+            print(f'tgt_mask shape: {tgt_mask.shape}')
+        #-------------------------------------------------------------------------
+        check_data()
+        exit()        
 
         return src_mask, tgt_mask
     #-------------------------------------------------------------------------
@@ -483,7 +557,7 @@ class Transformer(nn.Module):
         src_dt_embedded = self.encoder_embedding(source_data)
         src_dt_emb_pos  = self.positional_encoding(src_dt_embedded)
 
-        src_mask, tgt_mask  = self.generate_mask(source_data=source_data, target_data=target_data)
+        src_mask, tgt_mask  = self.generate_mask(source_data = source_data, target_data = target_data)
         src_embedded        = self.dropout( self.positional_encoding(self.encoder_embedding(source_data)) )
         tgt_embedded        = self.dropout( self.positional_encoding(self.decoder_embedding(target_data)) )
 
@@ -617,10 +691,10 @@ def training(transformer, src_data, tgt_data, tgt_vocab_size):
         # So with the explanation above in mind note that tgt_data[:, :-1] means, select all rows and all columns
         #   except the last one
         temp_target_data = tgt_data[:, :-1]
-        print('at training - BEFORE calling transformer forward pass')
+        # print('at training - BEFORE calling transformer forward pass')
         output = transformer(source_data = src_data, target_data = temp_target_data) # [64, 99, 5000] -> [batch_size, max_seq_length - 1, tgt_vocab_size]
-        print('at training - AFTER calling transformer forward pass')
-        exit()
+        # print('at training - AFTER calling transformer forward pass')
+        # exit()
         
 
         #-------------------------------------
