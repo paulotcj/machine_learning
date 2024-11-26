@@ -617,15 +617,22 @@ def training(transformer, src_data, tgt_data, tgt_vocab_size):
         # note: the contiguous() method allocates a contiguous memory region, which can help avoid potential 
         #   issues with subsequent operations
         temp_input_data = output.contiguous().view(-1, tgt_vocab_size) # [6336, 5000]
-        temp_target_data = tgt_data[:, 1:].contiguous().view(-1)
+        
+        # select all rows, and all columns except the first one [idx 0], then reshape the 2D  tensor into
+        #   1D tensor, where .view(-1) means to infer the size of the dimension from the other dimensions
+        # [6336]                   [64,99]      
+        temp_target_data = tgt_data[:, 1:].contiguous().view(-1) []
 
 
-        print(f'output type: {type(output)}')
+        print('----')
         print(f'output shape: {output.shape}')
-        print(f'temp_input_data type: {type(temp_input_data)}')
         print(f'temp_input_data shape: {temp_input_data.shape}')
-        print(f'temp_target_data type: {type(temp_target_data)}')
-        print(f'temp_target_data shape: {temp_target_data.shape}')
+
+        print('----')
+
+        print(f'tgt_data shape: {tgt_data.shape}') # [64, 100]
+        print(f'tgt_data[:, 1:] shape: {tgt_data[:, 1:].shape}') # [64, 99]
+        print(f'temp_target_data shape: {temp_target_data.shape}') # [6336]
         exit()
         
         loss = criterion(
