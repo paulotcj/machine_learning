@@ -449,14 +449,14 @@ class Transformer(nn.Module):
         self.dropout = nn.Dropout( dropout ) # Dropout layer
     #-------------------------------------------------------------------------
     #-------------------------------------------------------------------------
-    def generate_mask(self, src, tgt):
+    def generate_mask(self, source_data, target_data):
         """
         This method is used to create masks for the source and target sequences, ensuring that padding 
         tokens are ignored and that future tokens are not visible during training for the target sequence
         """
-        src_mask    = (src != 0).unsqueeze(1).unsqueeze(2)
-        tgt_mask    = (tgt != 0).unsqueeze(1).unsqueeze(3)
-        seq_length  = tgt.size(1)
+        src_mask    = (source_data != 0).unsqueeze(1).unsqueeze(2)
+        tgt_mask    = (target_data != 0).unsqueeze(1).unsqueeze(3)
+        seq_length  = target_data.size(1)
         nopeak_mask = (1 - torch.triu(torch.ones(1, seq_length, seq_length), diagonal=1)).bool()
         tgt_mask    = tgt_mask & nopeak_mask
 
@@ -474,9 +474,18 @@ class Transformer(nn.Module):
         Final Linear Layer: The decoder's output is mapped to the target vocabulary size using a fully 
           connected (linear) layer.        
         """
-        src_mask, tgt_mask  = self.generate_mask(source_data, target_data)
-        src_embedded        = self.dropout(self.positional_encoding(self.encoder_embedding(source_data)))
-        tgt_embedded        = self.dropout(self.positional_encoding(self.decoder_embedding(target_data)))
+
+        print('Transformer - forward')
+
+        # source_data: [64, 100]
+        # target_data: [64, 99]
+
+        src_dt_embedded = self.encoder_embedding(source_data)
+        src_dt_emb_pos  = self.positional_encoding(src_dt_embedded)
+
+        src_mask, tgt_mask  = self.generate_mask(source_data=source_data, target_data=target_data)
+        src_embedded        = self.dropout( self.positional_encoding(self.encoder_embedding(source_data)) )
+        tgt_embedded        = self.dropout( self.positional_encoding(self.decoder_embedding(target_data)) )
 
         enc_output = src_embedded
         for enc_layer in self.encoder_layers:
@@ -607,9 +616,14 @@ def training(transformer, src_data, tgt_data, tgt_vocab_size):
         #   transformer. This is common in sequence-to-sequence tasks where the target is shifted by one token
         # So with the explanation above in mind note that tgt_data[:, :-1] means, select all rows and all columns
         #   except the last one
-        output = transformer(source_data = src_data, target_data = tgt_data[:, :-1]) # [64, 99, 5000] -> [batch_size, max_seq_length - 1, tgt_vocab_size]
+        temp_target_data = tgt_data[:, :-1]
+        print('at training - BEFORE calling transformer forward pass')
+        output = transformer(source_data = src_data, target_data = temp_target_data) # [64, 99, 5000] -> [batch_size, max_seq_length - 1, tgt_vocab_size]
+        print('at training - AFTER calling transformer forward pass')
+        exit()
+        
 
-
+        #-------------------------------------
         # reshapes the output tensor to a 2D tensor -1 tells pytorch to infer the size of the dimension
         #   from other dimentions, and tgt_vocab_size is the size of the last dimension of the output tensor
         #   therefore the output tensor is shaped (batch_size * (max_seq_length - 1), tgt_vocab_size)
@@ -621,26 +635,14 @@ def training(transformer, src_data, tgt_data, tgt_vocab_size):
         # select all rows, and all columns except the first one [idx 0], then reshape the 2D  tensor into
         #   1D tensor, where .view(-1) means to infer the size of the dimension from the other dimensions
         # [6336]                   [64,99]      
-        temp_target_data = tgt_data[:, 1:].contiguous().view(-1) []
+        temp_target_data = tgt_data[:, 1:].contiguous().view(-1)
 
 
-        print('----')
-        print(f'output shape: {output.shape}')
-        print(f'temp_input_data shape: {temp_input_data.shape}')
-
-        print('----')
-
-        print(f'tgt_data shape: {tgt_data.shape}') # [64, 100]
-        print(f'tgt_data[:, 1:] shape: {tgt_data[:, 1:].shape}') # [64, 99]
-        print(f'temp_target_data shape: {temp_target_data.shape}') # [6336]
-        exit()
-        
         loss = criterion(
-            input = temp_input_data, 
+            input  = temp_input_data, 
             target = temp_target_data
         )
-        print('after criterion')
-        exit()
+        #-------------------------------------
         loss.backward()
         optimizer.step()
         print(f"Epoch: {epoch+1}, Loss: {loss.item()}")
