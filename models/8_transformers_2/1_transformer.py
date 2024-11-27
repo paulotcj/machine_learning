@@ -290,7 +290,7 @@ class EncoderLayer(nn.Module):
         self.feed_forward = PositionWiseFeedForward(dim_model = dim_model, dim_feedforward = dim_feedforward) # Position-wise feed-forward neural network
         self.layer_norm1  = nn.LayerNorm(normalized_shape = dim_model) # self.layer_norm1 and self.layer_norm2: Layer normalization, applied to smooth the layer's input
         self.layer_norm2  = nn.LayerNorm(normalized_shape = dim_model) # see above
-        self.dropout = nn.Dropout(p = dropout)   # Dropout layer, used to prevent overfitting by randomly setting some activations to zero during training
+        self.dropout      = nn.Dropout(p = dropout)   # Dropout layer, used to prevent overfitting by randomly setting some activations to zero during training
     #-------------------------------------------------------------------------
     #-------------------------------------------------------------------------        
     def forward(self, x, mask):
@@ -298,10 +298,31 @@ class EncoderLayer(nn.Module):
         # x: The input to the encoder layer.
         # mask: Optional mask to ignore certain parts of the input.
 
-        attn_output = self.self_mult_head_attn( x, x, x, mask )             # Self-Attention: The input x is passed through the multi-head self-attention mechanism
-        x           = self.layer_norm1( x + self.dropout(attn_output) ) # Add & Normalize (after Attention): The attention output is added to the original input (residual connection), followed by dropout and normalization using norm1
-        ff_output   = self.feed_forward( x )                      # Feed-Forward Network: The output from the previous step is passed through the position-wise feed-forward network
-        x           = self.layer_norm2( x + self.dropout(ff_output) )   # Add & Normalize (after Feed-Forward): Similar to step 2, the feed-forward output is added to the input of this stage (residual connection), followed by dropout and normalization using norm2
+        print('EncoderLayer - forward')
+        
+        # Self-Attention: The input x is passed through the multi-head self-attention mechanism
+        attn_output = self.self_mult_head_attn( 
+            query = x, 
+            key   = x, 
+            value = x, 
+            mask  = mask 
+        ) 
+        
+
+        # Add & Normalize (after Attention): The attention output is added to the original input
+        #   (residual connection), followed by dropout and normalization using norm1        
+        x = self.layer_norm1( input = x + self.dropout(attn_output) ) 
+        
+        
+        # Feed-Forward Network: The output from the previous step is passed through the 
+        #   position-wise feed-forward network
+        ff_output = self.feed_forward( x = x ) 
+        
+
+        # Add & Normalize (after Feed-Forward): Similar to step 2, the feed-forward output is 
+        #   added to the input of this stage (residual connection), followed by dropout and 
+        #   normalization using norm2        
+        x = self.layer_norm2( input = x + self.dropout(ff_output) ) 
 
         return x # Output: The processed tensor is returned as the output of the encoder layer
     #-------------------------------------------------------------------------
@@ -344,13 +365,44 @@ class DecoderLayer(nn.Module):
         src_mask: Source mask to ignore certain parts of the encoder's output.
         tgt_mask: Target mask to ignore certain parts of the decoder's input
         """
-        attn_output = self.self_mult_head_attn( x, x, x, tgt_mask )                    # Self-Attention on Target Sequence: The input x is processed through a self-attention mechanism.
-        x           = self.norm_layer1( x + self.dropout(attn_output) )            # Add & Normalize (after Self-Attention): The output from self-attention is added to the original x, followed by dropout and normalization using norm1.
-        attn_output = self.cross_mult_head_attn( x, enc_output, enc_output, src_mask ) # Cross-Attention with Encoder Output: The normalized output from the previous step is processed through a cross-attention mechanism that attends to the encoder's output enc_output.
-        x           = self.norm_layer2( x + self.dropout(attn_output) )            # Add & Normalize (after Cross-Attention): The output from cross-attention is added to the input of this stage, followed by dropout and normalization using norm2.
-        ff_output   = self.feed_forward( x)                                  # Feed-Forward Network: The output from the previous step is passed through the feed-forward network.
-        x           = self.norm_layer3( x + self.dropout(ff_output) )              # Add & Normalize (after Feed-Forward): The feed-forward output is added to the input of this stage, followed by dropout and normalization using norm3.
+        
+        print('DecoderLayer - forward')
 
+        
+        # Self-Attention on Target Sequence: The input x is processed through a self-attention mechanism.
+        attn_output = self.self_mult_head_attn( 
+            query = x, 
+            key   = x, 
+            value = x, 
+            mask  = tgt_mask 
+        ) 
+        
+        # Add & Normalize (after Self-Attention): The output from self-attention is added to the 
+        #   original x, followed by dropout and normalization using norm1.
+        x = self.norm_layer1( input = x + self.dropout(attn_output) ) 
+
+        # Cross-Attention with Encoder Output: The normalized output from the previous step is 
+        #   processed through a cross-attention mechanism that attends to the encoder's output enc_output.
+        attn_output = self.cross_mult_head_attn( 
+            query = x, 
+            key   = enc_output, 
+            value = enc_output, 
+            mask  = src_mask 
+        ) 
+
+        # Add & Normalize (after Cross-Attention): The output from cross-attention is added to the 
+        #   input of this stage, followed by dropout and normalization using norm2.
+        x = self.norm_layer2( input = x + self.dropout(attn_output) ) 
+
+
+        # Feed-Forward Network: The output from the previous step is passed through the feed-forward network.
+        ff_output = self.feed_forward( x = x ) 
+
+
+        x = self.norm_layer3( input = x + self.dropout(ff_output) )              # Add & Normalize (after Feed-Forward): The feed-forward output is added to the input of this stage, followed by dropout and normalization using norm3.
+
+        print('exiting')
+        exit()
         return x # Output: The processed tensor is returned as the output of the decoder layer.
     #-------------------------------------------------------------------------
 #-------------------------------------------------------------------------   
@@ -385,14 +437,6 @@ class Transformer(nn.Module):
         """
 
         print('\n\nTransformer - __init__')
-        # print(f'src_vocab_size:        {src_vocab_size}')
-        # print(f'tgt_vocab_size:        {tgt_vocab_size}')
-        # print(f'dim_model_embeddings:  {dim_model_embeddings}')
-        # print(f'num_heads:             {num_heads}')
-        # print(f'num_layers:            {num_layers}')
-        # print(f'dim_inner_feedforward: {dim_inner_feedforward}')
-        # print(f'max_seq_length:        {max_seq_length}')
-        # print(f'dropout:               {dropout}')
         
 
         self.encoder_embedding = nn.Embedding( # Embedding layer for the source sequence - Embedding(5000, 512)
@@ -538,11 +582,6 @@ class Transformer(nn.Module):
         """
         tgt_mask = tgt_mask_temp & no_peak_mask # [64, 1, 99, 99]
 
-        print(f'tgt_mask_temp shape: {tgt_mask_temp.shape}')
-        print(f'no_peak_mask shape:  {no_peak_mask.shape}')
-        print(f'tgt_mask shape:      {tgt_mask.shape}')
-        exit()
-
 
         #-------------------------------------------------------------------------
         def check_data():
@@ -576,10 +615,10 @@ class Transformer(nn.Module):
             print(f'nopeak_mask shape: {no_peak_mask.shape}')
             print(f'tgt_mask shape: {tgt_mask.shape}')
         #-------------------------------------------------------------------------
-        check_data()
-        exit()        
-
-        return src_mask, tgt_mask
+        # check_data()
+      
+        #      [64, 1, 1, 100]    [64, 1, 99, 99]
+        return src_mask,          tgt_mask
     #-------------------------------------------------------------------------
     #-------------------------------------------------------------------------
     def forward(self, source_data, target_data):
@@ -599,21 +638,61 @@ class Transformer(nn.Module):
         # source_data: [64, 100]
         # target_data: [64, 99]
 
-        src_dt_embedded = self.encoder_embedding(source_data)
-        src_dt_emb_pos  = self.positional_encoding(src_dt_embedded)
-
+        #------------------
+        # temp and aux variables
+        src_dt_embedded = self.encoder_embedding(source_data) # [64, 100, 512] -> 512 = dim_model_embeddings
+        src_dt_emb_pos  = self.positional_encoding(src_dt_embedded) # [64, 100, 512] -> 512 = dim_model_embeddings
+        #----
+        tg_dt_embedded = self.decoder_embedding(target_data) # [64, 99, 512]
+        tg_dt_emb_pos = self.positional_encoding(tg_dt_embedded) # [64, 99, 512]
+        #------------------
+        # masks and vars at the end of the pipeline
+        # src_mask: [64, 1, 1, 100] , tgt_mask: [64, 1, 99, 99]
         src_mask, tgt_mask  = self.generate_mask(source_data = source_data, target_data = target_data)
-        src_embedded        = self.dropout( self.positional_encoding(self.encoder_embedding(source_data)) )
-        tgt_embedded        = self.dropout( self.positional_encoding(self.decoder_embedding(target_data)) )
+        src_embedded        = self.dropout( src_dt_emb_pos ) # [64, 100, 512]
+        tgt_embedded        = self.dropout( tg_dt_emb_pos ) # [64, 99, 512]
 
-        enc_output = src_embedded
-        for enc_layer in self.encoder_layers:
-            enc_output = enc_layer(enc_output, src_mask)
+        
+        #------------------
+        """
+        Note:
+            temp = EncoderLayer(
+                dim_model       = dim_model_embeddings,  # 512
+                num_heads       = num_heads,             # 8
+                dim_feedforward = dim_inner_feedforward, # 2048
+                dropout         = dropout                # 0.1
+            )
+        this class is implemented above
+        """
+        enc_output = src_embedded # [64, 100, 512] -> [batch_size, max_seq_length, dim_model_embeddings]
+        for enc_layer in self.encoder_layers: # len 6
+            enc_output = enc_layer(
+                x       = enc_output, 
+                mask    = src_mask
+            )
+        #------------------
+        
 
+        """
+        Note:
+            temp = DecoderLayer(
+                dim_model       = dim_model_embeddings,  # 512
+                num_heads       = num_heads,             # 8
+                dim_feedforward = dim_inner_feedforward, # 2048
+                dropout         = dropout                # 0.1
+            )
+        this class is implemented above
+        """
         dec_output = tgt_embedded
-        for dec_layer in self.decoder_layers:
-            dec_output = dec_layer(dec_output, enc_output, src_mask, tgt_mask)
+        for dec_layer in self.decoder_layers: # len 6
+            dec_output = dec_layer(
+                x           = dec_output, 
+                enc_output  = enc_output, 
+                src_mask    = src_mask, 
+                tgt_mask    = tgt_mask
+            )
 
+        
         output = self.fully_connected_layer(dec_output)
         return output # output is a tensor representing the model's predictions for the target sequence
     #-------------------------------------------------------------------------
