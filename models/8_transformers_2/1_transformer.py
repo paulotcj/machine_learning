@@ -240,7 +240,6 @@ class PositionalEncoding(nn.Module):
             print(f'pos_encodings[2][3]: {pos_encodings[2][3]}')   # -0.3508951663970947
             print(f'pos_encodings[2][98]: {pos_encodings[2][98]}') # 0.33639633655548096
             print(f'pos_encodings[2][99]: {pos_encodings[2][99]}') # 0.9417204856872559
-            exit()
         #-------------------------------------------------------------------------
         # data_check()
     
@@ -294,35 +293,48 @@ class EncoderLayer(nn.Module):
     #-------------------------------------------------------------------------
     #-------------------------------------------------------------------------        
     def forward(self, x, mask):
-
-        # x: The input to the encoder layer.
-        # mask: Optional mask to ignore certain parts of the input.
+        # x: The input to the encoder layer. [64, 100, 512]
+        # mask: Optional mask to ignore certain parts of the input. [64, 1, 1, 100]
 
         print('EncoderLayer - forward')
+
+
         
         # Self-Attention: The input x is passed through the multi-head self-attention mechanism
-        attn_output = self.self_mult_head_attn( 
-            query = x, 
-            key   = x, 
-            value = x, 
-            mask  = mask 
-        ) 
+        attn_output = self.self_mult_head_attn( # [64, 100, 512]
+            query = x,    # [64, 100, 512]
+            key   = x,    # [64, 100, 512]
+            value = x,    # [64, 100, 512]
+            mask  = mask  # [64, 1, 1, 100]
+        )
+
         
 
         # Add & Normalize (after Attention): The attention output is added to the original input
-        #   (residual connection), followed by dropout and normalization using norm1        
-        x = self.layer_norm1( input = x + self.dropout(attn_output) ) 
+        #   (residual connection), followed by dropout and normalization using norm1
+        attn_output_dropout = self.dropout(attn_output) # [64, 100, 512]
+        x_temp = x + attn_output_dropout                # [64, 100, 512] -> ( x[64, 100, 512] + attn_output_dropout[64, 100, 512] )
+        x = self.layer_norm1( input = x_temp )          # [64, 100, 512]
+
+
         
         
         # Feed-Forward Network: The output from the previous step is passed through the 
         #   position-wise feed-forward network
-        ff_output = self.feed_forward( x = x ) 
+        ff_output = self.feed_forward( x = x ) # [64, 100, 512])
+        
+
         
 
         # Add & Normalize (after Feed-Forward): Similar to step 2, the feed-forward output is 
         #   added to the input of this stage (residual connection), followed by dropout and 
         #   normalization using norm2        
-        x = self.layer_norm2( input = x + self.dropout(ff_output) ) 
+        ff_output_dropout = self.dropout(ff_output) # [64, 100, 512]
+        x_temp = x + ff_output_dropout              # [64, 100, 512]
+        x = self.layer_norm2( input = x_temp )      # [64, 100, 512]
+
+
+
 
         return x # Output: The processed tensor is returned as the output of the encoder layer
     #-------------------------------------------------------------------------
@@ -401,8 +413,7 @@ class DecoderLayer(nn.Module):
 
         x = self.norm_layer3( input = x + self.dropout(ff_output) )              # Add & Normalize (after Feed-Forward): The feed-forward output is added to the input of this stage, followed by dropout and normalization using norm3.
 
-        print('exiting')
-        exit()
+
         return x # Output: The processed tensor is returned as the output of the decoder layer.
     #-------------------------------------------------------------------------
 #-------------------------------------------------------------------------   
@@ -650,7 +661,7 @@ class Transformer(nn.Module):
         # src_mask: [64, 1, 1, 100] , tgt_mask: [64, 1, 99, 99]
         src_mask, tgt_mask  = self.generate_mask(source_data = source_data, target_data = target_data)
         src_embedded        = self.dropout( src_dt_emb_pos ) # [64, 100, 512]
-        tgt_embedded        = self.dropout( tg_dt_emb_pos ) # [64, 99, 512]
+        tgt_embedded        = self.dropout( tg_dt_emb_pos )  # [64, 99, 512]
 
         
         #------------------
@@ -666,13 +677,14 @@ class Transformer(nn.Module):
         """
         enc_output = src_embedded # [64, 100, 512] -> [batch_size, max_seq_length, dim_model_embeddings]
         for enc_layer in self.encoder_layers: # len 6
-            enc_output = enc_layer(
-                x       = enc_output, 
-                mask    = src_mask
+            enc_output = enc_layer(   # [64, 100, 512]
+                x       = enc_output, # [64, 100, 512]
+                mask    = src_mask    # [64, 1, 1, 100]
             )
         #------------------
         
 
+        #------------------
         """
         Note:
             temp = DecoderLayer(
@@ -683,17 +695,19 @@ class Transformer(nn.Module):
             )
         this class is implemented above
         """
-        dec_output = tgt_embedded
+        dec_output = tgt_embedded # [64, 99, 512]
         for dec_layer in self.decoder_layers: # len 6
-            dec_output = dec_layer(
-                x           = dec_output, 
-                enc_output  = enc_output, 
-                src_mask    = src_mask, 
-                tgt_mask    = tgt_mask
+            dec_output = dec_layer(       # [64, 99, 512]
+                x           = dec_output, # [64, 99, 512]
+                enc_output  = enc_output, # [64, 100, 512]
+                src_mask    = src_mask,   # [64, 1, 1, 100]
+                tgt_mask    = tgt_mask    # [64, 1, 99, 99]
             )
+        #------------------
 
         
-        output = self.fully_connected_layer(dec_output)
+        output = self.fully_connected_layer(dec_output) # [64, 99, 5000] -> [batch_size, max_seq_length-1, tgt_vocab_size]
+
         return output # output is a tensor representing the model's predictions for the target sequence
     #-------------------------------------------------------------------------
 #-------------------------------------------------------------------------   
@@ -814,11 +828,12 @@ def training(transformer, src_data, tgt_data, tgt_vocab_size):
         #   transformer. This is common in sequence-to-sequence tasks where the target is shifted by one token
         # So with the explanation above in mind note that tgt_data[:, :-1] means, select all rows and all columns
         #   except the last one
-        temp_target_data = tgt_data[:, :-1]
-        # print('at training - BEFORE calling transformer forward pass')
+        temp_target_data = tgt_data[:, :-1] # [64, 99]
+
+
+        #                                  [64, 100]               [64, 99]
         output = transformer(source_data = src_data, target_data = temp_target_data) # [64, 99, 5000] -> [batch_size, max_seq_length - 1, tgt_vocab_size]
-        # print('at training - AFTER calling transformer forward pass')
-        # exit()
+
         
 
         #-------------------------------------
