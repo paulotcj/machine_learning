@@ -468,16 +468,28 @@ class Transformer(nn.Module):
         tgt_mask_temp = (target_data != 0).unsqueeze(1).unsqueeze(3) # [64, 1, 99, 1]
         seq_length    = target_data.size(1)                          # [64,99] idx 1 -> 99
 
+
+        """
+        e.g.: torch.ones(6,6) ->
+            tensor([[1., 1., 1., 1., 1., 1.],
+                    [1., 1., 1., 1., 1., 1.],
+                    [1., 1., 1., 1., 1., 1.],
+                    [1., 1., 1., 1., 1., 1.],
+                    [1., 1., 1., 1., 1., 1.],
+                    [1., 1., 1., 1., 1., 1.]])
+        """
         ones_3d_matrix = torch.ones(1, seq_length, seq_length)         # [1, 99, 99]
 
         """
-        tensor([[0., 1., 1.,  ..., 1., 1., 1.],
-                [0., 0., 1.,  ..., 1., 1., 1.],
-                [0., 0., 0.,  ..., 1., 1., 1.],
-                ...,
-                [0., 0., 0.,  ..., 0., 1., 1.],
-                [0., 0., 0.,  ..., 0., 0., 1.],
-                [0., 0., 0.,  ..., 0., 0., 0.]])
+        e.g.: orch.ones(6,6) -> torch.triu(ones_matrix, diagonal=1)
+        tensor([[0., 1., 1., 1., 1., 1.],
+                [0., 0., 1., 1., 1., 1.],
+                [0., 0., 0., 1., 1., 1.],
+                [0., 0., 0., 0., 1., 1.],
+                [0., 0., 0., 0., 0., 1.],
+                [0., 0., 0., 0., 0., 0.]]) 
+
+        The diagonal 0 is the main diagonal, 1 is the diagonal above the main diagonal  
         """
         upper_triangular_mask = torch.triu(ones_3d_matrix, diagonal=1) # [1, 99, 99]
 
@@ -485,18 +497,51 @@ class Transformer(nn.Module):
         this will transform the upper_triangular_mask, the new values are now True or False, and
           where it was 0 before now it's True, and where it was 1 before now it's False
         
-            tensor([[ True, False, False,  ..., False, False, False],
-                    [ True,  True, False,  ..., False, False, False],
-                    [ True,  True,  True,  ..., False, False, False],
-                    ...,
-                    [ True,  True,  True,  ...,  True, False, False],
-                    [ True,  True,  True,  ...,  True,  True, False],
-                    [ True,  True,  True,  ...,  True,  True,  True]])        
-        """
-        nopeak_mask   = (1 - upper_triangular_mask).bool()  # [1, 99, 99]
+        e.g.: (1 - upper_triangular_mask) flips the values
+        tensor([[0., 1., 1., 1., 1., 1.],
+                [0., 0., 1., 1., 1., 1.],
+                [0., 0., 0., 1., 1., 1.],
+                [0., 0., 0., 0., 1., 1.],
+                [0., 0., 0., 0., 0., 1.],
+                [0., 0., 0., 0., 0., 0.]])
 
-        #               [64, 1, 99, 1]  [1, 99, 99]
-        tgt_mask      = tgt_mask_temp & nopeak_mask         # [64, 1, 99, 99]
+        (1 - upper_triangular_mask) -> 
+        tensor([[1., 0., 0., 0., 0., 0.],
+                [1., 1., 0., 0., 0., 0.],
+                [1., 1., 1., 0., 0., 0.],
+                [1., 1., 1., 1., 0., 0.],
+                [1., 1., 1., 1., 1., 0.],
+                [1., 1., 1., 1., 1., 1.]])
+
+        .bool() -> converts the tensor to boolean values
+        tensor([[ True,  False, False, False, False, False],
+                [ True,  True,  False, False, False, False],
+                [ True,  True,  True,  False, False, False],
+                [ True,  True,  True,  True,  False, False],
+                [ True,  True,  True,  True,  True,  False],
+                [ True,  True,  True,  True,  True,  True]])        
+
+        """
+        no_peak_mask = (1 - upper_triangular_mask).bool() # [1, 99, 99]
+
+
+
+        """
+        tgt_mask_temp shape -> [64, 1, 99, 1] , no_peak_mask shape -> [1, 99, 99], 
+        tgt_mask shape -> [64, 1, 99, 99]
+
+        In this case pytorch performs a broadcasting operation, consider that 
+        no_peak_mask shape -> [1, 99, 99] and tgt_mask_temp shape -> [64, 1, 99, 1]
+        pytorch will use no_peak_mask shape -> [1, 99, 99] and tgt_mask_temp shape -> [xx, 1, 99, 1]
+        and then the broadcasting will be [xx, 1, 99, 99]
+        Sinde xx is 64, the final shape will be [64, 1, 99, 99]
+        """
+        tgt_mask = tgt_mask_temp & no_peak_mask # [64, 1, 99, 99]
+
+        print(f'tgt_mask_temp shape: {tgt_mask_temp.shape}')
+        print(f'no_peak_mask shape:  {no_peak_mask.shape}')
+        print(f'tgt_mask shape:      {tgt_mask.shape}')
+        exit()
 
 
         #-------------------------------------------------------------------------
@@ -518,8 +563,8 @@ class Transformer(nn.Module):
                 print(f'k: {k} - \n{v}')
 
 
-            print(f'\n\nnopeak_mask shape: {nopeak_mask.shape}')
-            for k, v in enumerate(nopeak_mask):
+            print(f'\n\nnopeak_mask shape: {no_peak_mask.shape}')
+            for k, v in enumerate(no_peak_mask):
                 print(f'k: {k} - \n{v}')
 
             print(f'\n\ntgt_mask shape: {tgt_mask.shape}')
@@ -528,7 +573,7 @@ class Transformer(nn.Module):
 
             print('\n\n')
             print(f'tgt_mask_temp shape: {tgt_mask_temp.shape}')
-            print(f'nopeak_mask shape: {nopeak_mask.shape}')
+            print(f'nopeak_mask shape: {no_peak_mask.shape}')
             print(f'tgt_mask shape: {tgt_mask.shape}')
         #-------------------------------------------------------------------------
         check_data()
