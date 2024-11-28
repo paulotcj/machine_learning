@@ -72,30 +72,52 @@ class MultiHeadAttention(nn.Module):
         # Reshape the input x into the shape (batch_size, num_heads, seq_length, dim_key). It enables the model to 
         #   process multiple attention heads concurrently, allowing for parallel computation
 
-        batch_size, seq_length, d_model = x.size()
-        return x.view(batch_size, seq_length, self.num_heads, self.dim_key).transpose(1, 2)
+        # x shape: [64, 100, 512] or [64, 99, 512]
+
+
+        #64         (100 or 99)  512
+        batch_size, seq_length,  dim_model = x.size()
+
+
+        # note: dim_key is dim_model // num_heads, considering the dim_model is 512 and 
+        #   num_heads is 8, dim_key will be 64
+        #
+        #                      64          (100 or 99)      8               64
+        return_object = x.view(batch_size, seq_length, self.num_heads, self.dim_key).transpose(1, 2) # [64, 8, 100, 64] or [64, 8, 99, 64]
+
+
+        return return_object # [64, 8, 100, 64] or [64, 8, 99, 64]
     #-------------------------------------------------------------------------
     #-------------------------------------------------------------------------    
     def combine_heads(self, x):
         # After applying attention to each head separately, this method combines the results back into a single tensor 
         #   of shape (batch_size, seq_length, d_model). This prepares the result for further processing
-        batch_size, _, seq_length, d_k = x.size()
-        return x.transpose(1, 2).contiguous().view(batch_size, seq_length, self.dim_model)
+
+        # x shape: [64, 8, 100, 64] or [64, 8, 99, 64]
+        print(f'x shape: {x.shape}')
+
+        # batch_size (64), num_heads (8), seq_length (100 or 99), dim_key (64)
+        batch_size, _, seq_length, dim_key = x.size() 
+
+        #                                                   64          (100 or 99)      512
+        return_object = x.transpose(1, 2).contiguous().view(batch_size, seq_length, self.dim_model)
+
+        return return_object # [64, 100, 512] or [64, 99, 512]
     #-------------------------------------------------------------------------
     #------------------------------------------------------------------------- 
     def forward(self, query, key, value, mask=None):
         # 1 - Apply Linear Transformations: The queries, keys, and values are first passed through linear transformations 
         #   using the weights defined in the initialization
         # 2 - Split Heads: The transformed query, key, value are split into multiple heads using the split_heads method
-        query   = self.split_heads( self.weight_query(query) )
-        key     = self.split_heads( self.weight_key(key)     )
-        value   = self.split_heads( self.weight_value(value) )
+        query   = self.split_heads( x = self.weight_query(query) )
+        key     = self.split_heads( x = self.weight_key(key)     )
+        value   = self.split_heads( x = self.weight_value(value) )
         
         # Apply Scaled Dot-Product Attention. The scaled_dot_product_attention method is called on the split heads
-        attn_output = self.scaled_dot_product_attention(query, key, value, mask)
+        attn_output = self.scaled_dot_product_attention(query = query, key = key, value = value, mask = mask)
         
         # Combine Heads - The results from each head are combined back into a single tensor using the combine_heads method
-        output = self.weight_output(self.combine_heads(attn_output))
+        output = self.weight_output(self.combine_heads(x = attn_output))
         return output
     #-------------------------------------------------------------------------
 #------------------------------------------------------------------------- 
@@ -128,14 +150,40 @@ class PositionWiseFeedForward(nn.Module):
     #-------------------------------------------------------------------------
     #-------------------------------------------------------------------------
     def forward(self, x):
-        # x - input to the feed-forward network
+        # x [64, 100, 512] - input to the feed-forward network (batch_size, seq_length, dim_model)
 
-        # self.fc1(x): The input is first passed through the first linear layer (fc1).
-        # self.relu(...): The output of fc1 is then passed through a ReLU activation function. ReLU replaces 
-        #   all negative values with zeros, introducing non-linearity into the model.
-        # self.fc2(...): The activated output is then passed through the second linear layer (fc2), producing 
-        #   the final output.        
-        return self.full_conn_layer_2(self.relu(self.full_conn_layer_1(x)))
+        print(f'x shape: {x.shape}')
+        #-----------------------
+        """
+        self.full_conn_layer_1(x): The input is first passed through the first linear layer (fc1).
+        self.relu(...): The output of fc1 is then passed through a ReLU activation function. ReLU replaces 
+          all negative values with zeros, introducing non-linearity into the model.
+        self.full_conn_layer_2(...): The activated output is then passed through the second linear layer (fc2), producing 
+          the final output.    
+        """
+        #-----------------------
+
+
+        """
+        self.full_conn_layer_1 uses in_features as dim_model (512) and out_features as dim_feedforward (2048)
+         all parameters provided in the constructor
+        Note that x has shape [64, 100, 512], so the linear layer will be applied to the last dimension, in other
+          words, we will send the last dimension with 512 elements, 100 times as per the second dimension, and
+          64 times as per the first dimension, and the output per iteration of 512 units is 512, so the final
+          output will be [64, 100, 2048]
+                                              [64, 100, 512]"""
+        result_fcl_1 = self.full_conn_layer_1(input = x) # [64, 100, 2048]
+
+        result_relu_fcl_1 = self.relu(input = result_fcl_1) # [64, 100, 2048] - standard ReLU
+        
+        # We have the same a smiliar situation as above, but now we are going from 2048 to 512
+        # self.full_conn_layer_2 uses in_features as dim_feedforward (2048) and out_features as dim_model (512)
+        #                                             [64, 100, 2048]
+        result_fcl_2 = self.full_conn_layer_2(input = result_relu_fcl_1) # [64, 100, 512])
+        #-----------------------
+
+            
+        return result_fcl_2
     #-------------------------------------------------------------------------
 #-------------------------------------------------------------------------   
 #-------------------------------------------------------------------------
@@ -255,7 +303,23 @@ class PositionalEncoding(nn.Module):
     def forward(self, x):
         # The forward method simply adds the positional encodings to the input x. It uses the first x.size(1) 
         #   elements of pe to ensure that the positional encodings match the actual sequence length of x
-        return x + self.pe[:, :x.size(1)]
+
+        # x shape: [64, 100, 512] or [64, 99, 512]
+        # pe shape: [1, 100, 512] - note pe is pos_encodings
+
+
+        # this is a 3D tensor, so we select all elements from the first dim [:, ...], then we select
+        #  the first 100 elements from the second dim [..., :x,size(1)], which is typically 100, but
+        #  since this dimension has a len of 100, we end up selecting all elements, and then we don't
+        #  specify the third, thus selecting it all
+        #                     100
+        temp_pe = self.pe[:, :x.size(1)] # [1, 100, 512] or [1, 99, 512]
+
+
+        # given two objects shape are mismatched, pytorch will perform a broadcasting operation
+        return_obj = x + temp_pe # [64, 100, 512] or [64, 99, 512]
+
+        return return_obj
     #-------------------------------------------------------------------------
 #-------------------------------------------------------------------------   
 #-------------------------------------------------------------------------
@@ -293,8 +357,8 @@ class EncoderLayer(nn.Module):
     #-------------------------------------------------------------------------
     #-------------------------------------------------------------------------        
     def forward(self, x, mask):
-        # x: The input to the encoder layer. [64, 100, 512]
-        # mask: Optional mask to ignore certain parts of the input. [64, 1, 1, 100]
+        # x [64, 100, 512]: The input to the encoder layer. 
+        # mask [64, 1, 1, 100]: Optional mask to ignore certain parts of the input. 
 
         print('EncoderLayer - forward')
 
@@ -312,9 +376,9 @@ class EncoderLayer(nn.Module):
 
         # Add & Normalize (after Attention): The attention output is added to the original input
         #   (residual connection), followed by dropout and normalization using norm1
-        attn_output_dropout = self.dropout(attn_output) # [64, 100, 512]
-        x_temp = x + attn_output_dropout                # [64, 100, 512] -> ( x[64, 100, 512] + attn_output_dropout[64, 100, 512] )
-        x = self.layer_norm1( input = x_temp )          # [64, 100, 512]
+        attn_output_dropout = self.dropout(input = attn_output) # [64, 100, 512]
+        x_temp = x + attn_output_dropout # [64, 100, 512] -> ( x[64, 100, 512] + attn_output_dropout[64, 100, 512] )
+        x = self.layer_norm1( input = x_temp ) # [64, 100, 512]
 
 
         
@@ -329,13 +393,13 @@ class EncoderLayer(nn.Module):
         # Add & Normalize (after Feed-Forward): Similar to step 2, the feed-forward output is 
         #   added to the input of this stage (residual connection), followed by dropout and 
         #   normalization using norm2        
-        ff_output_dropout = self.dropout(ff_output) # [64, 100, 512]
-        x_temp = x + ff_output_dropout              # [64, 100, 512]
-        x = self.layer_norm2( input = x_temp )      # [64, 100, 512]
+        ff_output_dropout = self.dropout(input = ff_output) # [64, 100, 512]
+        x_temp = x + ff_output_dropout # [64, 100, 512]
+        x = self.layer_norm2( input = x_temp ) # [64, 100, 512]
 
 
 
-
+        # [64, 100, 512]
         return x # Output: The processed tensor is returned as the output of the encoder layer
     #-------------------------------------------------------------------------
 #-------------------------------------------------------------------------   
@@ -656,12 +720,13 @@ class Transformer(nn.Module):
         #----
         tg_dt_embedded = self.decoder_embedding(target_data) # [64, 99, 512]
         tg_dt_emb_pos = self.positional_encoding(tg_dt_embedded) # [64, 99, 512]
+
         #------------------
         # masks and vars at the end of the pipeline
         # src_mask: [64, 1, 1, 100] , tgt_mask: [64, 1, 99, 99]
         src_mask, tgt_mask  = self.generate_mask(source_data = source_data, target_data = target_data)
-        src_embedded        = self.dropout( src_dt_emb_pos ) # [64, 100, 512]
-        tgt_embedded        = self.dropout( tg_dt_emb_pos )  # [64, 99, 512]
+        src_embedded        = self.dropout( input = src_dt_emb_pos ) # [64, 100, 512]
+        tgt_embedded        = self.dropout( input = tg_dt_emb_pos )  # [64, 99, 512]
 
         
         #------------------
@@ -706,7 +771,7 @@ class Transformer(nn.Module):
         #------------------
 
         
-        output = self.fully_connected_layer(dec_output) # [64, 99, 5000] -> [batch_size, max_seq_length-1, tgt_vocab_size]
+        output = self.fully_connected_layer(input = dec_output) # [64, 99, 5000] -> [batch_size, max_seq_length-1, tgt_vocab_size]
 
         return output # output is a tensor representing the model's predictions for the target sequence
     #-------------------------------------------------------------------------
