@@ -773,11 +773,11 @@ def execute_part1():
     result_sample_data_preparation =  sample_data_preparation()
     return {
         'transformer'   : result_sample_data_preparation['transformer'],
-        'src_data'      : result_sample_data_preparation['src_data'],
-        'tgt_data'      : result_sample_data_preparation['tgt_data'],
-        'tgt_vocab_size': result_sample_data_preparation['tgt_vocab_size'],
-        'src_vocab_size': result_sample_data_preparation['src_vocab_size'],
-        'max_seq_length': result_sample_data_preparation['max_seq_length']
+        'src_data'      : result_sample_data_preparation['src_data'],       # [64,100]
+        'tgt_data'      : result_sample_data_preparation['tgt_data'],       # [64,100]
+        'tgt_vocab_size': result_sample_data_preparation['tgt_vocab_size'], # 5000
+        'src_vocab_size': result_sample_data_preparation['src_vocab_size'], # 5000
+        'max_seq_length': result_sample_data_preparation['max_seq_length']  # 100
     }
 
 #-------------------------------------------------------------------------  
@@ -820,40 +820,62 @@ def training(transformer, src_data, tgt_data, tgt_vocab_size):
     # Sets the transformer model to training mode, enabling behaviors like dropout that only apply during training
     transformer.train()
 
+    training_epochs = 100
+    training_epochs = 1
     #------------------------------
-    for epoch in range(100):
+    for epoch in range(training_epochs):
         optimizer.zero_grad() # Clears the gradients from the previous iteration
 
-        # Passes the source data and the target data (excluding the last token in each sequence) through the 
-        #   transformer. This is common in sequence-to-sequence tasks where the target is shifted by one token
-        # So with the explanation above in mind note that tgt_data[:, :-1] means, select all rows and all columns
-        #   except the last one
+        """
+        Passes the source data and the target data (excluding the last token in each sequence) through the 
+          transformer. This is common in sequence-to-sequence tasks where the target is shifted by one token
+        So with the explanation above in mind note that tgt_data[:, :-1] means, select all rows and all columns
+          except the last one
+        Consider the example:
+        tgt_data
+        tensor([[3933, 2734,  325,  ..., 2672, 2453,  742],
+                [1992, 2432,  904,  ...,  805, 1234,  690],
+                [1562, 3574, 3254,  ..., 3698,  510, 3429],
+                ...,
+                [1542, 4150, 2908,  ..., 4395,  401, 2284],
+                [2390, 3349,  358,  ..., 3117,  710, 2540],
+                [4488, 1971,  513,  ..., 2921, 3452, 2805]])    
+        
+        tgt_data[:, :-1]
+        tensor([[3933, 2734,  325,  ..., 2037, 2672, 2453],
+                [1992, 2432,  904,  ..., 1816,  805, 1234],
+                [1562, 3574, 3254,  ..., 3248, 3698,  510],
+                ...,
+                [1542, 4150, 2908,  ..., 1058, 4395,  401],
+                [2390, 3349,  358,  ..., 3307, 3117,  710],
+                [4488, 1971,  513,  ..., 1952, 2921, 3452]])        
+        """
         temp_target_data = tgt_data[:, :-1] # [64, 99]
 
 
         #                                  [64, 100]               [64, 99]
         output = transformer(source_data = src_data, target_data = temp_target_data) # [64, 99, 5000] -> [batch_size, max_seq_length - 1, tgt_vocab_size]
-
         
-
         #-------------------------------------
-        # reshapes the output tensor to a 2D tensor -1 tells pytorch to infer the size of the dimension
-        #   from other dimentions, and tgt_vocab_size is the size of the last dimension of the output tensor
-        #   therefore the output tensor is shaped (batch_size * (max_seq_length - 1), tgt_vocab_size)
-        #   [64, 99, 5000] -> [64*99, 5000] -> [6336, 5000]
-        # note: the contiguous() method allocates a contiguous memory region, which can help avoid potential 
-        #   issues with subsequent operations
+        """
+        reshapes the output tensor to a 2D tensor -1 tells pytorch to infer the size of the dimension
+          from other dimentions, and tgt_vocab_size is the size of the last dimension of the output tensor
+          therefore the output tensor is shaped (batch_size * (max_seq_length - 1), tgt_vocab_size)
+          [64, 99, 5000] -> [64*99, 5000] -> [6336, 5000]
+        note: the contiguous() method allocates a contiguous memory region, which can help avoid potential 
+          issues with subsequent operations
+        """
         temp_input_data = output.contiguous().view(-1, tgt_vocab_size) # [6336, 5000]
         
         # select all rows, and all columns except the first one [idx 0], then reshape the 2D  tensor into
         #   1D tensor, where .view(-1) means to infer the size of the dimension from the other dimensions
-        # [6336]                   [64,99]      
-        temp_target_data = tgt_data[:, 1:].contiguous().view(-1)
+        #            tgt_data = [64,99]      
+        temp_target_data = tgt_data[:, 1:].contiguous().view(-1) # [6336]
 
 
         loss = criterion(
-            input  = temp_input_data, 
-            target = temp_target_data
+            input  = temp_input_data, # [6336, 5000]
+            target = temp_target_data # [6336]
         )
         #-------------------------------------
         loss.backward()
@@ -869,9 +891,9 @@ def training(transformer, src_data, tgt_data, tgt_vocab_size):
 def execute_part2(transformer, src_data, tgt_data, tgt_vocab_size):
     result_training = training(
         transformer     = transformer, 
-        src_data        = src_data, 
-        tgt_data        = tgt_data, 
-        tgt_vocab_size  = tgt_vocab_size
+        src_data        = src_data,       # [64,100]
+        tgt_data        = tgt_data,       # [64,100]
+        tgt_vocab_size  = tgt_vocab_size  # 5000
     )
 
     return {
@@ -880,9 +902,9 @@ def execute_part2(transformer, src_data, tgt_data, tgt_vocab_size):
 #-------------------------------------------------------------------------
 result_part2 = execute_part2(
     transformer     = result_part1['transformer'], 
-    src_data        = result_part1['src_data'], 
-    tgt_data        = result_part1['tgt_data'], 
-    tgt_vocab_size  = result_part1['tgt_vocab_size']
+    src_data        = result_part1['src_data'],       # [64,100]
+    tgt_data        = result_part1['tgt_data'],       # [64,100]
+    tgt_vocab_size  = result_part1['tgt_vocab_size']  # 5000
 )
 ##########################################################################
 ##
@@ -899,6 +921,12 @@ def model_performance_evaluation(transformer, src_vocab_size, tgt_vocab_size, ma
     data, which is a critical measure of the model's generalization ability
     """
 
+    print('at model_performance_evaluation')
+    # src_vocab_size: 5000
+    # tgt_vocab_size: 5000
+    # max_seq_length: 100
+
+    batch_size = 64
 
     # Puts the transformer model in evaluation mode. This is important because it turns off certain 
     # behaviors like dropout that are only used during training
@@ -907,40 +935,56 @@ def model_performance_evaluation(transformer, src_vocab_size, tgt_vocab_size, ma
     # Generate random sample validation data
     # Random integers between 1 and src_vocab_size, representing a batch of validation source sequences 
     #   with shape (64, max_seq_length)
-    val_src_data = torch.randint(1, src_vocab_size, (64, max_seq_length))  # (batch_size, seq_length)
+    val_src_data = torch.randint(1, src_vocab_size, (batch_size, max_seq_length))  # (batch_size, seq_length)
 
     # Random integers between 1 and tgt_vocab_size, representing a batch of validation target sequences 
     #   with shape (64, max_seq_length)
-    val_tgt_data = torch.randint(1, tgt_vocab_size, (64, max_seq_length))  # (batch_size, seq_length)
+    val_tgt_data = torch.randint(1, tgt_vocab_size, (batch_size, max_seq_length))  # (batch_size, seq_length)
 
     # Disables gradient computation, as we don't need to compute gradients during validation. This can reduce memory 
     #   consumption and speed up computations.
     with torch.no_grad():
 
+        temp_val_tgt_data = val_tgt_data[:, :-1] # [64, 99]
         # Passes the validation source data and the validation target data (excluding the last token in each sequence) 
         #   through the transformer
-        val_output = transformer(val_src_data, val_tgt_data[:, :-1])
+        #                                     [64, 100]                    [64, 99]
+        val_output = transformer(source_data = val_src_data, target_data = temp_val_tgt_data) # [64, 99, 5000]
+
+
+        temp_input_data = val_output.contiguous().view(-1, tgt_vocab_size) # [6336, 5000]
+
+        # consider that val_tgt_data is [64, 99], therefore 64 * 99 = 6336
+        temp_target_data = val_tgt_data[:, 1:].contiguous().view(-1) # [6336]
+
+
 
         # Computes the loss between the model's predictions and the validation target data (excluding the first token 
         #   in each sequence). The loss is calculated by reshaping the data into one-dimensional tensors and using 
         #   the previously defined cross-entropy loss function
-        val_loss = criterion(val_output.contiguous().view(-1, tgt_vocab_size), val_tgt_data[:, 1:].contiguous().view(-1))
+        val_loss = criterion(
+            input  = temp_input_data, # [6336, 5000]
+            target = temp_target_data # [6336]
+        )
+
+
+
         print(f"Validation Loss: {val_loss.item()}")
 #-------------------------------------------------------------------------
 #-------------------------------------------------------------------------
 def execute_part3(transformer, src_vocab_size, tgt_vocab_size, max_seq_length, criterion):
     model_performance_evaluation(
-        transformer=transformer,
-        src_vocab_size=src_vocab_size,
-        tgt_vocab_size=tgt_vocab_size,
-        max_seq_length=max_seq_length,
-        criterion=criterion
+        transformer     = transformer,
+        src_vocab_size  = src_vocab_size,  # 5000
+        tgt_vocab_size  = tgt_vocab_size,  # 5000
+        max_seq_length  = max_seq_length,  # 100
+        criterion       = criterion
     )
 #-------------------------------------------------------------------------   
 execute_part3(
     transformer     = result_part1['transformer'], 
-    src_vocab_size  = result_part1['src_vocab_size'], 
-    tgt_vocab_size  = result_part1['tgt_vocab_size'], 
-    max_seq_length  = result_part1['max_seq_length'],
+    src_vocab_size  = result_part1['src_vocab_size'],  # 5000
+    tgt_vocab_size  = result_part1['tgt_vocab_size'],  # 5000
+    max_seq_length  = result_part1['max_seq_length'],  # 100
     criterion       = result_part2['criterion']
 )
