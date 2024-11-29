@@ -10,6 +10,8 @@ import torch.utils.data as data
 import math
 import copy
 
+# supports debugging, logging, visualization, etc.
+global_count1 = 0
 ##########################################################################
 ##
 ##  CLASSES
@@ -41,7 +43,7 @@ class MultiHeadAttention(nn.Module):
         # Typically:
         # self.dim_model : 512
         # self.num_heads : 8
-        #self.dim_key    : 64
+        # self.dim_key   : 64
 
         
         # Linear layers for transforming inputs
@@ -54,18 +56,76 @@ class MultiHeadAttention(nn.Module):
     def scaled_dot_product_attention(self, query, key, value, mask=None):
         # Calculate attention scores - the attention scores are calculated by taking the dot product of queries and keys
         #   and then scaling by the square root of the key dimension
-        attn_scores = torch.matmul(query, key.transpose(-2, -1)) / math.sqrt(self.dim_key)
+
+        # query [64, 8, 100, 64] or [64, 8, 99, 64] 
+        # key   [64, 8, 100, 64] or [64, 8, 99, 64] 
+        # value [64, 8, 100, 64] or [64, 8, 99, 64] 
+        # mask  [64, 1, 1, 100]  or [64, 1, 99, 99]
+
+        # print(f'query.shape: {query.shape}')
+        # print(f'key.shape:   {key.shape}')
+        # print(f'value.shape: {value.shape}')
+        # print(f'mask.shape:  {mask.shape}')
+        # print('-------')
+
+
+        # swap the last two dimensions (-1 is the last dimension, -2 is the second to last)
+        key_transpose = key.transpose(-2, -1) # [64, 8, 64, 100] or [64, 8, 64, 99]
         
+        sqrt_dim_key = math.sqrt(self.dim_key) # sqrt_dim_key = 8 and self.dim_key = 64
+        
+        # query is [64, 8, 100, 64] or [64, 8, 99, 64] and key_transpose is [64, 8, 64, 100] or [64, 8, 64, 99]
+        #   so the final tenson is [64, 8, 100, 100] or [64, 8, 99, 99]
+        #
+        # For easy visualization: [64, 8, 100, 64] x [64, 8, 64, 100] = [64, 8, 100, 100]
+        #                         [64, 8, 99,  64] x [64, 8, 64, 99 ] = [64, 8, 99,  99 ]
+        matmul_query_keytranspose = torch.matmul(input = query, other = key_transpose) # [64, 8, 100, 100] or [64, 8, 99, 99]
+
+        attn_scores = matmul_query_keytranspose / sqrt_dim_key # [64, 8, 100, 100] or [64, 8, 99, 99]
+
+        # print(f'self.dim_key:                    {self.dim_key}')
+        # print(f'key_transpose.shape:             {key_transpose.shape}')
+        # print(f'sqrt_dim_key:                    {sqrt_dim_key}')
+        # print(f'matmul_query_keytranspose.shape: {matmul_query_keytranspose.shape}')
+        # print(f'attn_scores.shape:               {attn_scores.shape}')
+        
+        #--------------------------------
         # Apply mask if provided (useful for preventing attention to certain parts like padding)
+        #   this is more complicated and hard to debug than it seems
         if mask is not None:
-            attn_scores = attn_scores.masked_fill(mask == 0, -1e9)
+
+            #------ debug init ------
+            # num_true = torch.sum(mask)
+            # num_false = mask.numel() - num_true
+            # if num_false > 1 and num_true > 1:
+            #     print(f'False count in mask: {num_false}')
+            #     print(f'True count in mask: {num_true}')
+            #     print('====================================')
+            #     # mask      [64, 1, 1, 100]  or [64, 1, 99, 99]
+            #     print(f'mask[0][0]:\n{mask[0][0]}')
+            #     print(f'attn_scores[0][0]:\n{attn_scores[0][0]}')  
+            #------ debug end ------
+            
+            attn_scores = attn_scores.masked_fill( mask = mask == 0, value = -1e9)
+
+            #------ debug init ------
+            # if num_false > 1 and num_true > 1:
+            #     print(f'attn_scores[0][0] after applying mask:\n{attn_scores[0][0]}')
+            #------ debug end ------
+        #--------------------------------
         
+        # [64, 8, 100, 100] or [64, 8, 99, 99]
+        attn_probs = torch.softmax(input = attn_scores, dim = -1) # Softmax is applied to obtain attention probabilities
         
-        attn_probs = torch.softmax(attn_scores, dim=-1) # Softmax is applied to obtain attention probabilities
-        
-        
-        output = torch.matmul(attn_probs, value) # Multiply by values to obtain the final output
-        return output
+        # Multiply by values to obtain the final output. attn_probs [64, 8, 100, 100] or [64, 8, 99, 99] and
+        #   value [64, 8, 100, 64] or [64, 8, 99, 64] , so the result is [64, 8, 100, 64] or [64, 8, 99, 64]
+        # For easy visualization: [64, 8, 100, 100] x [64, 8, 100, 64] = [64, 8, 100, 64]
+        # Remember that with the first 2 dimensions being the same, the matrix multiplication is
+        #  [100, 100] x [100, 64], and the rule for matrix multiplication is A[M,N] x B[N,P] = C[M,P]
+        #  so effectively [100, 64]
+        output = torch.matmul(input = attn_probs, other = value) # [64, 8, 100, 64] or [64, 8, 100, 64]
+
+        return output # [64, 8, 100, 64] or [64, 8, 100, 64]
     #-------------------------------------------------------------------------
     #-------------------------------------------------------------------------  
     def split_heads(self, x):
@@ -74,16 +134,21 @@ class MultiHeadAttention(nn.Module):
 
         # x shape: [64, 100, 512] or [64, 99, 512]
 
-
         #64         (100 or 99)  512
         batch_size, seq_length,  dim_model = x.size()
 
 
         # note: dim_key is dim_model // num_heads, considering the dim_model is 512 and 
-        #   num_heads is 8, dim_key will be 64
-        #
-        #                      64          (100 or 99)      8               64
-        return_object = x.view(batch_size, seq_length, self.num_heads, self.dim_key).transpose(1, 2) # [64, 8, 100, 64] or [64, 8, 99, 64]
+        #   num_heads is 8, dim_key will be 64, so in this case we are splitting the last
+        #   dimension which is 512 into 8 parts of 64 each (without changing the original object x)
+        #               64          (100 or 99)      8               64
+        x_view = x.view(batch_size, seq_length, self.num_heads, self.dim_key) # [64, 100, 8, 64] or [64, 99, 8, 64]
+
+
+        # note that x_view is [64, 100, 8, 64] and we perform a transpose operation swapping the  dimensions
+        #   1 and 2, so the expected result is that dims 100 and 8 should switch places, and we observe that
+        #   the result is in fact [64, 8, 100, 64]
+        return_object = x_view.transpose(1, 2) # [64, 8, 100, 64] or [64, 8, 99, 64]
 
 
         return return_object # [64, 8, 100, 64] or [64, 8, 99, 64]
@@ -94,13 +159,19 @@ class MultiHeadAttention(nn.Module):
         #   of shape (batch_size, seq_length, d_model). This prepares the result for further processing
 
         # x shape: [64, 8, 100, 64] or [64, 8, 99, 64]
-        print(f'x shape: {x.shape}')
+
 
         # batch_size (64), num_heads (8), seq_length (100 or 99), dim_key (64)
         batch_size, _, seq_length, dim_key = x.size() 
 
-        #                                                   64          (100 or 99)      512
-        return_object = x.transpose(1, 2).contiguous().view(batch_size, seq_length, self.dim_model)
+        # x_transposed reverts the action of swapping dims from split_heads method, here we are swapping dims
+        #  1 and 2, from the input x with shape [64, 8, 100, 64], we expect to have [64, 100, 8, 64]
+        x_transposed = x.transpose(1, 2).contiguous() # [64, 100, 8, 64] or [64, 99, 8, 64]
+
+
+        # now create a view, where we keep the first 2 dimensions but join the last 2 ( 8 * 64 = 512)
+        #                                 64          (100 or 99)      512
+        return_object = x_transposed.view(batch_size, seq_length, self.dim_model)
 
         return return_object # [64, 100, 512] or [64, 99, 512]
     #-------------------------------------------------------------------------
@@ -109,9 +180,33 @@ class MultiHeadAttention(nn.Module):
         # 1 - Apply Linear Transformations: The queries, keys, and values are first passed through linear transformations 
         #   using the weights defined in the initialization
         # 2 - Split Heads: The transformed query, key, value are split into multiple heads using the split_heads method
-        query   = self.split_heads( x = self.weight_query(query) )
-        key     = self.split_heads( x = self.weight_key(key)     )
-        value   = self.split_heads( x = self.weight_value(value) )
+
+        # query [64, 100, 512]
+        # key   [64, 100, 512]
+        # value [64, 100, 512]
+        # mask  [64, 1, 1, 100]
+
+        # print(f'query.shape: {query.shape}')
+        # print(f'key.shape:   {key.shape}')
+        # print(f'value.shape: {value.shape}')
+        # print(f'mask.shape:  {mask.shape}')
+        # exit()
+
+        # linear layers with input:512 output:512 all tensors used here are [64, 100, 512] or [64, 99, 512]
+        weight_query = self.weight_query(query) # [64, 100, 512] or [64, 99, 512]
+        weight_key   = self.weight_key(key)     # [64, 100, 512] or [64, 99, 512]
+        weight_value = self.weight_value(value) # [64, 100, 512] or [64, 99, 512]
+
+        #                              [64, 100, 512] or [64, 99, 512]
+        query   = self.split_heads( x = weight_query )   # [64, 8, 100, 64] or [64, 8, 99, 64]
+        key     = self.split_heads( x = weight_key     ) # [64, 8, 100, 64] or [64, 8, 99, 64]
+        value   = self.split_heads( x = weight_value )   # [64, 8, 100, 64] or [64, 8, 99, 64]
+
+        print(f'query.shape: {query.shape}')
+        print(f'key.shape:   {key.shape}')
+        print(f'value.shape: {value.shape}')
+        print(f'mask.shape:  {mask.shape}')        
+        exit()
         
         # Apply Scaled Dot-Product Attention. The scaled_dot_product_attention method is called on the split heads
         attn_output = self.scaled_dot_product_attention(query = query, key = key, value = value, mask = mask)
@@ -152,7 +247,6 @@ class PositionWiseFeedForward(nn.Module):
     def forward(self, x):
         # x [64, 100, 512] - input to the feed-forward network (batch_size, seq_length, dim_model)
 
-        print(f'x shape: {x.shape}')
         #-----------------------
         """
         self.full_conn_layer_1(x): The input is first passed through the first linear layer (fc1).
@@ -360,7 +454,7 @@ class EncoderLayer(nn.Module):
         # x [64, 100, 512]: The input to the encoder layer. 
         # mask [64, 1, 1, 100]: Optional mask to ignore certain parts of the input. 
 
-        print('EncoderLayer - forward')
+        print('>>> EncoderLayer - forward')
 
 
         
@@ -442,7 +536,7 @@ class DecoderLayer(nn.Module):
         tgt_mask: Target mask to ignore certain parts of the decoder's input
         """
         
-        print('DecoderLayer - forward')
+        print('<<< DecoderLayer - forward')
 
         
         # Self-Attention on Target Sequence: The input x is processed through a self-attention mechanism.
