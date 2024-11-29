@@ -186,33 +186,31 @@ class MultiHeadAttention(nn.Module):
         # value [64, 100, 512]
         # mask  [64, 1, 1, 100]
 
-        # print(f'query.shape: {query.shape}')
-        # print(f'key.shape:   {key.shape}')
-        # print(f'value.shape: {value.shape}')
-        # print(f'mask.shape:  {mask.shape}')
-        # exit()
+
 
         # linear layers with input:512 output:512 all tensors used here are [64, 100, 512] or [64, 99, 512]
         weight_query = self.weight_query(query) # [64, 100, 512] or [64, 99, 512]
         weight_key   = self.weight_key(key)     # [64, 100, 512] or [64, 99, 512]
         weight_value = self.weight_value(value) # [64, 100, 512] or [64, 99, 512]
 
-        #                              [64, 100, 512] or [64, 99, 512]
+        #          all tensors are ->   [64, 100, 512] or [64, 99, 512]
         query   = self.split_heads( x = weight_query )   # [64, 8, 100, 64] or [64, 8, 99, 64]
         key     = self.split_heads( x = weight_key     ) # [64, 8, 100, 64] or [64, 8, 99, 64]
         value   = self.split_heads( x = weight_value )   # [64, 8, 100, 64] or [64, 8, 99, 64]
 
-        print(f'query.shape: {query.shape}')
-        print(f'key.shape:   {key.shape}')
-        print(f'value.shape: {value.shape}')
-        print(f'mask.shape:  {mask.shape}')        
-        exit()
+
         
         # Apply Scaled Dot-Product Attention. The scaled_dot_product_attention method is called on the split heads
-        attn_output = self.scaled_dot_product_attention(query = query, key = key, value = value, mask = mask)
-        
+        #   query key and valye are -> [64, 8, 100, 64] or [64, 8, 99, 64]            mask -> [64, 1, 1, 100]
+        attn_output = self.scaled_dot_product_attention(query = query, key = key, value = value, mask = mask) # [64, 8, 100, 64] or [64, 8, 99, 64]
+
+
         # Combine Heads - The results from each head are combined back into a single tensor using the combine_heads method
-        output = self.weight_output(self.combine_heads(x = attn_output))
+        combine_heads_attn_output = self.combine_heads(x = attn_output) # [64, 100, 512] or [64, 100, 512]
+
+        # apply weights from a Linear Layer - this layer has input:512 output:512
+        output = self.weight_output(combine_heads_attn_output) # [64, 100, 512])
+
         return output
     #-------------------------------------------------------------------------
 #------------------------------------------------------------------------- 
@@ -245,7 +243,7 @@ class PositionWiseFeedForward(nn.Module):
     #-------------------------------------------------------------------------
     #-------------------------------------------------------------------------
     def forward(self, x):
-        # x [64, 100, 512] - input to the feed-forward network (batch_size, seq_length, dim_model)
+        # x [64, 100, 512] or [64, 99, 512] - input to the feed-forward network (batch_size, seq_length, dim_model)
 
         #-----------------------
         """
@@ -266,18 +264,18 @@ class PositionWiseFeedForward(nn.Module):
           64 times as per the first dimension, and the output per iteration of 512 units is 512, so the final
           output will be [64, 100, 2048]
                                               [64, 100, 512]"""
-        result_fcl_1 = self.full_conn_layer_1(input = x) # [64, 100, 2048]
+        result_fcl_1 = self.full_conn_layer_1(input = x) # [64, 100, 2048] or [64, 99, 2048]
 
-        result_relu_fcl_1 = self.relu(input = result_fcl_1) # [64, 100, 2048] - standard ReLU
+        result_relu_fcl_1 = self.relu(input = result_fcl_1) # [64, 100, 2048] or [64, 99, 2048] - standard ReLU
         
         # We have the same a smiliar situation as above, but now we are going from 2048 to 512
         # self.full_conn_layer_2 uses in_features as dim_feedforward (2048) and out_features as dim_model (512)
-        #                                             [64, 100, 2048]
-        result_fcl_2 = self.full_conn_layer_2(input = result_relu_fcl_1) # [64, 100, 512])
+        #                                             [64, 100, 2048] or [64, 99, 2048]
+        result_fcl_2 = self.full_conn_layer_2(input = result_relu_fcl_1) # [64, 100, 512] or [64, 99, 512]
         #-----------------------
 
             
-        return result_fcl_2
+        return result_fcl_2 # [64, 100, 512] or [64, 99, 512]
     #-------------------------------------------------------------------------
 #-------------------------------------------------------------------------   
 #-------------------------------------------------------------------------
@@ -538,41 +536,87 @@ class DecoderLayer(nn.Module):
         
         print('<<< DecoderLayer - forward')
 
-        
+        # x [64, 99, 512]
+        # enc_output [64, 100, 512]
+        # src_mask [64, 1, 1, 100]
+        # tgt_mask [64, 1, 99, 99]
+
         # Self-Attention on Target Sequence: The input x is processed through a self-attention mechanism.
+        # [64, 99, 512]
         attn_output = self.self_mult_head_attn( 
-            query = x, 
-            key   = x, 
-            value = x, 
-            mask  = tgt_mask 
+            query = x, # [64, 99, 512]
+            key   = x, # [64, 99, 512]
+            value = x, # [64, 99, 512]
+            mask  = tgt_mask # [64, 1, 99, 99]
         ) 
+
+        # print(f'x.shape:            {x.shape}')
+        # print(f'tgt_mask.shape:     {tgt_mask.shape}')
+
+        # print(f'attn_output.shape:  {attn_output.shape}')
+        # exit()
         
+        #----------------- start
         # Add & Normalize (after Self-Attention): The output from self-attention is added to the 
         #   original x, followed by dropout and normalization using norm1.
-        x = self.norm_layer1( input = x + self.dropout(attn_output) ) 
+
+        #                                        [64, 99, 512]
+        attn_output_dropout         = self.dropout(attn_output)   # [64, 99, 512]
+        
+        # x [64, 99, 512]      attn_output_dropout [64, 99, 512]
+        attn_output_dropout_plus_x  = x + attn_output_dropout     # [64, 99, 512]
+
+        #                             [64, 99, 512]
+        x = self.norm_layer1( input = attn_output_dropout_plus_x) # [64, 99, 512]
+        #----------------- end
+
 
         # Cross-Attention with Encoder Output: The normalized output from the previous step is 
         #   processed through a cross-attention mechanism that attends to the encoder's output enc_output.
+        # [64, 99, 512])
         attn_output = self.cross_mult_head_attn( 
-            query = x, 
-            key   = enc_output, 
-            value = enc_output, 
-            mask  = src_mask 
-        ) 
+            query = x,          # [64, 99, 512]
+            key   = enc_output, # [64, 100, 512]
+            value = enc_output, # [64, 100, 512]
+            mask  = src_mask    # [64, 1, 1, 100]
+        )
 
+
+        #----------------- start
         # Add & Normalize (after Cross-Attention): The output from cross-attention is added to the 
         #   input of this stage, followed by dropout and normalization using norm2.
-        x = self.norm_layer2( input = x + self.dropout(attn_output) ) 
 
+        #                                  [64, 99, 512]
+        attn_output_dropout = self.dropout(attn_output) # [64, 99, 512]
 
-        # Feed-Forward Network: The output from the previous step is passed through the feed-forward network.
-        ff_output = self.feed_forward( x = x ) 
+        #             x [64, 99, 512]  attn_output_dropout [64, 99, 512]
+        attn_output_dropout_plus_x = x + attn_output_dropout # [64, 99, 512]
 
+        #                             [64, 99, 512]
+        x = self.norm_layer2( input = attn_output_dropout_plus_x ) # [64, 99, 512])
 
-        x = self.norm_layer3( input = x + self.dropout(ff_output) )              # Add & Normalize (after Feed-Forward): The feed-forward output is added to the input of this stage, followed by dropout and normalization using norm3.
+        #----------------- end
 
+        # Feed-Forward Network: The output from the previous step is passed through the feed-forward network
+        #                              [64, 99, 512]
+        ff_output = self.feed_forward( x = x ) # [64, 99, 512]
 
-        return x # Output: The processed tensor is returned as the output of the decoder layer.
+        
+        #----------------- start
+        # Add & Normalize (after Feed-Forward): The feed-forward output is added to the input of this stage, 
+        #   followed by dropout and normalization using norm3.
+                
+        #                                [64, 99, 512]
+        ff_output_dropout = self.dropout(ff_output) # [64, 99, 512]
+
+        #        x [64, 99, 512]    ff_output_dropout [64, 99, 512]
+        ff_output_dropout_plus_x = x + ff_output_dropout # [64, 99, 512]
+
+        #                             [64, 99, 512]
+        x = self.norm_layer3( input = ff_output_dropout_plus_x ) # [64, 99, 512]
+        #----------------- end
+
+        return x # [64, 99, 512] Output: The processed tensor is returned as the output of the decoder layer.
     #-------------------------------------------------------------------------
 #-------------------------------------------------------------------------   
 #-------------------------------------------------------------------------
