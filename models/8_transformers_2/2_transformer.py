@@ -56,6 +56,8 @@ class MultiHeadAttention(nn.Module):
     def scaled_dot_product_attention(self, query, key, value, mask=None):
         # Calculate attention scores - the attention scores are calculated by taking the dot product of queries and keys
         #   and then scaling by the square root of the key dimension
+        # check: https://muneebsa.medium.com/deep-learning-101-lesson-29-attention-scores-in-nlp-87f68f59e951
+        # for more info
 
         # query [64, 8, 100, 64] or [64, 8, 99, 64] 
         # key   [64, 8, 100, 64] or [64, 8, 99, 64] 
@@ -110,8 +112,10 @@ class MultiHeadAttention(nn.Module):
             #     print(f'attn_scores[0][0]:\n{attn_scores[0][0]}')  
             #------ debug end ------
             #                                                                 -1_000_000_000
-            attn_scores = attn_scores.masked_fill( mask = mask == 0, value = -1e9)
-
+            attn_scores_original = attn_scores
+            attn_scores_masked = attn_scores.masked_fill( mask = mask == 0, value = -1e9)
+            attn_scores = attn_scores_masked
+            
 
 
             #------ debug init ------
@@ -182,7 +186,7 @@ class MultiHeadAttention(nn.Module):
         return return_object # [64, 100, 512] or [64, 99, 512]
     #-------------------------------------------------------------------------
     #------------------------------------------------------------------------- 
-    def forward(self, query, key, value, mask=None):
+    def forward(self, query, key, value, mask=None , decoder = 0):
         # 1 - Apply Linear Transformations: The queries, keys, and values are first passed through linear transformations 
         #   using the weights defined in the initialization
         # 2 - Split Heads: The transformed query, key, value are split into multiple heads using the split_heads method
@@ -192,24 +196,24 @@ class MultiHeadAttention(nn.Module):
         # value [64, 100, 512]
         # mask  [64, 1, 1, 100]
 
-
+        if decoder == 1:
+            print('decoder attention 1')
 
         # linear layers with input:512 output:512 all tensors used here are [64, 100, 512] 
-        weight_query = self.weight_query(query) # [64, 100, 512] 
-        weight_key   = self.weight_key(key)     # [64, 100, 512] 
-        weight_value = self.weight_value(value) # [64, 100, 512] 
+        query_weight = self.weight_query(query) # [64, 100, 512] 
+        key_weight   = self.weight_key(key)     # [64, 100, 512] 
+        value_weight = self.weight_value(value) # [64, 100, 512] 
 
         #          all tensors are ->   [64, 100, 512] 
-        query   = self.split_heads( x = weight_query )   # [64, 8, 100, 64] 
-        key     = self.split_heads( x = weight_key     ) # [64, 8, 100, 64] 
-        value   = self.split_heads( x = weight_value )   # [64, 8, 100, 64] 
+
+        query_weight_split   = self.split_heads( x = query_weight )   # [64, 8, 100, 64] 
+        key_weight_split     = self.split_heads( x = key_weight     ) # [64, 8, 100, 64] 
+        value_weight_split   = self.split_heads( x = value_weight )   # [64, 8, 100, 64] 
 
 
-        
         # Apply Scaled Dot-Product Attention. The scaled_dot_product_attention method is called on the split heads
-        #   query key and valye are -> [64, 8, 100, 64]                                    mask -> [64, 1, 1, 100]
-        attn_output = self.scaled_dot_product_attention(query = query, key = key, value = value, mask = mask) # [64, 8, 100, 64]
-
+        #   query_weight_split, key_weight_split, and value_weight_split are -> [64, 8, 100, 64]                       mask -> [64, 1, 1, 100]
+        attn_output = self.scaled_dot_product_attention(query = query_weight_split, key = key_weight_split, value = value_weight_split, mask = mask) # [64, 8, 100, 64]
 
         # Combine Heads - The results from each head are combined back into a single tensor using the combine_heads method
         combine_heads_attn_output = self.combine_heads(x = attn_output) # [64, 100, 512] 
@@ -238,7 +242,7 @@ class PositionWiseFeedForward(nn.Module):
         print('PositionWiseFeedForward - __init__')
 
         # dim_model:       512
-        # dim_feedforward: 2048
+        # dim_feedforward: 2048 - usually 4 times the dim_model            
 
        
         # self.full_conn_layer_1 and self.full_conn_layer_2 - two fully connected (linear) layers 
@@ -640,6 +644,7 @@ class EncoderLayer(nn.Module):
         #   layer does nothing        
         attn_output_dropout = self.dropout(input = attn_output) # [64, 100, 512]
 
+        # residual connection
         x_temp = x + attn_output_dropout # [64, 100, 512] -> ( x[64, 100, 512] + attn_output_dropout[64, 100, 512] )
         
         x = self.layer_norm1( input = x_temp ) # [64, 100, 512]
@@ -719,27 +724,29 @@ class DecoderLayer(nn.Module):
             query = x, # [64, 99, 512]
             key   = x, # [64, 99, 512]
             value = x, # [64, 99, 512]
-            mask  = tgt_mask # [64, 1, 99, 99]
+            mask  = tgt_mask, # [64, 1, 99, 99]
+            decoder = 1 # debug parameter #decoder 0 means no decoder, 1 means first attention from decoder, 2 second attention from decoder
         ) 
+
 
         # print(f'x.shape:            {x.shape}')
         # print(f'tgt_mask.shape:     {tgt_mask.shape}')
 
         # print(f'attn_output.shape:  {attn_output.shape}')
-        # exit()
+
         
         #----------------- start
         # Add & Normalize (after Self-Attention): The output from self-attention is added to the 
         #   original x, followed by dropout and normalization using norm1.
 
         #                                        [64, 99, 512]
-        attn_output_dropout         = self.dropout(attn_output)   # [64, 99, 512]
+        attn_output_dropout = self.dropout(attn_output)   # [64, 99, 512]
         
         # x [64, 99, 512]      attn_output_dropout [64, 99, 512]
-        attn_output_dropout_plus_x  = x + attn_output_dropout     # [64, 99, 512]
+        attn_output_dropout_plus_x = x + attn_output_dropout     # [64, 99, 512]
 
         #                             [64, 99, 512]
-        x = self.norm_layer1( input = attn_output_dropout_plus_x) # [64, 99, 512]
+        x_modfified = self.norm_layer1( input = attn_output_dropout_plus_x) # [64, 99, 512]
         #----------------- end
 
 
@@ -747,7 +754,7 @@ class DecoderLayer(nn.Module):
         #   processed through a cross-attention mechanism that attends to the encoder's output enc_output.
         # [64, 99, 512])
         attn_output = self.cross_mult_head_attn( 
-            query = x,          # [64, 99, 512]
+            query = x_modfified,          # [64, 99, 512]
             key   = enc_output, # [64, 100, 512]
             value = enc_output, # [64, 100, 512]
             mask  = src_mask    # [64, 1, 1, 100]
@@ -762,16 +769,16 @@ class DecoderLayer(nn.Module):
         attn_output_dropout = self.dropout(attn_output) # [64, 99, 512]
 
         #             x [64, 99, 512]  attn_output_dropout [64, 99, 512]
-        attn_output_dropout_plus_x = x + attn_output_dropout # [64, 99, 512]
+        attn_output_dropout_plus_x_mod = x_modfified + attn_output_dropout # [64, 99, 512]
 
         #                             [64, 99, 512]
-        x = self.norm_layer2( input = attn_output_dropout_plus_x ) # [64, 99, 512])
+        x = self.norm_layer2( input = attn_output_dropout_plus_x_mod ) # [64, 99, 512])
 
         #----------------- end
 
         # Feed-Forward Network: The output from the previous step is passed through the feed-forward network
         #                              [64, 99, 512]
-        ff_output = self.feed_forward( x = x ) # [64, 99, 512]
+        ff_output = self.feed_forward( x = x_modfified ) # [64, 99, 512]
 
         
         #----------------- start
@@ -782,13 +789,13 @@ class DecoderLayer(nn.Module):
         ff_output_dropout = self.dropout(ff_output) # [64, 99, 512]
 
         #        x [64, 99, 512]    ff_output_dropout [64, 99, 512]
-        ff_output_dropout_plus_x = x + ff_output_dropout # [64, 99, 512]
+        ff_output_dropout_plus_x_mod = x_modfified + ff_output_dropout # [64, 99, 512]
 
         #                             [64, 99, 512]
-        x = self.norm_layer3( input = ff_output_dropout_plus_x ) # [64, 99, 512]
+        x_modfified = self.norm_layer3( input = ff_output_dropout_plus_x_mod ) # [64, 99, 512]
         #----------------- end
 
-        return x # [64, 99, 512] Output: The processed tensor is returned as the output of the decoder layer.
+        return x_modfified # [64, 99, 512] Output: The processed tensor is returned as the output of the decoder layer.
     #-------------------------------------------------------------------------
 #-------------------------------------------------------------------------   
 #-------------------------------------------------------------------------
@@ -1223,11 +1230,11 @@ def training(transformer, src_data, tgt_data, tgt_vocab_size):
                 [2390, 3349,  358,  ..., 3307, 3117,  710],
                 [4488, 1971,  513,  ..., 1952, 2921, 3452]])        
         """
-        temp_target_data = tgt_data[:, :-1] # [64, 99]
+        temp_target_data_for_prediction = tgt_data[:, :-1] # [64, 99]
 
 
         #                                  [64, 100]               [64, 99]
-        output = transformer(source_data = src_data, target_data = temp_target_data) # [64, 99, 5000] -> [batch_size, max_seq_length - 1, tgt_vocab_size]
+        output = transformer(source_data = src_data, target_data = temp_target_data_for_prediction) # [64, 99, 5000] -> [batch_size, max_seq_length - 1, tgt_vocab_size]
         
         #-------------------------------------
         """
@@ -1238,17 +1245,17 @@ def training(transformer, src_data, tgt_data, tgt_vocab_size):
         note: the contiguous() method allocates a contiguous memory region, which can help avoid potential 
           issues with subsequent operations
         """
-        temp_input_data = output.contiguous().view(-1, tgt_vocab_size) # [6336, 5000]
+        temp_output_data = output.contiguous().view(-1, tgt_vocab_size) # [6336, 5000]
         
         # select all rows, and all columns except the first one [idx 0], then reshape the 2D  tensor into
         #   1D tensor, where .view(-1) means to infer the size of the dimension from the other dimensions
         #            tgt_data = [64,99]      
-        temp_target_data = tgt_data[:, 1:].contiguous().view(-1) # [6336]
+        temp_target_data_for_comparisson = tgt_data[:, 1:].contiguous().view(-1) # [6336]
 
 
         loss = criterion(
-            input  = temp_input_data, # [6336, 5000]
-            target = temp_target_data # [6336]
+            input  = temp_output_data, # [6336, 5000]
+            target = temp_target_data_for_comparisson # [6336]
         )
         #-------------------------------------
         loss.backward()
@@ -1325,10 +1332,10 @@ def model_performance_evaluation(transformer, src_vocab_size, tgt_vocab_size, ma
         val_output = transformer(source_data = val_src_data, target_data = temp_val_tgt_data) # [64, 99, 5000]
 
 
-        temp_input_data = val_output.contiguous().view(-1, tgt_vocab_size) # [6336, 5000]
+        temp_output_data = val_output.contiguous().view(-1, tgt_vocab_size) # [6336, 5000]
 
         # consider that val_tgt_data is [64, 99], therefore 64 * 99 = 6336
-        temp_target_data = val_tgt_data[:, 1:].contiguous().view(-1) # [6336]
+        temp_target_data_validation = val_tgt_data[:, 1:].contiguous().view(-1) # [6336]
 
 
 
@@ -1336,8 +1343,8 @@ def model_performance_evaluation(transformer, src_vocab_size, tgt_vocab_size, ma
         #   in each sequence). The loss is calculated by reshaping the data into one-dimensional tensors and using 
         #   the previously defined cross-entropy loss function
         val_loss = criterion(
-            input  = temp_input_data, # [6336, 5000]
-            target = temp_target_data # [6336]
+            input  = temp_output_data, # [6336, 5000]
+            target = temp_target_data_validation # [6336]
         )
 
 
