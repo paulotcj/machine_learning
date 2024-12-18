@@ -1,10 +1,22 @@
+import argparse
+parser = argparse.ArgumentParser()
+parser.add_argument('--debug_param', action='store_true', default=True, help='Enable debug mode')
+parser.add_argument('--no-debug_param', action='store_false', dest='debug_param', help='Disable debug mode')
+args = parser.parse_args()
+debug = args.debug_param
+print(f'debug: {debug}')
+
+# To pass the parameter via the command line, run:
+# python test1.py --debug_param  # to set debug to True
+# python test1.py --no-debug_param  # to set debug to False
 # We always start with a dataset to train on. Let's download the tiny shakespeare dataset
+
 
 # Dataset already downloaded
 #!wget https://raw.githubusercontent.com/karpathy/char-rnn/master/data/tinyshakespeare/input.txt
 
 # read it in to inspect it
-debug = True
+
 file_path = 'input.txt'
 if debug:
     # file_path = 'C://Users//paulo//source//repos//machine_learning//models//8_mini_gpt//input.txt'
@@ -158,6 +170,7 @@ print(xb) # our input to the transformer
 import torch
 import torch.nn as nn
 from torch.nn import functional as F
+
 torch.manual_seed(1337)
 
 #-------------------------------------------------------------------------
@@ -246,13 +259,16 @@ optimizer = torch.optim.AdamW(m.parameters(), lr=1e-3)
 
 batch_size = 32
 #-------------------------------------------------------------------------
-for steps in range(100): # increase number of steps for good results...
+# loop_steps = 10_000
+loop_steps = 100
+for steps in range(loop_steps): # increase number of steps for good results...
 
     # sample a batch of data
     xb, yb = get_batch('train') # as usual 'yb' is shifted by one position to the right
 
     # evaluate the loss (and do the embeddings)
     logits, _loss = m(idx = xb, targets = yb)
+    # print(f'    _loss: {_loss.item()}')
 
     # set gradients to None - this will have a lower memory footprint and slightly improve performance
     optimizer.zero_grad(set_to_none=True) 
@@ -261,5 +277,38 @@ for steps in range(100): # increase number of steps for good results...
     optimizer.step()
 #-------------------------------------------------------------------------
 
-print(_loss.item())
+print(f'With Optimizer\nFinal Loss: {_loss.item()}')
+exit()
 
+temp_torch_zeros = torch.zeros((1, 1), dtype=torch.long)
+temp_m_generate = m.generate(
+    idx             = temp_torch_zeros, 
+    max_new_tokens  = 500
+)
+
+temp_m_generate_list = temp_m_generate[0].tolist()
+
+print(decode(temp_m_generate_list))
+
+
+#-------------------------------------------------------------------------
+# toy example illustrating how matrix multiplication can be used for a "weighted aggregation"
+torch.manual_seed(42)
+temp_ones = torch.ones(3, 3)
+a = torch.tril(temp_ones) # return a lower triangular part of the matrix
+
+# computes the sum of elements along a specified dimension of a tensor
+sum_a = torch.sum(input = a, dim = 1, keepdim=True) 
+
+a = a / sum_a
+b = torch.randint( low = 0, high = 10, size = (3,2) ).float() # size (3,2) - 3 rows, 2 columns
+c = a @ b # matrix multiplication introduced in Python 3.5
+print('a=')
+print(a)
+print('--')
+print('b=')
+print(b)
+print('--')
+print('c=')
+print(c)
+#-------------------------------------------------------------------------
