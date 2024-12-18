@@ -48,6 +48,8 @@ n = int(0.9*len(data)) # first 90% will be train, rest val
 train_data = data[:n]
 val_data = data[n:]
 
+#-------------------------------------------------------------------------
+#-------------------------------------------------------------------------
 # data loading
 def get_batch(split):
     # generate a small batch of data of inputs x and targets y
@@ -57,7 +59,9 @@ def get_batch(split):
     y = torch.stack([data[i+1:i+block_size+1] for i in ix])
     x, y = x.to(device), y.to(device)
     return x, y
+#-------------------------------------------------------------------------
 
+#-------------------------------------------------------------------------
 @torch.no_grad()
 def estimate_loss():
     out = {}
