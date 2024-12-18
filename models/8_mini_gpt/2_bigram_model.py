@@ -1,3 +1,33 @@
+import argparse
+parser = argparse.ArgumentParser()
+parser.add_argument('--debug_param', action='store_true', default=True, help='Enable debug mode')
+parser.add_argument('--no-debug_param', action='store_false', dest='debug_param', help='Disable debug mode')
+args = parser.parse_args()
+debug = args.debug_param
+print(f'debug: {debug}')
+
+# To pass the parameter via the command line, run:
+# python 2_bigram_model.py --debug_param  # to set debug to True
+# python 2_bigram_model.py --no-debug_param  # to set debug to False
+# We always start with a dataset to train on. Let's download the tiny shakespeare dataset
+
+
+# Dataset already downloaded
+#!wget https://raw.githubusercontent.com/karpathy/char-rnn/master/data/tinyshakespeare/input.txt
+
+# read it in to inspect it
+
+file_path = 'input.txt'
+if debug:
+
+    file_path = 'models//8_mini_gpt//input.txt'
+
+with open(file_path, 'r', encoding='utf-8') as f:
+    text = f.read()
+
+
+#-------------------------------------------------------------------------
+
 import torch
 import torch.nn as nn
 from torch.nn import functional as F
@@ -15,9 +45,9 @@ device = 'cuda' if torch.cuda.is_available() else 'cpu'
 eval_iters = 200
 #-------------------------------------------------------------------------
 #-------------------------------------------------------------------------
-# wget https://raw.githubusercontent.com/karpathy/char-rnn/master/data/tinyshakespeare/input.txt
-with open('input.txt', 'r', encoding='utf-8') as f:
-    text = f.read()
+# # wget https://raw.githubusercontent.com/karpathy/char-rnn/master/data/tinyshakespeare/input.txt
+# with open('input.txt', 'r', encoding='utf-8') as f:
+#     text = f.read()
 #-------------------------------------------------------------------------
 #-------------------------------------------------------------------------
 # here are all the unique characters that occur in this text
@@ -96,22 +126,6 @@ def get_batch(split):
     x, y = x.to(device), y.to(device)
     return x, y
 #-------------------------------------------------------------------------
-
-#-------------------------------------------------------------------------
-@torch.no_grad()
-def estimate_loss():
-    out = {}
-    model.eval()
-    for split in ['train', 'val']:
-        losses = torch.zeros(eval_iters)
-        for k in range(eval_iters):
-            X, Y = get_batch(split)
-            logits, loss = model(X, Y)
-            losses[k] = loss.item()
-        out[split] = losses.mean()
-    model.train()
-    return out
-#-------------------------------------------------------------------------
 #-------------------------------------------------------------------------
 # super simple bigram model
 class BigramLanguageModel(nn.Module):
@@ -170,6 +184,25 @@ class BigramLanguageModel(nn.Module):
         return idx
     #-------------------------------------------------------------------------
 #-------------------------------------------------------------------------
+#-------------------------------------------------------------------------
+@torch.no_grad()
+def estimate_loss(param_model, p_eval_iters = 200):
+    out = {}
+    param_model.eval()
+    
+    #---------------------------
+    for split in ['train', 'val']:
+        losses = torch.zeros(size = p_eval_iters)
+        for k in range(p_eval_iters):
+            X, Y = get_batch(split = split)
+            logits, loss = param_model(idx = X, targets = Y)
+            losses[k] = loss.item()
+        out[split] = losses.mean()
+    #---------------------------
+
+    param_model.train()
+    return out
+#-------------------------------------------------------------------------
 model = BigramLanguageModel(vocab_size)
 m = model.to(device)
 
@@ -180,14 +213,14 @@ for iter in range(max_iters):
 
     # every once in a while evaluate the loss on train and val sets
     if iter % eval_interval == 0:
-        losses = estimate_loss()
+        losses = estimate_loss(param_model=model, p_eval_iters=eval_iters)
         print(f"step {iter}: train loss {losses['train']:.4f}, val loss {losses['val']:.4f}")
 
     # sample a batch of data
     xb, yb = get_batch('train')
 
     # evaluate the loss
-    logits, loss = model(xb, yb)
+    logits, loss = model(idx = xb, targets = yb)
     optimizer.zero_grad(set_to_none=True)
     loss.backward()
     optimizer.step()

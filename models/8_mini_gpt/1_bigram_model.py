@@ -7,8 +7,8 @@ debug = args.debug_param
 print(f'debug: {debug}')
 
 # To pass the parameter via the command line, run:
-# python test1.py --debug_param  # to set debug to True
-# python test1.py --no-debug_param  # to set debug to False
+# python 1_bigram_model.py --debug_param  # to set debug to True
+# python 1_bigram_model.py --no-debug_param  # to set debug to False
 # We always start with a dataset to train on. Let's download the tiny shakespeare dataset
 
 
