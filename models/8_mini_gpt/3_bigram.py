@@ -71,45 +71,65 @@ def estimate_loss():
         out[split] = losses.mean()
     model.train()
     return out
-
+#-------------------------------------------------------------------------
+#-------------------------------------------------------------------------
 # super simple bigram model
 class BigramLanguageModel(nn.Module):
-
+    #-------------------------------------------------------------------------
     def __init__(self, vocab_size):
         super().__init__()
         # each token directly reads off the logits for the next token from a lookup table
-        self.token_embedding_table = nn.Embedding(vocab_size, vocab_size)
-
+        self.token_embedding_table = nn.Embedding(num_embeddings = vocab_size, embedding_dim = vocab_size)
+    #-------------------------------------------------------------------------
+    #-------------------------------------------------------------------------
     def forward(self, idx, targets=None):
 
+        #note: Logit -> The raw predictions which come out of the last layer of the neural network
+
         # idx and targets are both (B,T) tensor of integers
-        logits = self.token_embedding_table(idx) # (B,T,C)
+        logits = self.token_embedding_table(idx) # (B,T,C) - typically batch size, block size/ time steps, vocab size/channels
+        
+        # #-------
+        # print(f'idx shape: {idx.shape}\nidx:\n{idx}')
+        # if targets is not None:
+        #     print(f'targets shape: {targets.shape}\ntargets:\n{targets}')
+        # print('---------------')
+        # print(f'logits shape: {logits.shape}\nlogits: (they are the idx that went through token_embedding_table)\n{logits}')
+        # #-------
 
         if targets is None:
             loss = None
         else:
-            B, T, C = logits.shape
-            logits = logits.view(B*T, C)
-            targets = targets.view(B*T)
+            B, T, C = logits.shape # batch size (4), time steps (8), channels (65)
+            logits = logits.view(B*T, C) # we reorganize and keep the channels/ vocab size as the last and isolated dimension
+            targets = targets.view(B*T) # target was not modified and has shape (4, 8)
             loss = F.cross_entropy(logits, targets)
 
         return logits, loss
-
+    #-------------------------------------------------------------------------
+    #-------------------------------------------------------------------------
     def generate(self, idx, max_new_tokens):
         # idx is (B, T) array of indices in the current context
         for _ in range(max_new_tokens):
-            # get the predictions
-            logits, loss = self(idx)
-            # focus only on the last time step
-            logits = logits[:, -1, :] # becomes (B, C)
-            # apply softmax to get probabilities
-            probs = F.softmax(logits, dim=-1) # (B, C)
-            # sample from the distribution
+            
+            # we provide the idx, which is transformed via the token_embedding_table (nn.Embedding) 
+            logits, loss = self(idx = idx) # get the predictions - the problem here is that we are transforming the embedding multiple times
+
+            # focus only on the last time step, select all rows, but only the last column, and all channels
+            logits = logits[:, -1, :] # from (B,T,C) becomes (B, C)
+            
+            # apply softmax to get probabilities - dim=-1 means we apply softmax to the last dimension
+            probs = F.softmax(logits, dim=-1) # (B, C) -> (1, 65)
+            
+            # draw samples (1) from the distribution - the return is a index from the tensor
             idx_next = torch.multinomial(probs, num_samples=1) # (B, 1)
+            
             # append sampled index to the running sequence
             idx = torch.cat((idx, idx_next), dim=1) # (B, T+1)
-        return idx
 
+        return idx
+    #-------------------------------------------------------------------------
+#-------------------------------------------------------------------------
 model = BigramLanguageModel(vocab_size)
 m = model.to(device)
 
