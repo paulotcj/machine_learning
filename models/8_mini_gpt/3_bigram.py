@@ -43,20 +43,56 @@ decode = lambda int_list: ''.join( # decoder: take a list of integers, output a 
 #-------------------------------------------------------------------------
 #-------------------------------------------------------------------------
 # Train and test splits
-data = torch.tensor(encode(text), dtype=torch.long)
-n = int(0.9*len(data)) # first 90% will be train, rest val
-train_data = data[:n]
-val_data = data[n:]
+data_selected = torch.tensor(encode(text), dtype=torch.long)
+# Let's now split up the data into train and validation sets
+n = int( 0.9 * len(data_selected) ) # first 90% will be train, rest val
+train_data = data_selected[:n] # from 0 to n-1
+validation_data = data_selected[n:] # from n to end
 
 #-------------------------------------------------------------------------
 #-------------------------------------------------------------------------
 # data loading
 def get_batch(split):
     # generate a small batch of data of inputs x and targets y
-    data = train_data if split == 'train' else val_data
-    ix = torch.randint(len(data) - block_size, (batch_size,))
-    x = torch.stack([data[i:i+block_size] for i in ix])
-    y = torch.stack([data[i+1:i+block_size+1] for i in ix])
+    data_selected = train_data if split == 'train' else validation_data
+
+    #----------
+    # ix = torch.randint(len(data_selected) - block_size, (batch_size,))
+
+    # this is cut short from the len minus the block size, if we select the last possible index, we need to be able
+    #   to select block_size elements after it
+    high_bound = len(data_selected) - block_size 
+    size_selection = (batch_size,)
+
+    # note the high is exclusive
+    rand_int_tensor = torch.randint(high=high_bound, size=size_selection) # produces a random integer tensor, where any value is in between 0 and high_bound
+    
+    # print(f'\nlen(data_selected): {len(data_selected)}, block_size: {block_size}, high_bound: {high_bound}')
+    # print(f"size_selection: {size_selection}, ix:{rand_int_tensor}\n\n") # high_bound: 1003846, size_selection: (4,), ix:tensor([ 76049, 234249, 934904, 560986])
+    #----------
+    
+    r'''
+    there an concern if this is under list bounds, so let's test the limits.
+    consider len(data_selected) = 100, block_size = 8
+    then high_bound = 100 - 8 = 92, but since the high is exclusive, the last possible index is 91
+    For the First list:
+      if 'i' was 91, we would have: start idx = 91 (inclusive), end idx = 91 + 8 = 99 (exclusive)
+      therefore we would get: 91, 92, 93, 94, 95, 96, 97, 98
+
+    For the second list:
+      if 'i' was 91, then we would have: start idx = i + 1 = 92 (inclusive), end idx = i + 1 + 8 = 91 + 1 + 8 = 100 (exclusive)
+      therefore we would get: 92, 93, 94, 95, 96, 97, 98, 99
+    '''
+    # select a segment starting at index i (from random sampling indexes) with length of block_size
+    x = torch.stack( [ data_selected[ i : i+block_size ] 
+                      for i in rand_int_tensor 
+                      ] 
+                    )
+    # select a segment virtually identical to x, but shifted by one position to the right
+    y = torch.stack( [ data_selected[ i+1 : i+1+block_size ] 
+                      for i in rand_int_tensor 
+                      ] 
+                    )
     x, y = x.to(device), y.to(device)
     return x, y
 #-------------------------------------------------------------------------

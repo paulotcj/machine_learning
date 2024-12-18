@@ -93,6 +93,7 @@ def get_batch(split):
                       for i in rand_int_tensor 
                       ] 
                     )
+    x, y = x.to(device), y.to(device)
     return x, y
 #-------------------------------------------------------------------------
 
