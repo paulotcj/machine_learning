@@ -187,21 +187,23 @@ class BigramLanguageModel(nn.Module):
 #-------------------------------------------------------------------------
 @torch.no_grad()
 def estimate_loss(param_model, p_eval_iters = 200):
-    out = {}
-    param_model.eval()
-    
+    total_losses = { 'train' : 0 , 'val': 0} # dictionary with train and val losses
+    param_model.eval() #set to evaluate - later we will return to train
+
     #---------------------------
-    for split in ['train', 'val']:
-        losses = torch.zeros(size = p_eval_iters)
-        for k in range(p_eval_iters):
+    for split in ['train', 'val']: # we will sample from both train and validation sets
+        losses = torch.zeros(p_eval_iters) # start an array of zeros with the expected size of evaluations
+        #-------
+        for i in range(p_eval_iters):
             X, Y = get_batch(split = split)
-            logits, loss = param_model(idx = X, targets = Y)
-            losses[k] = loss.item()
-        out[split] = losses.mean()
+            logits, loss = param_model(idx = X, targets = Y) #make a prediction and get logits and loss
+            losses[i] = loss.item() #set the loss to the right array position
+        #-------
+        total_losses[split] = losses.mean()
     #---------------------------
 
-    param_model.train()
-    return out
+    param_model.train() # set back to train
+    return total_losses
 #-------------------------------------------------------------------------
 model = BigramLanguageModel(vocab_size)
 m = model.to(device)
@@ -209,22 +211,41 @@ m = model.to(device)
 # create a PyTorch optimizer
 optimizer = torch.optim.AdamW(model.parameters(), lr=learning_rate)
 
-for iter in range(max_iters):
+#-------------------------------------------------------------------------
+for iter in range(max_iters): # normally 10_000
 
+    #------------
     # every once in a while evaluate the loss on train and val sets
-    if iter % eval_interval == 0:
+    if iter % eval_interval == 0: # eval_interval normally 300
         losses = estimate_loss(param_model=model, p_eval_iters=eval_iters)
         print(f"step {iter}: train loss {losses['train']:.4f}, val loss {losses['val']:.4f}")
+    #------------
 
-    # sample a batch of data
+    # sample a batch of data - randomly selected
     xb, yb = get_batch('train')
 
-    # evaluate the loss
+    # evaluate the loss and perform the backpropagation
     logits, loss = model(idx = xb, targets = yb)
     optimizer.zero_grad(set_to_none=True)
     loss.backward()
     optimizer.step()
+#-------------------------------------------------------------------------
+
+# we are done with training, let's generate some text
 
 # generate from the model
-context = torch.zeros((1, 1), dtype=torch.long, device=device)
-print(decode(m.generate(context, max_new_tokens=500)[0].tolist()))
+
+context = torch.zeros((1, 1), dtype=torch.long, device=device) # only zeros, size 1x1
+
+m_generate = m.generate(
+    idx = context, 
+    max_new_tokens=500
+)
+
+decode_result = decode(  m_generate[0].tolist() )
+
+print(f'initial context: {context}')
+print(f'generated text (ints only): {m_generate}')
+print(f'decoded text: {decode_result}')
+
+# print(decode(m.generate(context, max_new_tokens=500)[0].tolist()))
