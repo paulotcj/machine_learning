@@ -259,8 +259,8 @@ optimizer = torch.optim.AdamW(m.parameters(), lr=1e-3)
 
 batch_size = 32
 #-------------------------------------------------------------------------
-# loop_steps = 10_000
-loop_steps = 100
+loop_steps = 100_000
+# loop_steps = 100
 for steps in range(loop_steps): # increase number of steps for good results...
 
     # sample a batch of data
