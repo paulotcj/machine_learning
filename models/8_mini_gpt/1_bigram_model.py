@@ -291,24 +291,3 @@ temp_m_generate_list = temp_m_generate[0].tolist()
 print(decode(temp_m_generate_list))
 
 
-#-------------------------------------------------------------------------
-# toy example illustrating how matrix multiplication can be used for a "weighted aggregation"
-torch.manual_seed(42)
-temp_ones = torch.ones(3, 3)
-a = torch.tril(temp_ones) # return a lower triangular part of the matrix
-
-# computes the sum of elements along a specified dimension of a tensor
-sum_a = torch.sum(input = a, dim = 1, keepdim=True) 
-
-a = a / sum_a
-b = torch.randint( low = 0, high = 10, size = (3,2) ).float() # size (3,2) - 3 rows, 2 columns
-c = a @ b # matrix multiplication introduced in Python 3.5
-print('a=')
-print(a)
-print('--')
-print('b=')
-print(b)
-print('--')
-print('c=')
-print(c)
-#-------------------------------------------------------------------------

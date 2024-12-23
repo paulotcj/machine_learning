@@ -38,7 +38,7 @@ torch.manual_seed(1337)
 batch_size = 32 # how many independent sequences will we process in parallel?
 block_size = 8 # what is the maximum context length for predictions?
 # max_iters = 3000
-max_iters = 10_000
+max_iters = 100_000
 eval_interval = 300
 learning_rate = 1e-2
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
@@ -232,9 +232,7 @@ for iter in range(max_iters): # normally 10_000
 #-------------------------------------------------------------------------
 
 # we are done with training, let's generate some text
-
 # generate from the model
-
 context = torch.zeros((1, 1), dtype=torch.long, device=device) # only zeros, size 1x1
 
 m_generate = m.generate(
