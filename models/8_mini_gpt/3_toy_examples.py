@@ -113,8 +113,8 @@ The operations are:
     c32 = (1*7)+(1*4)+(1*5) = 7+4+5 = 16
 
 What should be evident is that the first tensor is accessing all the elements of the array / sequence
-and the second tensor is accessing the elements across batches. So we talk with with the tokens/words
-from the sentence being analyzed, and the and any other sentences in the batch.
+and the second tensor is accessing the elements across sentences. So we talk with with the tokens/words
+from the sentence being analyzed.
 '''
 
 # now have a look how it would look with a lower triangular matrix
