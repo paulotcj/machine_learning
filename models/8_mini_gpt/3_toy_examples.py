@@ -340,31 +340,93 @@ the tokens. Or how much of tokens from the past we want to know, to aggregate, t
 print('-----------------------------------------------')
 
 
+'''
+let's think of how the matrix multiplication works in regards to the self-attention mechanism.
+suppose we have just 2 tokens representing 2 words, let's name them A and B. Each word is encoded with
+a vector of 3 elements. So we have a 2x3 matrix.
+Let's day A = [1, 2, 3] and B = [4, 5, 6], the matrix would be:
+[[1, 2, 3],
+ [4, 5, 6]]
 
+Since it's a 2x3, one of the matrices need to be transposed, so we can have a 3x2 matrix.
+[[1, 4],
+ [2, 5],
+ [3, 6]]
+
+The result would be:
+   A | 1 2 3 | AxA | AxB |
+   B | 4 5 6 | BxA | BxB |
+             | 1      4  |
+             | 2      5  |
+             | 3      6  |
+               A      B
+
+Notice we have AxA, AxB, BxA, BxB. AxA looks at the interaction between the tokens A and A, AxB looks at
+the interaction of the tokan A with its next word B, BxA looks at the interaction of the token B with the
+previous word A, and BxB looks at the interaction between the token B and B.
+'''
 
 
 # version 4: self-attention!
 torch.manual_seed(1337)
 B,T,C = 4,8,32 # batch, time, channels
 x = torch.randn(B,T,C)
+print(f'x.shape: {x.shape}')
+print(f'x[0][0]=\n{x[0][0]}')
+
+
 
 # let's see a single Head perform self-attention
 head_size = 16
-key   = nn.Linear(C, head_size, bias=False)
+key   = nn.Linear(C, head_size, bias=False) #(32, 16)
 query = nn.Linear(C, head_size, bias=False)
 value = nn.Linear(C, head_size, bias=False)
 
-k = key(x)   # (B, T, 16)
-q = query(x) # (B, T, 16)
-wei =  q @ k.transpose(-2, -1) # (B, T, 16) @ (B, 16, T) ---> (B, T, T)
+k = key(x)   # (B, T, 16) -> (4, 8, 16)
+q = query(x) # (B, T, 16) -> (4, 8, 16)
 
-tril = torch.tril(torch.ones(T, T))
-#wei = torch.zeros((T,T))
-wei = wei.masked_fill(tril == 0, float('-inf'))
-wei = F.softmax(wei, dim=-1)
+k_transpose = k.transpose(-2, -1) # [4, 16, 8] -  switch the last two dimensions (dim at -2 takes place where dim at -1 was)
+print('\n')
+print(f'k           shape: {k.shape}')
+print(f'k_transpose shape: {k_transpose.shape}') # [4, 16, 8]
+print(f'\nk[0][0]=\n{k[0][0]}')
+print(f'\nk_transpose[0][0]=\n{k_transpose[0][0]}')
 
-v = value(x)
-out = wei @ v
-#out = wei @ x
+# [4, 8, 8]
+wei =  q @ k_transpose # (B, T, 16) @ (B, 16, T) ---> (B, T, T) | (4, 8, 16) @ (4, 16, 8) ---> (4, 8, 8)
+print(f'\nwei.shape: {wei.shape}')
+print(f'wei[0]=\n{wei[0]}')
 
-out.shape
+
+
+mat_TT_ones = torch.ones(T, T) # [8, 8]
+tril = torch.tril(mat_TT_ones) # [8, 8]
+print(f'\nmat_TT_ones.shape: {mat_TT_ones.shape}')
+print(f'mat_TT_ones=\n{mat_TT_ones}')
+
+print(f'\ntril.shape: {tril.shape}')
+print(f'tril=\n{tril}')
+
+
+
+wei_masked = wei.masked_fill(tril == 0, float('-inf')) # [4, 8, 8]
+wei_softmax = F.softmax(wei_masked, dim=-1) # [4, 8, 8])
+
+print(f'\nwei_masked.shape: {wei_masked.shape}')
+print(f'wei_masked[0]=\n{wei_masked[0]}')
+
+print(f'\nwei_softmax.shape: {wei_softmax.shape}')
+print(f'wei_softmax[0]=\n{wei_softmax[0]}')
+
+
+v = value(x) # # (B, T, 16) -> [4, 8, 16]
+print(f'\nv.shape: {v.shape}')
+print(f'v[0]=\n{v[0]}')
+
+
+# [...,m,n] @ [...,n,p] = [...,m,p] -> [4, 8, 8] @ [4, 8, 16] = [4, 8, 16]
+out = wei_softmax @ v #[4, 8, 16]
+
+print(f'\nout.shape: {out.shape}')
+print(f'out[0]=\n{out[0]}')
+exit()
