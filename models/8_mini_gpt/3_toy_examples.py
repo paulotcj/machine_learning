@@ -370,17 +370,17 @@ previous word A, and BxB looks at the interaction between the token B and B.
 # version 4: self-attention!
 torch.manual_seed(1337)
 B,T,C = 4,8,32 # batch, time, channels
-x = torch.randn(B,T,C)
+x = torch.randn(B,T,C) # [4, 8, 32])
 print(f'x.shape: {x.shape}')
 print(f'x[0][0]=\n{x[0][0]}')
-
+exit()
 
 
 # let's see a single Head perform self-attention
 head_size = 16
-key   = nn.Linear(C, head_size, bias=False) #(32, 16)
-query = nn.Linear(C, head_size, bias=False)
-value = nn.Linear(C, head_size, bias=False)
+key   = nn.Linear(in_features=C, out_features=head_size, bias=False) #(in_features=32, out_features=16)
+query = nn.Linear(in_features=C, out_features=head_size, bias=False) #(in_features=32, out_features=16)
+value = nn.Linear(in_features=C, out_features=head_size, bias=False) #(in_features=32, out_features=16)
 
 k = key(x)   # (B, T, 16) -> (4, 8, 16)
 q = query(x) # (B, T, 16) -> (4, 8, 16)
@@ -418,9 +418,10 @@ print(f'wei_masked[0]=\n{wei_masked[0]}')
 print(f'\nwei_softmax.shape: {wei_softmax.shape}')
 print(f'wei_softmax[0]=\n{wei_softmax[0]}')
 
-
+# x -> []
 v = value(x) # # (B, T, 16) -> [4, 8, 16]
 print(f'\nv.shape: {v.shape}')
+exit()
 print(f'v[0]=\n{v[0]}')
 
 
@@ -429,4 +430,27 @@ out = wei_softmax @ v #[4, 8, 16]
 
 print(f'\nout.shape: {out.shape}')
 print(f'out[0]=\n{out[0]}')
-exit()
+
+'''
+The situation here is that we have a WEI(ght) that have been: transformed by nn.Linear layers then
+ matched agains key and query, then masked, and finally passsed through softmax. Now we multiply
+ wei by V(alue), which is the original content that went through a nn.Linear layer, reducing its
+ original encoding from 32 to 16 and adding some weights to it. So technically we had a transformation
+ there that is some sort of black box, and now we want to match this to the weights we have created.
+ Now consider these 2 toy-matrices:
+ wei = | x y |
+       | z t |
+
+ v = | a1 a2 a3 |
+     | b1 b2 b3 |
+
+doing: wei @ v = ...
+    
+| x y | q  w   r      --> (x*a1)+(y*b1)  |  (x*a2)+(y*b2)  |  (x*a3)+(y*b3)  |
+| z t | b  n   m      --> (z*a1)+(t*b1)  |  (z*a2)+(t*b2)  |  (z*a3)+(t*b3)  |
+      | a1 a2 a3 |
+      | b1 b2 b3 |
+
+
+
+'''
