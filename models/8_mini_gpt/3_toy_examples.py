@@ -331,10 +331,6 @@ for creating an averaging operation.
 Another interesting mechanism is the wei_zeros. These weights are initialized to zero, but
 with time they are adjusted to better reflect the interactions strenght we want to have between
 the tokens. Or how much of tokens from the past we want to know, to aggregate, to know about it.
-
-
-
-
 '''
 
 print('-----------------------------------------------')
@@ -373,7 +369,7 @@ B,T,C = 4,8,32 # batch, time, channels
 x = torch.randn(B,T,C) # [4, 8, 32])
 print(f'x.shape: {x.shape}')
 print(f'x[0][0]=\n{x[0][0]}')
-exit()
+
 
 
 # let's see a single Head perform self-attention
@@ -421,7 +417,6 @@ print(f'wei_softmax[0]=\n{wei_softmax[0]}')
 # x -> []
 v = value(x) # # (B, T, 16) -> [4, 8, 16]
 print(f'\nv.shape: {v.shape}')
-exit()
 print(f'v[0]=\n{v[0]}')
 
 
@@ -452,5 +447,26 @@ doing: wei @ v = ...
       | b1 b2 b3 |
 
 
-
 '''
+
+
+
+print('-----------------------------------------------')
+
+
+B,T,C = 4,8,32 # batch, time, channels
+head_size = 16
+
+k = torch.randn(B,T,head_size)
+q = torch.randn(B,T,head_size)
+wei = q @ k.transpose(-2, -1)
+# wei = q @ k.transpose(-2, -1) * head_size**-0.5
+
+
+print('\n\n')
+print(f'k.var(): {k.var()}')
+print(f'q.var(): {q.var()}')
+print(f'wei.var(): {wei.var()}')
+
+wei = q @ k.transpose(-2, -1) * head_size**-0.5
+print(f'wei.var(): {wei.var()}')
