@@ -470,3 +470,21 @@ print(f'wei.var(): {wei.var()}')
 
 wei = q @ k.transpose(-2, -1) * head_size**-0.5
 print(f'wei.var(): {wei.var()}')
+
+
+
+print('-----------------------------------------------')
+
+# now let's see normalization
+
+# if your data is closer together, then softmax will work better
+result = torch.softmax(torch.tensor([0.1, -0.2, 0.3, -0.2, 0.5]), dim=-1)
+
+print(f'result:\n{result}')
+
+
+# when the data is amplified, ( * 8), we start to observe that softmax converges to one-hot
+#   the value 0.5 will dominate, receiving 0.8000 from the softmax function
+result = torch.softmax(torch.tensor([0.1, -0.2, 0.3, -0.2, 0.5])*8, dim=-1) # gets too peaky, converges to one-hot
+print(f'result:\n{result}')
+
