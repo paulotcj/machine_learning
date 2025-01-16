@@ -4,37 +4,46 @@ from torch.nn import functional as F
 
 print('-------------------------------------------------------------------------')
 print('Hyperparameters init')
-debug = False
-
-def get_device():
-    # device = 'cpu'
-    # if torch.cuda.is_available():
-    #    device = 'cuda' 
-    #    print('using cuda acceleration')
-    # elif torch.backends.mps.is_built():
-    #     device = 'mps'
-    #     print('using mps acceleration')
-    # else:
-    #     device = 'cpu'
-    #     print('using cpu')
-    device = 'cuda' if torch.cuda.is_available() else 'cpu'
-
-    return device
 
 
-batch_size = 16 # how many independent sequences will we process in parallel?
-block_size = 32 # what is the maximum context length for predictions?
-max_iters = 5000
-# max_iters = 10
-eval_interval = 100
-learning_rate = 1e-3
-device = get_device()
-eval_iters = 200
-n_embd = 64
-n_head = 4
-n_layer = 4
-dropout = 0.0
 
+#-------------------------------------------------------------------------
+class HyperParameters():
+    #-------------------------------------------------------------------------
+    def __init__(self):
+
+        batch_size = 16 # how many independent sequences will we process in parallel?
+        block_size = 32 # what is the maximum context length for predictions?
+        max_iters = 5000
+        # max_iters = 10
+        eval_interval = 100
+        learning_rate = 1e-3
+        device = self.get_device()
+        eval_iters = 200
+        n_embd = 64
+        n_head = 4
+        n_layer = 4
+        dropout = 0.0
+        debug = False
+    #-------------------------------------------------------------------------
+    #-------------------------------------------------------------------------
+    def get_device(self):
+        # device = 'cpu'
+        # if torch.cuda.is_available():
+        #    device = 'cuda' 
+        #    print('using cuda acceleration')
+        # elif torch.backends.mps.is_built():
+        #     device = 'mps'
+        #     print('using mps acceleration')
+        # else:
+        #     device = 'cpu'
+        #     print('using cpu')
+        device = 'cuda' if torch.cuda.is_available() else 'cpu'
+
+        return device
+    #-------------------------------------------------------------------------
+#-------------------------------------------------------------------------
+hyper = HyperParameters()
 #-------------------------------------------------------------------------
 def sample_dict(dict, num_samples=5, print_result = True):
     
@@ -56,7 +65,7 @@ print('Part 1 - read data')
 torch.manual_seed(1337)
 
 file = 'input.txt'
-if debug:
+if hyper.debug:
     file = './models/8_mini_gpt/input.txt'
 with open(file = file, mode = 'r', encoding='utf-8') as f:
     text = f.read()
@@ -123,10 +132,10 @@ train_data, validation_data = get_train_val(param_text = text, param_encode = en
 def get_batch(split):
     # generate a small batch of data of inputs x and targets y
     data = train_data if split == 'train' else validation_data
-    ix = torch.randint(len(data) - block_size, (batch_size,))
-    x = torch.stack([data[i:i+block_size] for i in ix])
-    y = torch.stack([data[i+1:i+block_size+1] for i in ix])
-    x, y = x.to(device), y.to(device)
+    ix = torch.randint(len(data) - hyper.block_size, (hyper.batch_size,))
+    x = torch.stack([data[i:i+hyper.block_size] for i in ix])
+    y = torch.stack([data[i+1:i+hyper.block_size+1] for i in ix])
+    x, y = x.to(hyper.device), y.to(hyper.device)
     return x, y
 #-------------------------------------------------------------------------
 #-------------------------------------------------------------------------
@@ -136,8 +145,8 @@ def estimate_loss():
     out = {}
     model.eval()
     for split in ['train', 'val']:
-        losses = torch.zeros(eval_iters)
-        for k in range(eval_iters):
+        losses = torch.zeros(hyper.eval_iters)
+        for k in range(hyper.eval_iters):
             X, Y = get_batch(split)
             logits, loss = model(X, Y)
             losses[k] = loss.item()
@@ -151,12 +160,12 @@ class Head(nn.Module):
     #-------------------------------------------------------------------------
     def __init__(self, head_size):
         super().__init__()
-        self.key = nn.Linear(n_embd, head_size, bias=False)
-        self.query = nn.Linear(n_embd, head_size, bias=False)
-        self.value = nn.Linear(n_embd, head_size, bias=False)
-        self.register_buffer('tril', torch.tril(torch.ones(block_size, block_size)))
+        self.key = nn.Linear(hyper.n_embd, head_size, bias=False)
+        self.query = nn.Linear(hyper.n_embd, head_size, bias=False)
+        self.value = nn.Linear(hyper.n_embd, head_size, bias=False)
+        self.register_buffer('tril', torch.tril(torch.ones(hyper.block_size, hyper.block_size)))
 
-        self.dropout = nn.Dropout(dropout)
+        self.dropout = nn.Dropout(hyper.dropout)
     #-------------------------------------------------------------------------
     #-------------------------------------------------------------------------
     def forward(self, x):
@@ -182,8 +191,8 @@ class MultiHeadAttention(nn.Module):
     def __init__(self, num_heads, head_size):
         super().__init__()
         self.heads = nn.ModuleList([Head(head_size) for _ in range(num_heads)])
-        self.proj = nn.Linear(n_embd, n_embd)
-        self.dropout = nn.Dropout(dropout)
+        self.proj = nn.Linear(hyper.n_embd, hyper.n_embd)
+        self.dropout = nn.Dropout(hyper.dropout)
     #-------------------------------------------------------------------------
     #-------------------------------------------------------------------------
     def forward(self, x):
@@ -202,7 +211,7 @@ class FeedFoward(nn.Module):
             nn.Linear(n_embd, 4 * n_embd),
             nn.ReLU(),
             nn.Linear(4 * n_embd, n_embd),
-            nn.Dropout(dropout),
+            nn.Dropout(hyper.dropout),
         )
     #-------------------------------------------------------------------------
     #-------------------------------------------------------------------------
@@ -237,11 +246,11 @@ class BigramLanguageModel(nn.Module):
     def __init__(self):
         super().__init__()
         # each token directly reads off the logits for the next token from a lookup table
-        self.token_embedding_table = nn.Embedding(vocab_size, n_embd)
-        self.position_embedding_table = nn.Embedding(block_size, n_embd)
-        self.blocks = nn.Sequential(*[Block(n_embd, n_head=n_head) for _ in range(n_layer)])
-        self.ln_f = nn.LayerNorm(n_embd) # final layer norm
-        self.lm_head = nn.Linear(n_embd, vocab_size)
+        self.token_embedding_table = nn.Embedding(vocab_size, hyper.n_embd)
+        self.position_embedding_table = nn.Embedding(hyper.block_size, hyper.n_embd)
+        self.blocks = nn.Sequential(*[Block(n_embd, n_head=hyper.n_head) for _ in range(hyper.n_layer)])
+        self.ln_f = nn.LayerNorm(hyper.n_embd) # final layer norm
+        self.lm_head = nn.Linear(hyper.n_embd, vocab_size)
     #-------------------------------------------------------------------------
     #-------------------------------------------------------------------------
     def forward(self, idx, targets=None):
@@ -249,7 +258,7 @@ class BigramLanguageModel(nn.Module):
 
         # idx and targets are both (B,T) tensor of integers
         tok_emb = self.token_embedding_table(idx) # (B,T,C)
-        pos_emb = self.position_embedding_table(torch.arange(T, device=device)) # (T,C)
+        pos_emb = self.position_embedding_table(torch.arange(T, device=hyper.device)) # (T,C)
         x = tok_emb + pos_emb # (B,T,C)
         x = self.blocks(x) # (B,T,C)
         x = self.ln_f(x) # (B,T,C)
@@ -270,7 +279,7 @@ class BigramLanguageModel(nn.Module):
         # idx is (B, T) array of indices in the current context
         for _ in range(max_new_tokens):
             # crop idx to the last block_size tokens
-            idx_cond = idx[:, -block_size:]
+            idx_cond = idx[:, -hyper.block_size:]
             # get the predictions
             logits, loss = self(idx_cond)
             # focus only on the last time step
@@ -286,17 +295,17 @@ class BigramLanguageModel(nn.Module):
 #-------------------------------------------------------------------------
 
 model = BigramLanguageModel()
-m = model.to(device)
+m = model.to(hyper.device)
 # print the number of parameters in the model
 print(sum(p.numel() for p in m.parameters())/1e6, 'M parameters')
 
 # create a PyTorch optimizer
-optimizer = torch.optim.AdamW(model.parameters(), lr=learning_rate)
+optimizer = torch.optim.AdamW(model.parameters(), lr=hyper.learning_rate)
 
-for iter in range(max_iters):
+for iter in range(hyper.max_iters):
 
     # every once in a while evaluate the loss on train and val sets
-    if iter % eval_interval == 0 or iter == max_iters - 1:
+    if iter % hyper.eval_interval == 0 or iter == hyper.max_iters - 1:
         losses = estimate_loss()
         print(f"step {iter}: train loss {losses['train']:.4f}, val loss {losses['val']:.4f}")
 
@@ -310,5 +319,5 @@ for iter in range(max_iters):
     optimizer.step()
 
 # generate from the model
-context = torch.zeros((1, 1), dtype=torch.long, device=device)
+context = torch.zeros((1, 1), dtype=torch.long, device=hyper.device)
 print(decode(m.generate(context, max_new_tokens=2000)[0].tolist()))
