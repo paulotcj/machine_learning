@@ -6,23 +6,29 @@ print('-------------------------------------------------------------------------
 print('Hyperparameters init')
 debug = False
 
+def get_device():
+    # device = 'cpu'
+    # if torch.cuda.is_available():
+    #    device = 'cuda' 
+    #    print('using cuda acceleration')
+    # elif torch.backends.mps.is_built():
+    #     device = 'mps'
+    #     print('using mps acceleration')
+    # else:
+    #     device = 'cpu'
+    #     print('using cpu')
+    device = 'cuda' if torch.cuda.is_available() else 'cpu'
+
+    return device
+
+
 batch_size = 16 # how many independent sequences will we process in parallel?
 block_size = 32 # what is the maximum context length for predictions?
-# max_iters = 5000
-max_iters = 10
+max_iters = 5000
+# max_iters = 10
 eval_interval = 100
 learning_rate = 1e-3
-# device = 'cpu'
-# if torch.cuda.is_available():
-#    device = 'cuda' 
-#    print('using cuda acceleration')
-# elif torch.backends.mps.is_built():
-#     device = 'mps'
-#     print('using mps acceleration')
-# else:
-#     device = 'cpu'
-#     print('using cpu')
-device = 'cuda' if torch.cuda.is_available() else 'cpu'
+device = get_device()
 eval_iters = 200
 n_embd = 64
 n_head = 4
@@ -46,7 +52,7 @@ def sample_dict(dict, num_samples=5, print_result = True):
     return temp_list
 #-------------------------------------------------------------------------
 print('-------------------------------------------------------------------------')
-print('Part 1')
+print('Part 1 - read data')
 torch.manual_seed(1337)
 
 file = 'input.txt'
@@ -63,6 +69,8 @@ print(f'here are all the unique characters that occur in this text:\n  {chars}')
 vocab_size = len(chars)
 print(f'vocab size: {vocab_size}')
 
+print('-------------------------------------------------------------------------')
+print('Part 2 - Create a mapping from characters to integers, decoder and encoder')
 # create a mapping from characters to integers
 str_to_idx = { char: idx  for idx,char in enumerate(chars) }
 idx_to_str = { idx : char for idx,char in enumerate(chars) }
@@ -70,18 +78,36 @@ print(f'first 5 character to integer mapping:')
 sample_dict(str_to_idx)
 print(f'first 5 integer to character mapping:')
 sample_dict(idx_to_str)
-exit()
-
-encode = lambda s: [str_to_idx[c] for c in s] # encoder: take a string, output a list of integers
-decode = lambda l: ''.join([idx_to_str[i] for i in l]) # decoder: take a list of integers, output a string
-
-# Train and test splits
-data_selected = torch.tensor(encode(text), dtype=torch.long)
-n = int(0.9*len(data_selected)) # first 90% will be train, rest val
-train_data = data_selected[:n]
-validation_data = data_selected[n:]
-
 #-------------------------------------------------------------------------
+encode = lambda str_input: [ 
+    str_to_idx[char] 
+    for char in str_input
+] # encoder: take a string, output a list of integers
+#-------------------------------------------------------------------------
+#-------------------------------------------------------------------------
+decode = lambda int_list: ''.join(
+    [
+        idx_to_str[i] 
+        for i in int_list
+    ]
+) # decoder: take a list of integers, output a string
+#-------------------------------------------------------------------------
+
+print('-------------------------------------------------------------------------')
+print('Part 3 - Train and test splits')
+#-------------------------------------------------------------------------
+def get_train_val(param_text, param_encode, percent_train = 0.9):
+    data_selected = torch.tensor(param_encode(param_text), dtype=torch.long) # encode the text into integers
+
+    len_data_selected = len(data_selected)
+    range_selected = int(percent_train*len_data_selected) # 0.9 * num = first 90% will be train, rest is val
+
+    train_data = data_selected[:range_selected] # from 0 to range selected index (non inclusive)
+    validation_data = data_selected[range_selected:] # from range selected to end of the list
+
+    return train_data, validation_data
+#-------------------------------------------------------------------------
+train_data, validation_data = get_train_val(param_text = text, param_encode = encode)
 # data loading
 def get_batch(split):
     # generate a small batch of data of inputs x and targets y
