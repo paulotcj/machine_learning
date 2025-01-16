@@ -2,29 +2,28 @@ import torch
 import torch.nn as nn
 from torch.nn import functional as F
 
+torch.manual_seed(1337)
+
 print('-------------------------------------------------------------------------')
 print('Hyperparameters init')
-
-
-
 #-------------------------------------------------------------------------
 class HyperParameters():
     #-------------------------------------------------------------------------
     def __init__(self):
 
-        batch_size = 16 # how many independent sequences will we process in parallel?
-        block_size = 32 # what is the maximum context length for predictions?
-        max_iters = 5000
-        # max_iters = 10
-        eval_interval = 100
-        learning_rate = 1e-3
-        device = self.get_device()
-        eval_iters = 200
-        n_embd = 64
-        n_head = 4
-        n_layer = 4
-        dropout = 0.0
-        debug = False
+        self.batch_size = 16 # how many independent sequences will we process in parallel?
+        self.block_size = 32 # what is the maximum context length for predictions?
+        # self.max_iters = 5000
+        self.max_iters = 10
+        self.eval_interval = 100
+        self.learning_rate = 1e-3
+        self.device = self.get_device()
+        self.eval_iters = 200
+        self.n_embd = 64
+        self.n_head = 4
+        self.n_layer = 4
+        self.dropout = 0.0
+        self.debug = False
     #-------------------------------------------------------------------------
     #-------------------------------------------------------------------------
     def get_device(self):
@@ -44,66 +43,94 @@ class HyperParameters():
     #-------------------------------------------------------------------------
 #-------------------------------------------------------------------------
 hyper = HyperParameters()
-#-------------------------------------------------------------------------
-def sample_dict(dict, num_samples=5, print_result = True):
-    
-    temp_list = []
-    for idx, (key,val) in enumerate( dict.items() ):
-        if idx >= num_samples:
-            break
-        str_temp = f'key:{key}, val:{val}\n' 
-        temp_list.append( str_temp )
 
-    if print_result:
-        merged = ''.join(temp_list)
-        print(merged)
-    
-    return temp_list
-#-------------------------------------------------------------------------
 print('-------------------------------------------------------------------------')
 print('Part 1 - read data')
-torch.manual_seed(1337)
 
-file = 'input.txt'
-if hyper.debug:
-    file = './models/8_mini_gpt/input.txt'
-with open(file = file, mode = 'r', encoding='utf-8') as f:
-    text = f.read()
-
-
-chars = sorted(list(set(text)))
-print(f'here are all the unique characters that occur in this text:\n  {chars}')
-
-
-vocab_size = len(chars)
-print(f'vocab size: {vocab_size}')
-
-print('-------------------------------------------------------------------------')
-print('Part 2 - Create a mapping from characters to integers, decoder and encoder')
-# create a mapping from characters to integers
-str_to_idx = { char: idx  for idx,char in enumerate(chars) }
-idx_to_str = { idx : char for idx,char in enumerate(chars) }
-print(f'first 5 character to integer mapping:')
-sample_dict(str_to_idx)
-print(f'first 5 integer to character mapping:')
-sample_dict(idx_to_str)
 #-------------------------------------------------------------------------
-encode = lambda str_input: [ 
-    str_to_idx[char] 
-    for char in str_input
-] # encoder: take a string, output a list of integers
+class SourceData():
+    #-------------------------------------------------------------------------
+    def __init__(self, file = 'input.txt', param_debug = False):
+        self.file = file
+        if param_debug:
+            self.file = './models/8_mini_gpt/input.txt'
+        
+        with open(file = self.file, mode = 'r', encoding='utf-8') as f:
+            self.text = f.read()
+
+        self.chars = sorted(list(set(self.text)))
+
+        self.vocab_size = len(self.chars)
+
+        # create a mapping from characters to integers
+        self.str_to_idx = { char: idx  for idx,char in enumerate(self.chars) }
+        self.idx_to_str = { idx : char for idx,char in enumerate(self.chars) }        
+    #-------------------------------------------------------------------------
+    #-------------------------------------------------------------------------
+    def get_summary(self):
+        print(f'here are all the unique characters that occur in this text:\n  {self.chars}')
+        print(f'vocab size: {self.vocab_size}')
+
+        print(f'first 5 character to integer mapping:')
+        self.__sample_dict(self.str_to_idx)
+        print(f'first 5 integer to character mapping:')
+        self.__sample_dict(self.idx_to_str)
+    #-------------------------------------------------------------------------
+    #-------------------------------------------------------------------------
+    def __sample_dict(self, dict, num_samples=5, print_result = True):
+        
+        temp_list = []
+        for idx, (key,val) in enumerate( dict.items() ):
+            if idx >= num_samples:
+                break
+            str_temp = f'key:{key}, val:{val}\n' 
+            temp_list.append( str_temp )
+
+        if print_result:
+            merged = ''.join(temp_list)
+            print(merged)
+        
+        return temp_list
+    #------------------------------------------------------------------------- 
+    def encode(self, str_input):
+        return [ 
+            self.str_to_idx[char] 
+            for char in str_input
+        ] # encoder: take a string, output a list of integers   
+    #------------------------------------------------------------------------- 
+    def decode(self, int_list):
+        return ''.join(
+            [
+                self.idx_to_str[i] 
+                for i in int_list
+            ]
+        ) # decoder: take a list of integers, output a string
+    #------------------------------------------------------------------------- 
+    #------------------------------------------------------------------------- 
+    #-------------------------------------------------------------------------    
 #-------------------------------------------------------------------------
-#-------------------------------------------------------------------------
-decode = lambda int_list: ''.join(
-    [
-        idx_to_str[i] 
-        for i in int_list
-    ]
-) # decoder: take a list of integers, output a string
-#-------------------------------------------------------------------------
+
+src_d = SourceData(param_debug = hyper.debug)
+src_d.get_summary()
+
 
 print('-------------------------------------------------------------------------')
 print('Part 3 - Train and test splits')
+
+class TrainValData():
+    #-------------------------------------------------------------------------
+    def __init__(self, text, encoder, percent_train = 0.9):
+        data_selected = torch.tensor(encoder(text), dtype=torch.long) # encode the text into integers
+
+        len_data_selected = len(data_selected)
+        range_selected = int(percent_train*len_data_selected) # 0.9 * num = first 90% will be train, rest is val
+
+        train_data = data_selected[:range_selected] # from 0 to range selected index (non inclusive)
+        validation_data = data_selected[range_selected:] # from range selected to end of the list
+
+        return train_data, validation_data
+    #-------------------------------------------------------------------------
+
 #-------------------------------------------------------------------------
 def get_train_val(param_text, param_encode, percent_train = 0.9):
     data_selected = torch.tensor(param_encode(param_text), dtype=torch.long) # encode the text into integers
@@ -116,7 +143,7 @@ def get_train_val(param_text, param_encode, percent_train = 0.9):
 
     return train_data, validation_data
 #-------------------------------------------------------------------------
-train_data, validation_data = get_train_val(param_text = text, param_encode = encode)
+train_data, validation_data = get_train_val(param_text = src_d.text, param_encode = src_d.encode)
 
 ########################################################################################
 ###########
@@ -246,11 +273,11 @@ class BigramLanguageModel(nn.Module):
     def __init__(self):
         super().__init__()
         # each token directly reads off the logits for the next token from a lookup table
-        self.token_embedding_table = nn.Embedding(vocab_size, hyper.n_embd)
+        self.token_embedding_table = nn.Embedding(src_d.vocab_size, hyper.n_embd)
         self.position_embedding_table = nn.Embedding(hyper.block_size, hyper.n_embd)
-        self.blocks = nn.Sequential(*[Block(n_embd, n_head=hyper.n_head) for _ in range(hyper.n_layer)])
+        self.blocks = nn.Sequential(*[Block(hyper.n_embd, n_head=hyper.n_head) for _ in range(hyper.n_layer)])
         self.ln_f = nn.LayerNorm(hyper.n_embd) # final layer norm
-        self.lm_head = nn.Linear(hyper.n_embd, vocab_size)
+        self.lm_head = nn.Linear(hyper.n_embd, src_d.vocab_size)
     #-------------------------------------------------------------------------
     #-------------------------------------------------------------------------
     def forward(self, idx, targets=None):
@@ -320,4 +347,4 @@ for iter in range(hyper.max_iters):
 
 # generate from the model
 context = torch.zeros((1, 1), dtype=torch.long, device=hyper.device)
-print(decode(m.generate(context, max_new_tokens=2000)[0].tolist()))
+print(src_d.decode(m.generate(context, max_new_tokens=2000)[0].tolist()))
