@@ -8,3 +8,16 @@ print(matrix)
 matrix_t = matrix.transpose(-2,-1)
 print('transposed matrix')
 print(matrix_t)
+
+
+#-------------------------
+
+
+
+
+if torch.has_mps:
+    print("MPS (Apple Silicon GPU) is available!")
+else:
+    print("MPS is not available.") 
+
+device = torch.device("mps" if torch.has_mps else "cpu") 
