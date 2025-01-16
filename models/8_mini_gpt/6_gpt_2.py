@@ -108,6 +108,7 @@ def get_train_val(param_text, param_encode, percent_train = 0.9):
     return train_data, validation_data
 #-------------------------------------------------------------------------
 train_data, validation_data = get_train_val(param_text = text, param_encode = encode)
+#-------------------------------------------------------------------------
 # data loading
 def get_batch(split):
     # generate a small batch of data of inputs x and targets y
