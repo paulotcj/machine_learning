@@ -13,8 +13,8 @@ class HyperParameters():
 
         self.batch_size = 16 # how many independent sequences will we process in parallel?
         self.block_size = 32 # what is the maximum context length for predictions?
-        self.max_iters = 5000
-        # self.max_iters = 10
+        # self.max_iters = 5000
+        self.max_iters = 100
         self.eval_interval = 100
         self.learning_rate = 1e-3
         self.device = self.get_device()
@@ -43,10 +43,8 @@ class HyperParameters():
     #-------------------------------------------------------------------------
 #-------------------------------------------------------------------------
 hyper = HyperParameters()
-
 print('-------------------------------------------------------------------------')
 print('Part 1 - read data')
-
 #-------------------------------------------------------------------------
 class SourceData():
     #-------------------------------------------------------------------------
@@ -109,14 +107,10 @@ class SourceData():
     #------------------------------------------------------------------------- 
     #-------------------------------------------------------------------------    
 #-------------------------------------------------------------------------
-
 src_d = SourceData(param_debug = hyper.debug)
 src_d.show_summary()
-
-
 print('-------------------------------------------------------------------------')
 print('Part 3 - Train and test splits')
-
 #-------------------------------------------------------------------------
 class TrainValData():
     #-------------------------------------------------------------------------
@@ -183,7 +177,6 @@ class TrainValData():
     #-------------------------------------------------------------------------
 #-------------------------------------------------------------------------
 train_val_data = TrainValData(text = src_d.text, encoder = src_d.encode, device = hyper.device)
-
 #-------------------------------------------------------------------------
 class EstimateLoss():
     #-------------------------------------------------------------------------
@@ -218,6 +211,13 @@ class EstimateLoss():
         return out
     #-------------------------------------------------------------------------
 #-------------------------------------------------------------------------
+
+########################################################################################
+###########
+########### PAUSED HERE
+###########
+########################################################################################
+
 #-------------------------------------------------------------------------
 class Head(nn.Module):
     """ one head of self-attention """
@@ -304,17 +304,31 @@ class Block(nn.Module):
     #-------------------------------------------------------------------------
 #-------------------------------------------------------------------------
 #-------------------------------------------------------------------------
-# super simple bigram model
 class BigramLanguageModel(nn.Module):
     #-------------------------------------------------------------------------
-    def __init__(self):
+    def __init__(self, vocab_size, n_embd, block_size, n_layer, n_head):
         super().__init__()
+        #--------
+        self.vocab_size = vocab_size
+        self.n_embd     = n_embd
+        self.block_size = block_size
+        self.n_layer    = n_layer
+        self.n_head     = n_head
+        #--------
+
+        block_list = [
+            Block(n_embd = hyper.n_embd, n_head = self.n_head) 
+            for _ in range(self.n_layer)
+        ]
+
+        #--------
         # each token directly reads off the logits for the next token from a lookup table
-        self.token_embedding_table = nn.Embedding(src_d.vocab_size, hyper.n_embd)
-        self.position_embedding_table = nn.Embedding(hyper.block_size, hyper.n_embd)
-        self.blocks = nn.Sequential(*[Block(hyper.n_embd, n_head=hyper.n_head) for _ in range(hyper.n_layer)])
-        self.ln_f = nn.LayerNorm(hyper.n_embd) # final layer norm
-        self.lm_head = nn.Linear(hyper.n_embd, src_d.vocab_size)
+        self.token_embedding_table    = nn.Embedding(num_embeddings = self.vocab_size, embedding_dim = self.n_embd)
+        self.position_embedding_table = nn.Embedding(num_embeddings = self.block_size, embedding_dim = self.n_embd)
+        self.blocks          = nn.Sequential(*block_list) # sends the elements of the list as arguments
+        self.layernorm_final = nn.LayerNorm(normalized_shape = self.n_embd) # final layer norm
+        self.langmodel_head  = nn.Linear(in_features = self.n_embd, out_features = self.vocab_size)
+        #--------
     #-------------------------------------------------------------------------
     #-------------------------------------------------------------------------
     def forward(self, idx, targets=None):
@@ -325,8 +339,8 @@ class BigramLanguageModel(nn.Module):
         pos_emb = self.position_embedding_table(torch.arange(T, device=hyper.device)) # (T,C)
         x = tok_emb + pos_emb # (B,T,C)
         x = self.blocks(x) # (B,T,C)
-        x = self.ln_f(x) # (B,T,C)
-        logits = self.lm_head(x) # (B,T,vocab_size)
+        x = self.layernorm_final(x) # (B,T,C)
+        logits = self.langmodel_head(x) # (B,T,vocab_size)
 
         if targets is None:
             loss = None
@@ -359,7 +373,13 @@ class BigramLanguageModel(nn.Module):
 #-------------------------------------------------------------------------
 
 
-model = BigramLanguageModel()
+model = BigramLanguageModel(
+    vocab_size  = src_d.vocab_size, 
+    n_embd      = hyper.n_embd, 
+    block_size  = hyper.block_size, 
+    n_layer     = hyper.n_layer, 
+    n_head      = hyper.n_head
+)
 loss_obj = EstimateLoss(hyper.eval_iters, model = model, device = hyper.device)
 
 m = model.to(hyper.device)
