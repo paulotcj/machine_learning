@@ -67,7 +67,7 @@ class SourceData():
         self.idx_to_str = { idx : char for idx,char in enumerate(self.chars) }        
     #-------------------------------------------------------------------------
     #-------------------------------------------------------------------------
-    def get_summary(self):
+    def show_summary(self):
         print(f'here are all the unique characters that occur in this text:\n  {self.chars}')
         print(f'vocab size: {self.vocab_size}')
 
@@ -111,12 +111,13 @@ class SourceData():
 #-------------------------------------------------------------------------
 
 src_d = SourceData(param_debug = hyper.debug)
-src_d.get_summary()
+src_d.show_summary()
 
 
 print('-------------------------------------------------------------------------')
 print('Part 3 - Train and test splits')
 
+#-------------------------------------------------------------------------
 class TrainValData():
     #-------------------------------------------------------------------------
     def __init__(self, text, encoder, percent_train = 0.9):
@@ -125,61 +126,81 @@ class TrainValData():
         len_data_selected = len(data_selected)
         range_selected = int(percent_train*len_data_selected) # 0.9 * num = first 90% will be train, rest is val
 
-        train_data = data_selected[:range_selected] # from 0 to range selected index (non inclusive)
-        validation_data = data_selected[range_selected:] # from range selected to end of the list
+        self.train_data = data_selected[:range_selected] # from 0 to range selected index (non inclusive)
+        self.validation_data = data_selected[range_selected:] # from range selected to end of the list
 
-        return train_data, validation_data
     #-------------------------------------------------------------------------
+    #-------------------------------------------------------------------------
+    def get_batch(self, block_size = 32, batch_size = 16, device = 'cpu', str_split = 'train'):
+        # generate a small batch of data of inputs x and targets y
+
+        if str_split == 'train':
+            data_selected = self.train_data
+        else:
+            data_selected = self.validation_data
+
+
+        # this is cut short from the len minus the block size, if we select the last possible index, we need to be able
+        #   to select block_size elements after it
+        high_bound = len(data_selected) - block_size 
+        size_selection = (batch_size,)        
+     
+
+
+        rand_int_tensor = torch.randint(high=high_bound, size=size_selection)
+
+        r'''
+        there an concern if this is under list bounds, so let's test the limits.
+        consider len(data_selected) = 100, block_size = 8
+        then high_bound = 100 - 8 = 92, but since the high is exclusive, the last possible index is 91
+        For the First list:
+        if 'i' was 91, we would have: start idx = 91 (inclusive), end idx = 91 + 8 = 99 (exclusive)
+        therefore we would get: 91, 92, 93, 94, 95, 96, 97, 98
+
+        For the second list:
+        if 'i' was 91, then we would have: start idx = i + 1 = 92 (inclusive), end idx = i + 1 + 8 = 91 + 1 + 8 = 100 (exclusive)
+        therefore we would get: 92, 93, 94, 95, 96, 97, 98, 99
+        '''
+        x = torch.stack(
+            [ 
+                data_selected[i:i+block_size] 
+                for i in rand_int_tensor
+            ]
+        )
+
+        y = torch.stack(
+            [
+                data_selected[i+1:i+block_size+1] 
+                for i in rand_int_tensor
+            ]
+        )
+
+        x, y = x.to(device), y.to(device)
+        
+        return x, y        
+        
+    #-------------------------------------------------------------------------
+#-------------------------------------------------------------------------
+train_val_data = TrainValData(text = src_d.text, encoder = src_d.encode)
 
 #-------------------------------------------------------------------------
-def get_train_val(param_text, param_encode, percent_train = 0.9):
-    data_selected = torch.tensor(param_encode(param_text), dtype=torch.long) # encode the text into integers
-
-    len_data_selected = len(data_selected)
-    range_selected = int(percent_train*len_data_selected) # 0.9 * num = first 90% will be train, rest is val
-
-    train_data = data_selected[:range_selected] # from 0 to range selected index (non inclusive)
-    validation_data = data_selected[range_selected:] # from range selected to end of the list
-
-    return train_data, validation_data
-#-------------------------------------------------------------------------
-train_data, validation_data = get_train_val(param_text = src_d.text, param_encode = src_d.encode)
-
-########################################################################################
-###########
-########### paused here
-###########
-########################################################################################
-
-
-
-
-#-------------------------------------------------------------------------
-# data loading
-def get_batch(split):
-    # generate a small batch of data of inputs x and targets y
-    data = train_data if split == 'train' else validation_data
-    ix = torch.randint(len(data) - hyper.block_size, (hyper.batch_size,))
-    x = torch.stack([data[i:i+hyper.block_size] for i in ix])
-    y = torch.stack([data[i+1:i+hyper.block_size+1] for i in ix])
-    x, y = x.to(hyper.device), y.to(hyper.device)
-    return x, y
-#-------------------------------------------------------------------------
-#-------------------------------------------------------------------------
-# the operations performed within the decorated function will not be tracked for gradient computation
-@torch.no_grad()
-def estimate_loss():
-    out = {}
-    model.eval()
-    for split in ['train', 'val']:
-        losses = torch.zeros(hyper.eval_iters)
-        for k in range(hyper.eval_iters):
-            X, Y = get_batch(split)
-            logits, loss = model(X, Y)
-            losses[k] = loss.item()
-        out[split] = losses.mean()
-    model.train()
-    return out
+class EstimateLoss():
+    #-------------------------------------------------------------------------
+    # the operations performed within the decorated function will not be tracked for gradient computation
+    @torch.no_grad()
+    def estimate_loss():
+        out = {}
+        model.eval()
+        for split in ['train', 'val']:
+            losses = torch.zeros(hyper.eval_iters)
+            for k in range(hyper.eval_iters):
+                X, Y = train_val_data.get_batch(str_split = split)
+                logits, loss = model(X, Y)
+                losses[k] = loss.item()
+            out[split] = losses.mean()
+        model.train()
+        return out
+    #-------------------------------------------------------------------------
 #-------------------------------------------------------------------------
 #-------------------------------------------------------------------------
 class Head(nn.Module):
@@ -337,7 +358,9 @@ for iter in range(hyper.max_iters):
         print(f"step {iter}: train loss {losses['train']:.4f}, val loss {losses['val']:.4f}")
 
     # sample a batch of data
-    xb, yb = get_batch('train')
+    xb, yb = train_val_data.get_batch(str_split = 'train')
+
+    
 
     # evaluate the loss
     logits, _loss = model(xb, yb)
