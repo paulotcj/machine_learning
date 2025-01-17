@@ -23,7 +23,7 @@ class HyperParameters():
         self.n_head = 4
         self.n_layer = 4
         self.dropout = 0.0
-        self.debug = False
+        self.debug = True
     #-------------------------------------------------------------------------
     #-------------------------------------------------------------------------
     def get_device(self):
@@ -310,11 +310,11 @@ class BigramLanguageModel(nn.Module):
     def __init__(self, vocab_size, n_embd, block_size, n_layer, n_head):
         super().__init__()
         #--------
-        self.vocab_size = vocab_size
-        self.n_embd     = n_embd
-        self.block_size = block_size
-        self.n_layer    = n_layer
-        self.n_head     = n_head
+        self.vocab_size = vocab_size   # 65
+        self.n_embd     = n_embd       # 64
+        self.block_size = block_size   # 32
+        self.n_layer    = n_layer      # 4
+        self.n_head     = n_head       # 4
         #--------
 
         block_list = [
@@ -328,25 +328,32 @@ class BigramLanguageModel(nn.Module):
         self.position_embedding_table = nn.Embedding(num_embeddings = self.block_size, embedding_dim = self.n_embd)
         self.blocks          = nn.Sequential(*block_list) # sends the elements of the list as arguments
         self.layernorm_final = nn.LayerNorm(normalized_shape = self.n_embd) # final layer norm
-        self.langmodel_head  = nn.Linear(in_features = self.n_embd, out_features = self.vocab_size)
+        self.lang_model_head = nn.Linear(in_features = self.n_embd, out_features = self.vocab_size)
         #--------
     #-------------------------------------------------------------------------
     #-------------------------------------------------------------------------
     def forward(self, idx, targets=None):
-        B, T = idx.shape
+        B, T = idx.shape # B (16): batch size, T(32): sequence length
+
+        val_range = torch.arange(T, device=hyper.device) #[32] tensor. [ 0, 1, 2, ..., 31]
 
         # idx and targets are both (B,T) tensor of integers
-        tok_emb = self.token_embedding_table(idx) # (B,T,C)
-        pos_emb = self.position_embedding_table(torch.arange(T, device=hyper.device)) # (T,C)
-        x = tok_emb + pos_emb # (B,T,C)
-        x = self.blocks(x) # (B,T,C)
-        x = self.layernorm_final(x) # (B,T,C)
-        logits = self.langmodel_head(x) # (B,T,vocab_size)
+        #   remember these embeddings will change as the model trains
+        token_embeddings    = self.token_embedding_table(idx) # (B,T,C) - [16, 32, 64]
+        position_embeddings = self.position_embedding_table(val_range) # (T,C) - [32, 64]
+
+        
+
+        tkn_emb_plus_pos_emb = token_embeddings + position_embeddings # (B,T,C) - [16, 32, 64]
+        x_blocks = self.blocks(tkn_emb_plus_pos_emb) # (B,T,C) - [16, 32, 64] - CHECK PENDING
+        x_norm = self.layernorm_final(x_blocks) # (B,T,C) - [16, 32, 64] - it's complicated - but generally speaking we want the data to be evenly distributed to avoid problems such as vanishing and exploding gradients, also improves convergence and enhanced generalization
+
+        logits = self.lang_model_head(x_norm) # (B,T,vocab_size) - [16, 32, 65]) - pass through a linear layer to get the logits
 
         if targets is None:
             loss = None
         else:
-            B, T, C = logits.shape
+            B, T, C = logits.shape # check if they were updated
             logits = logits.view(B*T, C)
             targets = targets.view(B*T)
             loss = F.cross_entropy(logits, targets)
