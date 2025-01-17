@@ -13,8 +13,8 @@ class HyperParameters():
 
         self.batch_size = 16 # how many independent sequences will we process in parallel?
         self.block_size = 32 # what is the maximum context length for predictions?
-        # self.max_iters = 5000
-        self.max_iters = 10
+        self.max_iters = 5000
+        # self.max_iters = 10
         self.eval_interval = 100
         self.learning_rate = 1e-3
         self.device = self.get_device()
@@ -27,17 +27,17 @@ class HyperParameters():
     #-------------------------------------------------------------------------
     #-------------------------------------------------------------------------
     def get_device(self):
-        # device = 'cpu'
-        # if torch.cuda.is_available():
-        #    device = 'cuda' 
-        #    print('using cuda acceleration')
-        # elif torch.backends.mps.is_built():
-        #     device = 'mps'
-        #     print('using mps acceleration')
-        # else:
-        #     device = 'cpu'
-        #     print('using cpu')
-        device = 'cuda' if torch.cuda.is_available() else 'cpu'
+        device = 'cpu'
+        if torch.cuda.is_available():
+           device = 'cuda' 
+           print('using cuda acceleration')
+        elif torch.backends.mps.is_built():
+            device = 'mps'
+            print('using mps acceleration')
+        else:
+            device = 'cpu'
+            print('using cpu')
+        # device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
         return device
     #-------------------------------------------------------------------------
@@ -120,7 +120,7 @@ print('Part 3 - Train and test splits')
 #-------------------------------------------------------------------------
 class TrainValData():
     #-------------------------------------------------------------------------
-    def __init__(self, text, encoder, percent_train = 0.9):
+    def __init__(self, text, encoder, device = 'cpu', percent_train = 0.9):
         data_selected = torch.tensor(encoder(text), dtype=torch.long) # encode the text into integers
 
         len_data_selected = len(data_selected)
@@ -128,10 +128,11 @@ class TrainValData():
 
         self.train_data = data_selected[:range_selected] # from 0 to range selected index (non inclusive)
         self.validation_data = data_selected[range_selected:] # from range selected to end of the list
+        self.device = device
 
     #-------------------------------------------------------------------------
     #-------------------------------------------------------------------------
-    def get_batch(self, block_size = 32, batch_size = 16, device = 'cpu', str_split = 'train'):
+    def get_batch(self, block_size = 32, batch_size = 16, str_split = 'train'):
         # generate a small batch of data of inputs x and targets y
 
         if str_split == 'train':
@@ -175,20 +176,21 @@ class TrainValData():
             ]
         )
 
-        x, y = x.to(device), y.to(device)
+        x, y = x.to(self.device), y.to(self.device)
         
         return x, y        
         
     #-------------------------------------------------------------------------
 #-------------------------------------------------------------------------
-train_val_data = TrainValData(text = src_d.text, encoder = src_d.encode)
+train_val_data = TrainValData(text = src_d.text, encoder = src_d.encode, device = hyper.device)
 
 #-------------------------------------------------------------------------
 class EstimateLoss():
     #-------------------------------------------------------------------------
-    def __init__(self, eval_iters, model):
+    def __init__(self, eval_iters, model, device):
         self.eval_iters = eval_iters
         self.model = model
+        self.device = device
     #-------------------------------------------------------------------------
     #-------------------------------------------------------------------------
     # the operations performed within the decorated function will not be tracked for gradient computation
@@ -358,7 +360,7 @@ class BigramLanguageModel(nn.Module):
 
 
 model = BigramLanguageModel()
-loss_obj = EstimateLoss(hyper.eval_iters, model = model)
+loss_obj = EstimateLoss(hyper.eval_iters, model = model, device = hyper.device)
 
 m = model.to(hyper.device)
 # print the number of parameters in the model
