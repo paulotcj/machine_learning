@@ -332,7 +332,9 @@ class BigramLanguageModel(nn.Module):
         #--------
     #-------------------------------------------------------------------------
     #-------------------------------------------------------------------------
+    # DONE
     def forward(self, idx, targets=None):
+        #targets - [16,32]
         B, T = idx.shape # B (16): batch size, T(32): sequence length
 
         val_range = torch.arange(T, device=hyper.device) #[32] tensor. [ 0, 1, 2, ..., 31]
@@ -348,14 +350,18 @@ class BigramLanguageModel(nn.Module):
         x_blocks = self.blocks(tkn_emb_plus_pos_emb) # (B,T,C) - [16, 32, 64] - CHECK PENDING
         x_norm = self.layernorm_final(x_blocks) # (B,T,C) - [16, 32, 64] - it's complicated - but generally speaking we want the data to be evenly distributed to avoid problems such as vanishing and exploding gradients, also improves convergence and enhanced generalization
 
-        logits = self.lang_model_head(x_norm) # (B,T,vocab_size) - [16, 32, 65]) - pass through a linear layer to get the logits
+        logits = self.lang_model_head(x_norm) # (B,T,vocab_size) - [16, 32, 65]) - pass through a linear layer to get the logits (with weights and biases)
 
-        if targets is None:
+        if targets is None: #if we are just generating text, or in other words, if we are not training
             loss = None
-        else:
-            B, T, C = logits.shape # check if they were updated
-            logits = logits.view(B*T, C)
-            targets = targets.view(B*T)
+        else: # training...
+            ''' note: here we compare the chars generated from the model to the actual chars in the text,
+              therefore, the last dimensin of the vocab size is not particularly important when calculating
+              the cross entropy
+            '''
+            B, T, C = logits.shape # the C is new, typically 65
+            logits = logits.view(B*T, C) # (B*T, C) -> (16*32, 65) -> (512, 65)
+            targets = targets.view(B*T) # from [16,32] to [512]
             loss = F.cross_entropy(logits, targets)
 
         return logits, loss
@@ -379,6 +385,18 @@ class BigramLanguageModel(nn.Module):
         return idx
     #-------------------------------------------------------------------------
 #-------------------------------------------------------------------------
+#-------------------------------------------------------------------------
+def show_params_summary(m):
+    # print the number of parameters in the model
+    param_list = [
+        p.numel() # number of elements in the tensor
+        for p in m.parameters()
+    ]
+    param_sum = sum(param_list)
+    param_sum /= 1e6
+    print(f'{param_sum} M parameters')    
+
+#-------------------------------------------------------------------------
 
 
 model = BigramLanguageModel(
@@ -390,9 +408,10 @@ model = BigramLanguageModel(
 )
 loss_obj = EstimateLoss(hyper.eval_iters, model = model, device = hyper.device)
 
-m = model.to(hyper.device)
-# print the number of parameters in the model
-print(sum(p.numel() for p in m.parameters())/1e6, 'M parameters')
+m = model.to(hyper.device) # same object just a shortcut for the line below
+
+show_params_summary(m)
+
 
 # create a PyTorch optimizer
 optimizer = torch.optim.AdamW(model.parameters(), lr=hyper.learning_rate)
@@ -400,7 +419,7 @@ optimizer = torch.optim.AdamW(model.parameters(), lr=hyper.learning_rate)
 for iter in range(hyper.max_iters):
 
     # every once in a while evaluate the loss on train and val sets
-    if iter % hyper.eval_interval == 0 or iter == hyper.max_iters - 1:
+    if iter % hyper.eval_interval == 0 or iter == hyper.max_iters - 1: # if we match a multiple of the milestones or if we are at the last iteration
         losses = loss_obj.estimate_loss()
         print(f"step {iter}: train loss {losses['train']:.4f}, val loss {losses['val']:.4f}")
 
@@ -410,7 +429,7 @@ for iter in range(hyper.max_iters):
     
 
     # evaluate the loss
-    logits, _loss = model(xb, yb)
+    logits, _loss = model(xb, yb) #forward method
     optimizer.zero_grad(set_to_none=True)
     _loss.backward()
     optimizer.step()
