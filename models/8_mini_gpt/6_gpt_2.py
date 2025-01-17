@@ -306,6 +306,7 @@ class Block(nn.Module):
 #-------------------------------------------------------------------------
 class BigramLanguageModel(nn.Module):
     #-------------------------------------------------------------------------
+    # DONE
     def __init__(self, vocab_size, n_embd, block_size, n_layer, n_head):
         super().__init__()
         #--------
