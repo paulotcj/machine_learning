@@ -186,19 +186,33 @@ train_val_data = TrainValData(text = src_d.text, encoder = src_d.encode)
 #-------------------------------------------------------------------------
 class EstimateLoss():
     #-------------------------------------------------------------------------
+    def __init__(self, eval_iters, model):
+        self.eval_iters = eval_iters
+        self.model = model
+    #-------------------------------------------------------------------------
+    #-------------------------------------------------------------------------
     # the operations performed within the decorated function will not be tracked for gradient computation
     @torch.no_grad()
-    def estimate_loss():
+    def estimate_loss(self):
         out = {}
-        model.eval()
+        self.model.eval()
+
+        #------
         for split in ['train', 'val']:
-            losses = torch.zeros(hyper.eval_iters)
-            for k in range(hyper.eval_iters):
+            losses = torch.zeros(self.eval_iters)
+
+            for k in range(self.eval_iters):
+
                 X, Y = train_val_data.get_batch(str_split = split)
-                logits, loss = model(X, Y)
+
+                logits, loss = self.model(X, Y)
                 losses[k] = loss.item()
+
             out[split] = losses.mean()
-        model.train()
+        #------
+
+        self.model.train()
+
         return out
     #-------------------------------------------------------------------------
 #-------------------------------------------------------------------------
@@ -342,7 +356,10 @@ class BigramLanguageModel(nn.Module):
     #-------------------------------------------------------------------------
 #-------------------------------------------------------------------------
 
+
 model = BigramLanguageModel()
+loss_obj = EstimateLoss(hyper.eval_iters, model = model)
+
 m = model.to(hyper.device)
 # print the number of parameters in the model
 print(sum(p.numel() for p in m.parameters())/1e6, 'M parameters')
@@ -354,7 +371,7 @@ for iter in range(hyper.max_iters):
 
     # every once in a while evaluate the loss on train and val sets
     if iter % hyper.eval_interval == 0 or iter == hyper.max_iters - 1:
-        losses = estimate_loss()
+        losses = loss_obj.estimate_loss()
         print(f"step {iter}: train loss {losses['train']:.4f}, val loss {losses['val']:.4f}")
 
     # sample a batch of data
