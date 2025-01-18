@@ -2,9 +2,6 @@ import torch
 import torch.nn as nn
 from torch.nn import functional as F
 
-torch.manual_seed(1337)
-
-print('-------------------------------------------------------------------------')
 print('Hyperparameters init')
 #-------------------------------------------------------------------------
 class HyperParameters():
@@ -23,7 +20,7 @@ class HyperParameters():
         self.n_head = 4
         self.n_layer = 4
         self.dropout = 0.0
-        self.debug = True
+        self.debug = False
     #-------------------------------------------------------------------------
     #-------------------------------------------------------------------------
     def get_device(self):
@@ -42,8 +39,6 @@ class HyperParameters():
         return device
     #-------------------------------------------------------------------------
 #-------------------------------------------------------------------------
-hyper = HyperParameters()
-print('-------------------------------------------------------------------------')
 print('Part 1 - read data')
 #-------------------------------------------------------------------------
 class SourceData():
@@ -103,18 +98,14 @@ class SourceData():
                 for i in int_list
             ]
         ) # decoder: take a list of integers, output a string
-    #------------------------------------------------------------------------- 
-    #------------------------------------------------------------------------- 
-    #-------------------------------------------------------------------------    
+    #-------------------------------------------------------------------------   
 #-------------------------------------------------------------------------
-src_d = SourceData(param_debug = hyper.debug)
-src_d.show_summary()
-print('-------------------------------------------------------------------------')
 print('Part 3 - Train and test splits')
 #-------------------------------------------------------------------------
 class TrainValData():
     #-------------------------------------------------------------------------
     def __init__(self, text, encoder, device = 'cpu', percent_train = 0.9):
+
         data_selected = torch.tensor(encoder(text), dtype=torch.long) # encode the text into integers
 
         len_data_selected = len(data_selected)
@@ -176,14 +167,14 @@ class TrainValData():
         
     #-------------------------------------------------------------------------
 #-------------------------------------------------------------------------
-train_val_data = TrainValData(text = src_d.text, encoder = src_d.encode, device = hyper.device)
 #-------------------------------------------------------------------------
 class EstimateLoss():
     #-------------------------------------------------------------------------
-    def __init__(self, eval_iters, model, device):
+    def __init__(self, eval_iters, model, train_val_data, device):
         self.eval_iters = eval_iters
         self.model = model
         self.device = device
+        self.train_val_data = train_val_data
     #-------------------------------------------------------------------------
     #-------------------------------------------------------------------------
     # the operations performed within the decorated function will not be tracked for gradient computation
@@ -198,7 +189,7 @@ class EstimateLoss():
 
             for k in range(self.eval_iters):
 
-                X, Y = train_val_data.get_batch(str_split = split)
+                X, Y = self.train_val_data.get_batch(str_split = split)
 
                 logits, loss = self.model(X, Y)
                 losses[k] = loss.item()
@@ -209,98 +200,6 @@ class EstimateLoss():
         self.model.train()
 
         return out
-    #-------------------------------------------------------------------------
-#-------------------------------------------------------------------------
-
-########################################################################################
-###########
-########### PAUSED HERE
-###########
-########################################################################################
-
-#-------------------------------------------------------------------------
-class Head(nn.Module):
-    """ one head of self-attention """
-    #-------------------------------------------------------------------------
-    def __init__(self, head_size):
-        super().__init__()
-        self.key = nn.Linear(hyper.n_embd, head_size, bias=False)
-        self.query = nn.Linear(hyper.n_embd, head_size, bias=False)
-        self.value = nn.Linear(hyper.n_embd, head_size, bias=False)
-        self.register_buffer('tril', torch.tril(torch.ones(hyper.block_size, hyper.block_size)))
-
-        self.dropout = nn.Dropout(hyper.dropout)
-    #-------------------------------------------------------------------------
-    #-------------------------------------------------------------------------
-    def forward(self, x):
-        B,T,C = x.shape
-        k = self.key(x)   # (B,T,C)
-        q = self.query(x) # (B,T,C)
-        # compute attention scores ("affinities")
-        wei = q @ k.transpose(-2,-1) * C**-0.5 # (B, T, C) @ (B, C, T) -> (B, T, T)
-        wei = wei.masked_fill(self.tril[:T, :T] == 0, float('-inf')) # (B, T, T)
-        wei = F.softmax(wei, dim=-1) # (B, T, T)
-        wei = self.dropout(wei)
-        # perform the weighted aggregation of the values
-        v = self.value(x) # (B,T,C)
-        out = wei @ v # (B, T, T) @ (B, T, C) -> (B, T, C)
-        return out
-    #-------------------------------------------------------------------------
-#-------------------------------------------------------------------------
-#-------------------------------------------------------------------------
-class MultiHeadAttention(nn.Module):
-    """ multiple heads of self-attention in parallel """
-
-    #-------------------------------------------------------------------------
-    def __init__(self, num_heads, head_size):
-        super().__init__()
-        self.heads = nn.ModuleList([Head(head_size) for _ in range(num_heads)])
-        self.proj = nn.Linear(hyper.n_embd, hyper.n_embd)
-        self.dropout = nn.Dropout(hyper.dropout)
-    #-------------------------------------------------------------------------
-    #-------------------------------------------------------------------------
-    def forward(self, x):
-        out = torch.cat([h(x) for h in self.heads], dim=-1)
-        out = self.dropout(self.proj(out))
-        return out
-    #-------------------------------------------------------------------------
-#-------------------------------------------------------------------------
-#-------------------------------------------------------------------------
-class FeedFoward(nn.Module):
-    """ a simple linear layer followed by a non-linearity """
-    #-------------------------------------------------------------------------
-    def __init__(self, n_embd):
-        super().__init__()
-        self.net = nn.Sequential(
-            nn.Linear(n_embd, 4 * n_embd),
-            nn.ReLU(),
-            nn.Linear(4 * n_embd, n_embd),
-            nn.Dropout(hyper.dropout),
-        )
-    #-------------------------------------------------------------------------
-    #-------------------------------------------------------------------------
-    def forward(self, x):
-        return self.net(x)
-    #-------------------------------------------------------------------------
-#-------------------------------------------------------------------------
-#-------------------------------------------------------------------------
-class Block(nn.Module):
-    """ Transformer block: communication followed by computation """
-    #-------------------------------------------------------------------------
-    def __init__(self, n_embd, n_head):
-        # n_embd: embedding dimension, n_head: the number of heads we'd like
-        super().__init__()
-        head_size = n_embd // n_head
-        self.sa = MultiHeadAttention(n_head, head_size)
-        self.ffwd = FeedFoward(n_embd)
-        self.ln1 = nn.LayerNorm(n_embd)
-        self.ln2 = nn.LayerNorm(n_embd)
-    #-------------------------------------------------------------------------
-    #-------------------------------------------------------------------------
-    def forward(self, x):
-        x = x + self.sa(self.ln1(x))
-        x = x + self.ffwd(self.ln2(x))
-        return x
     #-------------------------------------------------------------------------
 #-------------------------------------------------------------------------
 #-------------------------------------------------------------------------
@@ -385,55 +284,204 @@ class BigramLanguageModel(nn.Module):
         return idx
     #-------------------------------------------------------------------------
 #-------------------------------------------------------------------------
+########################################################################################
+###########
+########### PAUSED HERE
+###########
+########################################################################################
 #-------------------------------------------------------------------------
-def show_params_summary(m):
-    # print the number of parameters in the model
-    param_list = [
-        p.numel() # number of elements in the tensor
-        for p in m.parameters()
-    ]
-    param_sum = sum(param_list)
-    param_sum /= 1e6
-    print(f'{param_sum} M parameters')    
+class Block(nn.Module):
+    """ Transformer block: communication followed by computation """
+    #-------------------------------------------------------------------------
+    def __init__(self, n_embd, n_head):
+        # n_embd: embedding dimension, n_head: the number of heads we'd like
+        super().__init__()
+        head_size = n_embd // n_head
+        self.sa = MultiHeadAttention(n_head, head_size)
+        self.ffwd = FeedFoward(n_embd)
+        self.ln1 = nn.LayerNorm(n_embd)
+        self.ln2 = nn.LayerNorm(n_embd)
+    #-------------------------------------------------------------------------
+    #-------------------------------------------------------------------------
+    def forward(self, x):
+        x = x + self.sa(self.ln1(x))
+        x = x + self.ffwd(self.ln2(x))
+        return x
+    #-------------------------------------------------------------------------
+#-------------------------------------------------------------------------
+#-------------------------------------------------------------------------
+class Head(nn.Module):
+    """ one head of self-attention """
+    #-------------------------------------------------------------------------
+    def __init__(self, head_size):
+        super().__init__()
+        self.key = nn.Linear(hyper.n_embd, head_size, bias=False)
+        self.query = nn.Linear(hyper.n_embd, head_size, bias=False)
+        self.value = nn.Linear(hyper.n_embd, head_size, bias=False)
+        self.register_buffer('tril', torch.tril(torch.ones(hyper.block_size, hyper.block_size)))
 
+        self.dropout = nn.Dropout(hyper.dropout)
+    #-------------------------------------------------------------------------
+    #-------------------------------------------------------------------------
+    def forward(self, x):
+        B,T,C = x.shape
+        k = self.key(x)   # (B,T,C)
+        q = self.query(x) # (B,T,C)
+        # compute attention scores ("affinities")
+        wei = q @ k.transpose(-2,-1) * C**-0.5 # (B, T, C) @ (B, C, T) -> (B, T, T)
+        wei = wei.masked_fill(self.tril[:T, :T] == 0, float('-inf')) # (B, T, T)
+        wei = F.softmax(wei, dim=-1) # (B, T, T)
+        wei = self.dropout(wei)
+        # perform the weighted aggregation of the values
+        v = self.value(x) # (B,T,C)
+        out = wei @ v # (B, T, T) @ (B, T, C) -> (B, T, C)
+        return out
+    #-------------------------------------------------------------------------
+#-------------------------------------------------------------------------
+#-------------------------------------------------------------------------
+class MultiHeadAttention(nn.Module):
+    """ multiple heads of self-attention in parallel """
+
+    #-------------------------------------------------------------------------
+    def __init__(self, num_heads, head_size):
+        super().__init__()
+        self.heads = nn.ModuleList([Head(head_size) for _ in range(num_heads)])
+        self.proj = nn.Linear(hyper.n_embd, hyper.n_embd)
+        self.dropout = nn.Dropout(hyper.dropout)
+    #-------------------------------------------------------------------------
+    #-------------------------------------------------------------------------
+    def forward(self, x):
+        out = torch.cat([h(x) for h in self.heads], dim=-1)
+        out = self.dropout(self.proj(out))
+        return out
+    #-------------------------------------------------------------------------
+#-------------------------------------------------------------------------
+#-------------------------------------------------------------------------
+class FeedFoward(nn.Module):
+    """ a simple linear layer followed by a non-linearity """
+    #-------------------------------------------------------------------------
+    def __init__(self, n_embd):
+        super().__init__()
+        self.net = nn.Sequential(
+            nn.Linear(n_embd, 4 * n_embd),
+            nn.ReLU(),
+            nn.Linear(4 * n_embd, n_embd),
+            nn.Dropout(hyper.dropout),
+        )
+    #-------------------------------------------------------------------------
+    #-------------------------------------------------------------------------
+    def forward(self, x):
+        return self.net(x)
+    #-------------------------------------------------------------------------
 #-------------------------------------------------------------------------
 
+#-------------------------------------------------------------------------
+class GPTLike():
+    #-------------------------------------------------------------------------
+    def __init__(self, vocab_size, n_embd, block_size, n_layer, n_head, eval_iters, eval_interval,
+                  max_iters, learning_rate, train_val_data, device):
+        #-------
+        self.vocab_size     = vocab_size
+        self.n_embd         = n_embd
+        self.block_size     = block_size
+        self.n_layer        = n_layer
+        self.n_head         = n_head
+        self.eval_iters     = eval_iters
+        self.eval_interval  = eval_interval
+        self.max_iters      = max_iters
+        self.device         = device
+        self.learning_rate  = learning_rate
+        self.train_val_data = train_val_data
+        #-------
 
-model = BigramLanguageModel(
-    vocab_size  = src_d.vocab_size, 
-    n_embd      = hyper.n_embd, 
-    block_size  = hyper.block_size, 
-    n_layer     = hyper.n_layer, 
-    n_head      = hyper.n_head
+        self.model = BigramLanguageModel(
+            vocab_size  = self.vocab_size, 
+            n_embd      = self.n_embd, 
+            block_size  = self.block_size, 
+            n_layer     = self.n_layer, 
+            n_head      = self.n_head
+        )
+        self.loss_obj = EstimateLoss(
+            eval_iters      = self.eval_iters, 
+            model           = self.model, 
+            train_val_data  = self.train_val_data, 
+            device          = self.device
+        )
+
+        self.m = self.model.to(hyper.device) # same object just a shortcut for the line below
+
+        # create a PyTorch optimizer
+        self.optimizer = torch.optim.AdamW(self.model.parameters(), lr=self.learning_rate)
+
+        self.__show_params_summary()
+    #-------------------------------------------------------------------------
+    #-------------------------------------------------------------------------
+    def __show_params_summary(self):
+        # print the number of parameters in the model
+        param_list = [
+            p.numel() # number of elements in the tensor
+            for p in self.m.parameters()
+        ]
+        param_sum = sum(param_list)
+        param_sum /= 1e6
+        print(f'{param_sum} M parameters')    
+    #-------------------------------------------------------------------------
+    #-------------------------------------------------------------------------
+    def train(self):
+
+        for iter in range(self.max_iters):
+
+            # every once in a while evaluate the loss on train and val sets
+            if iter % self.eval_interval == 0 or iter == self.max_iters - 1: # if we match a multiple of the milestones or if we are at the last iteration
+                losses = self.loss_obj.estimate_loss()
+                print(f"step {iter}: train loss {losses['train']:.4f}, val loss {losses['val']:.4f}")
+
+            # sample a batch of data
+            xb, yb = train_val_data.get_batch(str_split = 'train')
+
+            
+
+            # evaluate the loss
+            logits, _loss = self.model(xb, yb) #forward method
+            self.optimizer.zero_grad(set_to_none=True)
+            _loss.backward()
+            self.optimizer.step()
+    #-------------------------------------------------------------------------
+    #-------------------------------------------------------------------------
+    def generate(self):
+        # generate from the model
+        context = torch.zeros((1, 1), dtype=torch.long, device=self.device)
+
+
+        print(src_d.decode(self.m.generate(context, max_new_tokens=2000)[0].tolist()))        
+
+    #-------------------------------------------------------------------------
+#-------------------------------------------------------------------------
+
+torch.manual_seed(1337)
+hyper = HyperParameters()
+src_d = SourceData(param_debug = hyper.debug)
+src_d.show_summary()
+train_val_data = TrainValData(text = src_d.text, encoder = src_d.encode, device = hyper.device)
+
+gpt_like = GPTLike(
+    vocab_size      = src_d.vocab_size, 
+    n_embd          = hyper.n_embd, 
+    block_size      = hyper.block_size, 
+    n_layer         = hyper.n_layer, 
+    n_head          = hyper.n_head,
+    eval_iters      = hyper.eval_iters,
+    eval_interval   = hyper.eval_interval,
+    max_iters       = hyper.max_iters,
+    learning_rate   = hyper.learning_rate,
+    train_val_data  = train_val_data,
+    device          = hyper.device
 )
-loss_obj = EstimateLoss(hyper.eval_iters, model = model, device = hyper.device)
 
-m = model.to(hyper.device) # same object just a shortcut for the line below
+gpt_like.train()
 
-show_params_summary(m)
+gpt_like.generate()
 
 
-# create a PyTorch optimizer
-optimizer = torch.optim.AdamW(model.parameters(), lr=hyper.learning_rate)
 
-for iter in range(hyper.max_iters):
 
-    # every once in a while evaluate the loss on train and val sets
-    if iter % hyper.eval_interval == 0 or iter == hyper.max_iters - 1: # if we match a multiple of the milestones or if we are at the last iteration
-        losses = loss_obj.estimate_loss()
-        print(f"step {iter}: train loss {losses['train']:.4f}, val loss {losses['val']:.4f}")
-
-    # sample a batch of data
-    xb, yb = train_val_data.get_batch(str_split = 'train')
-
-    
-
-    # evaluate the loss
-    logits, _loss = model(xb, yb) #forward method
-    optimizer.zero_grad(set_to_none=True)
-    _loss.backward()
-    optimizer.step()
-
-# generate from the model
-context = torch.zeros((1, 1), dtype=torch.long, device=hyper.device)
-print(src_d.decode(m.generate(context, max_new_tokens=2000)[0].tolist()))
