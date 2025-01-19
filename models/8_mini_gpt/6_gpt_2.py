@@ -271,16 +271,22 @@ class BigramLanguageModel(nn.Module):
         var1 = True
         # WRONG !!!! - inpt_int_tnsr is (B, T) array of indices in the current context
         for _ in range(max_new_tokens):
+
             # crop idx to the last block_size tokens
             idx_cond = inpt_int_tnsr[:, -hyper.block_size:]
-            # get the predictions
-            logits, loss = self(idx_cond)
-            # focus only on the last time step
+
+            # get the predictions - we don't care about loss at this point. we are not training
+            logits, loss = self(inpt_int_tnsr = idx_cond, targets = None) # we are not training, so no targerts
+            
+            # focus only on the last time step - here we will get chars and the value to these chars
             logits = logits[:, -1, :] # becomes (B, C)
-            # apply softmax to get probabilities
+            
+            # apply softmax to get probabilities - from the previous step, we apply softmax to figure out which char to pick
             probs = F.softmax(logits, dim=-1) # (B, C)
-            # sample from the distribution
+            
+            # sample from the distribution - pick one char
             idx_next = torch.multinomial(probs, num_samples=1) # (B, 1)
+            
             # append sampled index to the running sequence
             inpt_int_tnsr = torch.cat((inpt_int_tnsr, idx_next), dim=1) # (B, T+1)
         return inpt_int_tnsr
