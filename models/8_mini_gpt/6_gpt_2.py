@@ -246,8 +246,8 @@ class BigramLanguageModel(nn.Module):
         
 
         tkn_emb_plus_pos_emb = token_embeddings + position_embeddings # (B,T,C) - [16, 32, 64]
-        x_blocks = self.blocks(tkn_emb_plus_pos_emb) # (B,T,C) - [16, 32, 64] - CHECK PENDING
-        x_norm = self.layernorm_final(x_blocks) # (B,T,C) - [16, 32, 64] - it's complicated - but generally speaking we want the data to be evenly distributed to avoid problems such as vanishing and exploding gradients, also improves convergence and enhanced generalization
+        x_blocks             = self.blocks(tkn_emb_plus_pos_emb) # (B,T,C) - [16, 32, 64]
+        x_norm               = self.layernorm_final(x_blocks) # (B,T,C) - [16, 32, 64] - it's complicated - but generally speaking we want the data to be evenly distributed to avoid problems such as vanishing and exploding gradients, also improves convergence and enhanced generalization
 
         logits = self.lang_model_head(x_norm) # (B,T,vocab_size) - [16, 32, 65]) - pass through a linear layer to get the logits (with weights and biases)
 
@@ -268,27 +268,28 @@ class BigramLanguageModel(nn.Module):
     #-------------------------------------------------------------------------
     def generate(self, inpt_int_tnsr, max_new_tokens):
         # inpt_int_tnsr - [1,1] - tensor([[0]])
-        var1 = True
-        # WRONG !!!! - inpt_int_tnsr is (B, T) array of indices in the current context
+        vartemp = True
+
+
         for _ in range(max_new_tokens):
 
-            # crop idx to the last block_size tokens
-            idx_cond = inpt_int_tnsr[:, -hyper.block_size:]
+            # crop idx to the last block_size tokens - [1,1]
+            inpt_sliced = inpt_int_tnsr[:, -self.block_size:] # block_size = 32. select all rows, but only the last 32 columns
 
             # get the predictions - we don't care about loss at this point. we are not training
-            logits, loss = self(inpt_int_tnsr = idx_cond, targets = None) # we are not training, so no targerts
+            logits, loss = self(inpt_int_tnsr = inpt_sliced, targets = None) # forward method - we are not training, so no targerts - [1,1,65], 
             
-            # focus only on the last time step - here we will get chars and the value to these chars
-            logits = logits[:, -1, :] # becomes (B, C)
+            # focus only on the last time step
+            logits = logits[:, -1, :] # becomes (B, C) - [1, 65]
             
             # apply softmax to get probabilities - from the previous step, we apply softmax to figure out which char to pick
-            probs = F.softmax(logits, dim=-1) # (B, C)
+            probs = F.softmax(logits, dim=-1) # (B, C) - [1,65]
             
             # sample from the distribution - pick one char
-            idx_next = torch.multinomial(probs, num_samples=1) # (B, 1)
+            idx_next = torch.multinomial(probs, num_samples=1) # (B, 1) - [1,1]
             
             # append sampled index to the running sequence
-            inpt_int_tnsr = torch.cat((inpt_int_tnsr, idx_next), dim=1) # (B, T+1)
+            inpt_int_tnsr = torch.cat((inpt_int_tnsr, idx_next), dim=1) # (B, T+1) - [1,2]
         return inpt_int_tnsr
     #-------------------------------------------------------------------------
 #-------------------------------------------------------------------------
