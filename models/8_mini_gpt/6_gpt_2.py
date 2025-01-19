@@ -374,7 +374,6 @@ class FeedFoward(nn.Module):
         return self.net(x)
     #-------------------------------------------------------------------------
 #-------------------------------------------------------------------------
-
 #-------------------------------------------------------------------------
 class GPTLike():
     #-------------------------------------------------------------------------
@@ -452,8 +451,14 @@ class GPTLike():
         # generate from the model
         context = torch.zeros((1, 1), dtype=torch.long, device=self.device)
 
+        m_generate = self.m.generate(context, max_new_tokens=2000)
 
-        print(src_d.decode(self.m.generate(context, max_new_tokens=2000)[0].tolist()))        
+        m_generate_list = m_generate[0].tolist()
+
+        m_generate_list_decode = src_d.decode(m_generate_list)
+
+
+        print(m_generate_list_decode)        
 
     #-------------------------------------------------------------------------
 #-------------------------------------------------------------------------
