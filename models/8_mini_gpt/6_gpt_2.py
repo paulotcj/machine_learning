@@ -20,7 +20,7 @@ class HyperParameters():
         self.n_head = 4
         self.n_layer = 4
         self.dropout = 0.0
-        self.debug = False
+        self.debug = True
     #-------------------------------------------------------------------------
     #-------------------------------------------------------------------------
     def get_device(self):
@@ -375,8 +375,10 @@ class FeedFoward(nn.Module):
     #-------------------------------------------------------------------------
 #-------------------------------------------------------------------------
 #-------------------------------------------------------------------------
+# done
 class GPTLike():
     #-------------------------------------------------------------------------
+    # done
     def __init__(self, vocab_size, n_embd, block_size, n_layer, n_head, eval_iters, eval_interval,
                   max_iters, learning_rate, train_val_data, device):
         #-------
@@ -415,6 +417,7 @@ class GPTLike():
         self.__show_params_summary()
     #-------------------------------------------------------------------------
     #-------------------------------------------------------------------------
+    # done
     def __show_params_summary(self):
         # print the number of parameters in the model
         param_list = [
@@ -426,6 +429,7 @@ class GPTLike():
         print(f'{param_sum} M parameters')    
     #-------------------------------------------------------------------------
     #-------------------------------------------------------------------------
+    # done
     def train(self):
 
         for iter in range(self.max_iters):
@@ -441,21 +445,22 @@ class GPTLike():
             
 
             # evaluate the loss
-            logits, _loss = self.model(xb, yb) #forward method
+            logits, _loss = self.model(idx = xb, targets = yb) #forward method
             self.optimizer.zero_grad(set_to_none=True)
             _loss.backward()
             self.optimizer.step()
     #-------------------------------------------------------------------------
     #-------------------------------------------------------------------------
+    # done
     def generate(self):
         # generate from the model
         context = torch.zeros((1, 1), dtype=torch.long, device=self.device)
 
-        m_generate = self.m.generate(context, max_new_tokens=2000)
+        m_generate = self.m.generate(idx = context, max_new_tokens = 2000) #[1, 2001] - tensor([ 0, 13, 52,  ...], device='cuda:0')
 
-        m_generate_list = m_generate[0].tolist()
+        m_generate_list = m_generate[0].tolist() # [0, 13, 55, ... ]
 
-        m_generate_list_decode = src_d.decode(m_generate_list)
+        m_generate_list_decode = src_d.decode(inst_list = m_generate_list) # not trained -> "\nAnd they brince?\n\nSTANLET:\nHe madest my be tongues..."
 
 
         print(m_generate_list_decode)        
