@@ -232,15 +232,15 @@ class BigramLanguageModel(nn.Module):
     #-------------------------------------------------------------------------
     #-------------------------------------------------------------------------
     # DONE
-    def forward(self, idx, targets=None):
+    def forward(self, inpt_int_tnsr, targets=None):
         #targets - [16,32]
-        B, T = idx.shape # B (16): batch size, T(32): sequence length
+        B, T = inpt_int_tnsr.shape # B (16): batch size, T(32): sequence length
 
         val_range = torch.arange(T, device=hyper.device) #[32] tensor. [ 0, 1, 2, ..., 31]
 
         # idx and targets are both (B,T) tensor of integers
         #   remember these embeddings will change as the model trains
-        token_embeddings    = self.token_embedding_table(idx) # (B,T,C) - [16, 32, 64]
+        token_embeddings    = self.token_embedding_table(inpt_int_tnsr) # (B,T,C) - [16, 32, 64]
         position_embeddings = self.position_embedding_table(val_range) # (T,C) - [32, 64]
 
         
@@ -266,11 +266,13 @@ class BigramLanguageModel(nn.Module):
         return logits, loss
     #-------------------------------------------------------------------------
     #-------------------------------------------------------------------------
-    def generate(self, idx, max_new_tokens):
-        # idx is (B, T) array of indices in the current context
+    def generate(self, inpt_int_tnsr, max_new_tokens):
+        # inpt_int_tnsr - [1,1] - tensor([[0]])
+        var1 = True
+        # WRONG !!!! - inpt_int_tnsr is (B, T) array of indices in the current context
         for _ in range(max_new_tokens):
             # crop idx to the last block_size tokens
-            idx_cond = idx[:, -hyper.block_size:]
+            idx_cond = inpt_int_tnsr[:, -hyper.block_size:]
             # get the predictions
             logits, loss = self(idx_cond)
             # focus only on the last time step
@@ -280,8 +282,8 @@ class BigramLanguageModel(nn.Module):
             # sample from the distribution
             idx_next = torch.multinomial(probs, num_samples=1) # (B, 1)
             # append sampled index to the running sequence
-            idx = torch.cat((idx, idx_next), dim=1) # (B, T+1)
-        return idx
+            inpt_int_tnsr = torch.cat((inpt_int_tnsr, idx_next), dim=1) # (B, T+1)
+        return inpt_int_tnsr
     #-------------------------------------------------------------------------
 #-------------------------------------------------------------------------
 ########################################################################################
@@ -445,7 +447,7 @@ class GPTLike():
             
 
             # evaluate the loss
-            logits, _loss = self.model(idx = xb, targets = yb) #forward method
+            logits, _loss = self.model(inpt_int_tnsr = xb, targets = yb) #forward method
             self.optimizer.zero_grad(set_to_none=True)
             _loss.backward()
             self.optimizer.step()
@@ -454,13 +456,13 @@ class GPTLike():
     # done
     def generate(self):
         # generate from the model
-        context = torch.zeros((1, 1), dtype=torch.long, device=self.device)
+        context = torch.zeros((1, 1), dtype=torch.long, device=self.device) # is zero intentional as this usually means a new line ('\n')?
 
-        m_generate = self.m.generate(idx = context, max_new_tokens = 2000) #[1, 2001] - tensor([ 0, 13, 52,  ...], device='cuda:0')
+        m_generate = self.m.generate(inpt_int_tnsr = context, max_new_tokens = 2000) #[1, 2001] - tensor([ 0, 13, 52,  ...], device='cuda:0')
 
         m_generate_list = m_generate[0].tolist() # [0, 13, 55, ... ]
 
-        m_generate_list_decode = src_d.decode(inst_list = m_generate_list) # not trained -> "\nAnd they brince?\n\nSTANLET:\nHe madest my be tongues..."
+        m_generate_list_decode = src_d.decode(int_list = m_generate_list) # not trained -> "\nAnd they brince?\n\nSTANLET:\nHe madest my be tongues..."
 
 
         print(m_generate_list_decode)        
