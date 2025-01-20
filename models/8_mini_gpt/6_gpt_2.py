@@ -325,9 +325,21 @@ class Block(nn.Module):
     #-------------------------------------------------------------------------
     #-------------------------------------------------------------------------
     def forward(self, x):
-        x = x + self.self_attention(self.layer_norm_1(x))
-        x = x + self.feed_forward(self.layer_norm_2(x))
-        return x
+        # x = x + self.self_attention(self.layer_norm_1(x))
+        # x = x + self.feed_forward(self.layer_norm_2(x))
+        # return x
+
+        #--------
+        x_layer_norm_1        = self.layer_norm_1(x)
+        x_self_attention      = self.self_attention(x_layer_norm_1)
+        x_plus_self_attention = x + x_self_attention
+        #--------
+        x_layer_norm_2 = self.layer_norm_2(x_plus_self_attention)
+        x_feed_forward = self.feed_forward(x_layer_norm_2)
+        x_final        = x_plus_self_attention + x_feed_forward
+        #--------
+
+        return x_final
     #-------------------------------------------------------------------------
 #-------------------------------------------------------------------------
 #-------------------------------------------------------------------------
