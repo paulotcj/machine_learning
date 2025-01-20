@@ -313,19 +313,20 @@ class BigramLanguageModel(nn.Module):
 class Block(nn.Module):
     """ Transformer block: communication followed by computation """
     #-------------------------------------------------------------------------
+    # DONE
     def __init__(self, n_embd, n_head):
         # n_embd: embedding dimension, n_head: the number of heads we'd like
         super().__init__()
         head_size = n_embd // n_head # 64 // 4 = 16
         self.sa = MultiHeadAttention(num_heads = n_head, head_size = head_size)
-        self.ffwd = FeedFoward(n_embd = n_embd)
-        self.ln1 = nn.LayerNorm(normalized_shape = n_embd)
-        self.ln2 = nn.LayerNorm(normalized_shape = n_embd)
+        self.feed_forward = FeedFoward(n_embd = n_embd)
+        self.layer_norm_1 = nn.LayerNorm(normalized_shape = n_embd)
+        self.layer_norm_2 = nn.LayerNorm(normalized_shape = n_embd)
     #-------------------------------------------------------------------------
     #-------------------------------------------------------------------------
     def forward(self, x):
-        x = x + self.sa(self.ln1(x))
-        x = x + self.ffwd(self.ln2(x))
+        x = x + self.sa(self.layer_norm_1(x))
+        x = x + self.feed_forward(self.layer_norm_2(x))
         return x
     #-------------------------------------------------------------------------
 #-------------------------------------------------------------------------
