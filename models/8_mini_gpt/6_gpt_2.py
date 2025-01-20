@@ -318,14 +318,14 @@ class Block(nn.Module):
         # n_embd: embedding dimension, n_head: the number of heads we'd like
         super().__init__()
         head_size = n_embd // n_head # 64 // 4 = 16
-        self.sa = MultiHeadAttention(num_heads = n_head, head_size = head_size) #self attention?
+        self.self_attention = MultiHeadAttention(num_heads = n_head, head_size = head_size) #self attention?
         self.feed_forward = FeedFoward(n_embd = n_embd)
         self.layer_norm_1 = nn.LayerNorm(normalized_shape = n_embd)
         self.layer_norm_2 = nn.LayerNorm(normalized_shape = n_embd)
     #-------------------------------------------------------------------------
     #-------------------------------------------------------------------------
     def forward(self, x):
-        x = x + self.sa(self.layer_norm_1(x))
+        x = x + self.self_attention(self.layer_norm_1(x))
         x = x + self.feed_forward(self.layer_norm_2(x))
         return x
     #-------------------------------------------------------------------------
