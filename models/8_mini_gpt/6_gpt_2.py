@@ -10,8 +10,8 @@ class HyperParameters():
 
         self.batch_size = 16 # how many independent sequences will we process in parallel?
         self.block_size = 32 # what is the maximum context length for predictions?
-        self.max_iters = 5000
-        # self.max_iters = 100
+        # self.max_iters = 5000
+        self.max_iters = 100
         self.eval_interval = 100
         self.learning_rate = 1e-3
         self.device = self.get_device()
@@ -20,7 +20,6 @@ class HyperParameters():
         self.n_head = 4
         self.n_layer = 4
         self.dropout = 0.0
-        self.debug = True
     #-------------------------------------------------------------------------
     #-------------------------------------------------------------------------
     def get_device(self):
@@ -43,13 +42,20 @@ print('Part 1 - read data')
 #-------------------------------------------------------------------------
 class SourceData():
     #-------------------------------------------------------------------------
-    def __init__(self, file = 'input.txt', param_debug = False):
+    def __init__(self, file = 'input.txt'):
         self.file = file
-        if param_debug:
-            self.file = './models/8_mini_gpt/input.txt'
+
+        alternate_file = './models/8_mini_gpt/input.txt'
+
+        try:
+            with open(file = self.file, mode = 'r', encoding='utf-8') as f:
+                self.text = f.read()
+        except:
+            with open(file = alternate_file, mode = 'r', encoding='utf-8') as f:
+                self.text = f.read()
+
         
-        with open(file = self.file, mode = 'r', encoding='utf-8') as f:
-            self.text = f.read()
+
 
         self.chars = sorted(list(set(self.text)))
 
@@ -422,12 +428,8 @@ class GPTLike():
 
     #-------------------------------------------------------------------------
 #-------------------------------------------------------------------------
-########################################################################################
-###########
-########### PAUSED HERE
-###########
-########################################################################################
 #-------------------------------------------------------------------------
+# DONE
 class Block(nn.Module):
     """ Transformer block: communication followed by computation """
     #-------------------------------------------------------------------------
@@ -437,18 +439,43 @@ class Block(nn.Module):
         super().__init__()
         head_size = n_embd // n_head # 64 // 4 = 16
         self.self_attention = MultiHeadAttention(num_heads = n_head, head_size = head_size) #self attention?
-        self.feed_forward = FeedFoward(n_embd = n_embd)
-        self.layer_norm_1 = nn.LayerNorm(normalized_shape = n_embd)
-        self.layer_norm_2 = nn.LayerNorm(normalized_shape = n_embd)
+        self.feed_forward   = FeedFoward(n_embd = n_embd)
+        self.layer_norm_1   = nn.LayerNorm(normalized_shape = n_embd)
+        self.layer_norm_2   = nn.LayerNorm(normalized_shape = n_embd)
     #-------------------------------------------------------------------------
     #-------------------------------------------------------------------------
+    # DONE
     def forward(self, x):
+        # x - [16, 32, 64] 
+
+        '''
+        Note: the commented code below is the original implementation and it's much cleaner, but I 
+          wanted to break it down and keep track of the intermediate steps for better understanding
+          of the process and data transformations
+        '''
+        #--------
         # x = x + self.self_attention(self.layer_norm_1(x))
         # x = x + self.feed_forward(self.layer_norm_2(x))
         # return x
 
+        '''
+        We have 2 sections, the first with: Layer Normalization, Self Attention, and Residual Connection/Skip Connection
+        The second section: Layer Normalization, Feed Forward, and Residual Connection/Skip Connection
+
+        For normalization we want to smooth out the data, so we don't have vanishing or exploding gradients, and it makes
+          easier for the model to learn (faster convergence, better generalization, etc)
+        For Feed Forward the name is not very helpful, but in general it's a linear layer followed by a 
+          ReLU, then another linear layer, and then a dropout. The goal is introduce non-linearity, increase
+          the model's capacity due to the fact we expanded the model's dimensionality, independence from 
+          sequence length, intermediate representation, and generalization to various tasks
+        For Self Attention, we are looking at the relationships between the words in the sequence itself
+        For Residual Connection, a good explanation was that while the network is learning we are simply sending
+          the original unalterated data as a bypass, and as soon as the network starts to learn it will shape
+          and modify the data as needed. Additionally, it helps with the vanishing gradient problem
+        '''
+
         #--------
-        x_layer_norm_1        = self.layer_norm_1(x) # layer normalization
+        x_layer_norm_1        = self.layer_norm_1(x) # [16, 32, 64] layer normalization
         x_self_attention      = self.self_attention(x_layer_norm_1)
         x_plus_self_attention = x + x_self_attention
         #--------
@@ -460,6 +487,12 @@ class Block(nn.Module):
         return x_final
     #-------------------------------------------------------------------------
 #-------------------------------------------------------------------------
+########################################################################################
+###########
+########### PAUSED HERE
+###########
+########################################################################################
+
 #-------------------------------------------------------------------------
 class Head(nn.Module):
     """ one head of self-attention """
@@ -520,7 +553,7 @@ class MultiHeadAttention(nn.Module):
 
 torch.manual_seed(1337)
 hyper = HyperParameters()
-src_d = SourceData(param_debug = hyper.debug)
+src_d = SourceData() #using default values
 src_d.show_summary()
 train_val_data = TrainValData(text = src_d.text, encoder = src_d.encode, device = hyper.device)
 
