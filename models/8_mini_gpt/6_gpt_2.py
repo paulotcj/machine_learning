@@ -234,20 +234,20 @@ class BigramLanguageModel(nn.Module):
     # DONE
     def forward(self, inpt_int_tnsr, targets=None):
         #targets - [16,32]
-        B, T = inpt_int_tnsr.shape # B (16): batch size, T(32): sequence length
+        B, T = inpt_int_tnsr.shape # B (16): batch size, T(32): sequence length (if we are generating text batch might be always 1, and T will grow typically to 32)
 
-        val_range = torch.arange(T, device=hyper.device) #[32] tensor. [ 0, 1, 2, ..., 31]
+        val_range = torch.arange(T, device=hyper.device) #[32] tensor. [ 0, 1, 2, ..., 31] - sometimes T starts at 1 and it will grow after each call up to typically 32
 
         # idx and targets are both (B,T) tensor of integers
         #   remember these embeddings will change as the model trains
-        token_embeddings    = self.token_embedding_table(inpt_int_tnsr) # (B,T,C) - [16, 32, 64]
-        position_embeddings = self.position_embedding_table(val_range) # (T,C) - [32, 64]
+        token_embeddings    = self.token_embedding_table(inpt_int_tnsr) # (B,T,C) - [16, 32, 64] - sometimes [1,1,64], [1,2,64] ... [1,32,64]
+        position_embeddings = self.position_embedding_table(val_range) # (T,C) - [32, 64] - sometimes [1,64], [2,64] ... [32,64]
 
         
 
-        tkn_emb_plus_pos_emb = token_embeddings + position_embeddings # (B,T,C) - [16, 32, 64]
-        x_blocks             = self.blocks(tkn_emb_plus_pos_emb) # (B,T,C) - [16, 32, 64]
-        x_norm               = self.layernorm_final(x_blocks) # (B,T,C) - [16, 32, 64] - it's complicated - but generally speaking we want the data to be evenly distributed to avoid problems such as vanishing and exploding gradients, also improves convergence and enhanced generalization
+        tkn_emb_plus_pos_emb = token_embeddings + position_embeddings # (B,T,C) - [16, 32, 64] - sometimes [1,1,64], [1,2,64] ... [1,32,64]
+        x_blocks             = self.blocks(tkn_emb_plus_pos_emb) # (B,T,C) - [16, 32, 64] - sometimes [1,1,64], [1,2,64] ... [1,32,64]
+        x_norm               = self.layernorm_final(x_blocks) # (B,T,C) - [16, 32, 64] - it's complicated - but generally speaking we want the data to be evenly distributed to avoid problems such as vanishing and exploding gradients, also improves convergence and enhanced generalization - also the same applies to the shape as the vars above
 
         logits = self.lang_model_head(x_norm) # (B,T,vocab_size) - [16, 32, 65]) - pass through a linear layer to get the logits (with weights and biases)
 
@@ -266,18 +266,27 @@ class BigramLanguageModel(nn.Module):
         return logits, loss
     #-------------------------------------------------------------------------
     #-------------------------------------------------------------------------
+    # DONE
     def generate(self, inpt_int_tnsr, max_new_tokens):
         # inpt_int_tnsr - [1,1] - tensor([[0]])
-        vartemp = True
+
+        # note: typically we see notations of [B,...] meaning the batch, and we defined the batch as, say 32 in this example
+        #   but we keep seeing batch being represented as 1 here. The thing is, we are doing 1 batch only, so 1
 
 
-        for _ in range(max_new_tokens):
+        for i in range(max_new_tokens):
 
-            # crop idx to the last block_size tokens - [1,1]
+            if (i> 0) and (i%300 == 0 or i == max_new_tokens - 1):
+                print(f'i {i} - inpt_int_tnsr.shape: {inpt_int_tnsr.shape} - inpt_sliced.shape: {inpt_sliced.shape}')
+                print(f'        logits.shape: {logits.shape} - probs.shape: {probs.shape} - idx_next.shape: {idx_next.shape}')
+                print('-------------')
+
+            # crop idx to the last block_size tokens - [1,1], [1,2]  ... until [1,32] which will be its final shape until the end
+            #   note that inpt_int_tnsr will also grow as initially is [1,1]
             inpt_sliced = inpt_int_tnsr[:, -self.block_size:] # block_size = 32. select all rows, but only the last 32 columns
 
             # get the predictions - we don't care about loss at this point. we are not training
-            logits, loss = self(inpt_int_tnsr = inpt_sliced, targets = None) # forward method - we are not training, so no targerts - [1,1,65], 
+            logits, loss = self(inpt_int_tnsr = inpt_sliced, targets = None) # [1,1,65] forward method. we are not training, so no targerts
             
             # focus only on the last time step
             logits = logits[:, -1, :] # becomes (B, C) - [1, 65]
@@ -285,12 +294,14 @@ class BigramLanguageModel(nn.Module):
             # apply softmax to get probabilities - from the previous step, we apply softmax to figure out which char to pick
             probs = F.softmax(logits, dim=-1) # (B, C) - [1,65]
             
-            # sample from the distribution - pick one char
+            # sample from the distribution - pick one char. It's not guaranteed to be the the char with the highest probability value
             idx_next = torch.multinomial(probs, num_samples=1) # (B, 1) - [1,1]
             
             # append sampled index to the running sequence
             inpt_int_tnsr = torch.cat((inpt_int_tnsr, idx_next), dim=1) # (B, T+1) - [1,2]
-        return inpt_int_tnsr
+
+
+        return inpt_int_tnsr # [1, 2001]
     #-------------------------------------------------------------------------
 #-------------------------------------------------------------------------
 ########################################################################################
