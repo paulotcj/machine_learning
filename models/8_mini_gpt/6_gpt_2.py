@@ -304,93 +304,9 @@ class BigramLanguageModel(nn.Module):
         return inpt_int_tnsr # [1, 2001]
     #-------------------------------------------------------------------------
 #-------------------------------------------------------------------------
-########################################################################################
-###########
-########### PAUSED HERE
-###########
-########################################################################################
-#-------------------------------------------------------------------------
-class Block(nn.Module):
-    """ Transformer block: communication followed by computation """
-    #-------------------------------------------------------------------------
-    # DONE
-    def __init__(self, n_embd, n_head):
-        # n_embd: embedding dimension, n_head: the number of heads we'd like
-        super().__init__()
-        head_size = n_embd // n_head # 64 // 4 = 16
-        self.self_attention = MultiHeadAttention(num_heads = n_head, head_size = head_size) #self attention?
-        self.feed_forward = FeedFoward(n_embd = n_embd)
-        self.layer_norm_1 = nn.LayerNorm(normalized_shape = n_embd)
-        self.layer_norm_2 = nn.LayerNorm(normalized_shape = n_embd)
-    #-------------------------------------------------------------------------
-    #-------------------------------------------------------------------------
-    def forward(self, x):
-        # x = x + self.self_attention(self.layer_norm_1(x))
-        # x = x + self.feed_forward(self.layer_norm_2(x))
-        # return x
-
-        #--------
-        x_layer_norm_1        = self.layer_norm_1(x)
-        x_self_attention      = self.self_attention(x_layer_norm_1)
-        x_plus_self_attention = x + x_self_attention
-        #--------
-        x_layer_norm_2 = self.layer_norm_2(x_plus_self_attention)
-        x_feed_forward = self.feed_forward(x_layer_norm_2)
-        x_final        = x_plus_self_attention + x_feed_forward
-        #--------
-
-        return x_final
-    #-------------------------------------------------------------------------
-#-------------------------------------------------------------------------
-#-------------------------------------------------------------------------
-class Head(nn.Module):
-    """ one head of self-attention """
-    #-------------------------------------------------------------------------
-    def __init__(self, head_size):
-        super().__init__()
-        self.key = nn.Linear(hyper.n_embd, head_size, bias=False)
-        self.query = nn.Linear(hyper.n_embd, head_size, bias=False)
-        self.value = nn.Linear(hyper.n_embd, head_size, bias=False)
-        self.register_buffer('tril', torch.tril(torch.ones(hyper.block_size, hyper.block_size)))
-
-        self.dropout = nn.Dropout(hyper.dropout)
-    #-------------------------------------------------------------------------
-    #-------------------------------------------------------------------------
-    def forward(self, x):
-        B,T,C = x.shape
-        k = self.key(x)   # (B,T,C)
-        q = self.query(x) # (B,T,C)
-        # compute attention scores ("affinities")
-        wei = q @ k.transpose(-2,-1) * C**-0.5 # (B, T, C) @ (B, C, T) -> (B, T, T)
-        wei = wei.masked_fill(self.tril[:T, :T] == 0, float('-inf')) # (B, T, T)
-        wei = F.softmax(wei, dim=-1) # (B, T, T)
-        wei = self.dropout(wei)
-        # perform the weighted aggregation of the values
-        v = self.value(x) # (B,T,C)
-        out = wei @ v # (B, T, T) @ (B, T, C) -> (B, T, C)
-        return out
-    #-------------------------------------------------------------------------
-#-------------------------------------------------------------------------
-#-------------------------------------------------------------------------
-class MultiHeadAttention(nn.Module):
-    """ multiple heads of self-attention in parallel """
-
-    #-------------------------------------------------------------------------
-    def __init__(self, num_heads, head_size):
-        super().__init__()
-        self.heads = nn.ModuleList([Head(head_size) for _ in range(num_heads)])
-        self.proj = nn.Linear(hyper.n_embd, hyper.n_embd)
-        self.dropout = nn.Dropout(hyper.dropout)
-    #-------------------------------------------------------------------------
-    #-------------------------------------------------------------------------
-    def forward(self, x):
-        out = torch.cat([h(x) for h in self.heads], dim=-1)
-        out = self.dropout(self.proj(out))
-        return out
-    #-------------------------------------------------------------------------
-#-------------------------------------------------------------------------
 #-------------------------------------------------------------------------
 class FeedFoward(nn.Module):
+    # DONE
     """ a simple linear layer followed by a non-linearity """
     #-------------------------------------------------------------------------
     def __init__(self, n_embd):
@@ -506,6 +422,92 @@ class GPTLike():
 
     #-------------------------------------------------------------------------
 #-------------------------------------------------------------------------
+########################################################################################
+###########
+########### PAUSED HERE
+###########
+########################################################################################
+#-------------------------------------------------------------------------
+class Block(nn.Module):
+    """ Transformer block: communication followed by computation """
+    #-------------------------------------------------------------------------
+    # DONE
+    def __init__(self, n_embd, n_head):
+        # n_embd: embedding dimension, n_head: the number of heads we'd like
+        super().__init__()
+        head_size = n_embd // n_head # 64 // 4 = 16
+        self.self_attention = MultiHeadAttention(num_heads = n_head, head_size = head_size) #self attention?
+        self.feed_forward = FeedFoward(n_embd = n_embd)
+        self.layer_norm_1 = nn.LayerNorm(normalized_shape = n_embd)
+        self.layer_norm_2 = nn.LayerNorm(normalized_shape = n_embd)
+    #-------------------------------------------------------------------------
+    #-------------------------------------------------------------------------
+    def forward(self, x):
+        # x = x + self.self_attention(self.layer_norm_1(x))
+        # x = x + self.feed_forward(self.layer_norm_2(x))
+        # return x
+
+        #--------
+        x_layer_norm_1        = self.layer_norm_1(x) # layer normalization
+        x_self_attention      = self.self_attention(x_layer_norm_1)
+        x_plus_self_attention = x + x_self_attention
+        #--------
+        x_layer_norm_2 = self.layer_norm_2(x_plus_self_attention)
+        x_feed_forward = self.feed_forward(x_layer_norm_2)
+        x_final        = x_plus_self_attention + x_feed_forward
+        #--------
+
+        return x_final
+    #-------------------------------------------------------------------------
+#-------------------------------------------------------------------------
+#-------------------------------------------------------------------------
+class Head(nn.Module):
+    """ one head of self-attention """
+    #-------------------------------------------------------------------------
+    def __init__(self, head_size):
+        super().__init__()
+        self.key = nn.Linear(hyper.n_embd, head_size, bias=False)
+        self.query = nn.Linear(hyper.n_embd, head_size, bias=False)
+        self.value = nn.Linear(hyper.n_embd, head_size, bias=False)
+        self.register_buffer('tril', torch.tril(torch.ones(hyper.block_size, hyper.block_size)))
+
+        self.dropout = nn.Dropout(hyper.dropout)
+    #-------------------------------------------------------------------------
+    #-------------------------------------------------------------------------
+    def forward(self, x):
+        B,T,C = x.shape
+        k = self.key(x)   # (B,T,C)
+        q = self.query(x) # (B,T,C)
+        # compute attention scores ("affinities")
+        wei = q @ k.transpose(-2,-1) * C**-0.5 # (B, T, C) @ (B, C, T) -> (B, T, T)
+        wei = wei.masked_fill(self.tril[:T, :T] == 0, float('-inf')) # (B, T, T)
+        wei = F.softmax(wei, dim=-1) # (B, T, T)
+        wei = self.dropout(wei)
+        # perform the weighted aggregation of the values
+        v = self.value(x) # (B,T,C)
+        out = wei @ v # (B, T, T) @ (B, T, C) -> (B, T, C)
+        return out
+    #-------------------------------------------------------------------------
+#-------------------------------------------------------------------------
+#-------------------------------------------------------------------------
+class MultiHeadAttention(nn.Module):
+    """ multiple heads of self-attention in parallel """
+
+    #-------------------------------------------------------------------------
+    def __init__(self, num_heads, head_size):
+        super().__init__()
+        self.heads = nn.ModuleList([Head(head_size) for _ in range(num_heads)])
+        self.proj = nn.Linear(hyper.n_embd, hyper.n_embd)
+        self.dropout = nn.Dropout(hyper.dropout)
+    #-------------------------------------------------------------------------
+    #-------------------------------------------------------------------------
+    def forward(self, x):
+        out = torch.cat([h(x) for h in self.heads], dim=-1)
+        out = self.dropout(self.proj(out))
+        return out
+    #-------------------------------------------------------------------------
+#-------------------------------------------------------------------------
+
 
 torch.manual_seed(1337)
 hyper = HyperParameters()
