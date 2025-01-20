@@ -20,7 +20,7 @@ class HyperParameters():
         self.n_head = 4
         self.n_layer = 4
         self.dropout = 0.0
-        self.debug = False
+        self.debug = True
     #-------------------------------------------------------------------------
     #-------------------------------------------------------------------------
     def get_device(self):
@@ -395,12 +395,18 @@ class FeedFoward(nn.Module):
     #-------------------------------------------------------------------------
     def __init__(self, n_embd):
         super().__init__()
+
+        # n_embd -> 64
+
+        feed_forward_dimension = 4 * n_embd
+
         self.net = nn.Sequential(
-            nn.Linear(n_embd, 4 * n_embd),
+            nn.Linear(in_features= n_embd, out_features = feed_forward_dimension),
             nn.ReLU(),
-            nn.Linear(4 * n_embd, n_embd),
-            nn.Dropout(hyper.dropout),
+            nn.Linear(in_features = feed_forward_dimension, out_features = n_embd),
+            nn.Dropout(p = hyper.dropout),
         )
+
     #-------------------------------------------------------------------------
     #-------------------------------------------------------------------------
     def forward(self, x):
