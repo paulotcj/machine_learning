@@ -526,6 +526,7 @@ class Head(nn.Module):
         self.dropout = nn.Dropout(dropout) # dropout layer, we want to avoid overfitting
     #-------------------------------------------------------------------------
     #-------------------------------------------------------------------------
+    # working here
     def forward(self, x):
         B,T,C = x.shape # x [16, 32, 64], B: 16, T: 32, C: 64
         #-----
