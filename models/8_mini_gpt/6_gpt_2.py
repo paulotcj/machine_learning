@@ -212,7 +212,7 @@ class EstimateLoss():
 class BigramLanguageModel(nn.Module):
     #-------------------------------------------------------------------------
     # DONE
-    def __init__(self, vocab_size, n_embd, block_size, n_layer, n_head):
+    def __init__(self, vocab_size, n_embd, block_size, n_layer, n_head, dropout):
         super().__init__()
         #--------
         self.vocab_size = vocab_size   # 65
@@ -220,10 +220,11 @@ class BigramLanguageModel(nn.Module):
         self.block_size = block_size   # 32
         self.n_layer    = n_layer      # 4
         self.n_head     = n_head       # 4
+        self.dropout    = dropout
         #--------
-
+        # n_embd, n_head, block_size, dropout
         block_list = [
-            Block(n_embd = hyper.n_embd, n_head = self.n_head) 
+            Block(n_embd = hyper.n_embd, n_head = self.n_head, block_size = self.block_size, dropout = self.dropout) 
             for _ in range(self.n_layer)
         ]
 
@@ -343,7 +344,7 @@ class GPTLike():
     #-------------------------------------------------------------------------
     # done
     def __init__(self, vocab_size, n_embd, block_size, n_layer, n_head, eval_iters, eval_interval,
-                  max_iters, learning_rate, train_val_data, device):
+                  max_iters, learning_rate, dropout, train_val_data, device):
         #-------
         self.vocab_size     = vocab_size
         self.n_embd         = n_embd
@@ -356,6 +357,7 @@ class GPTLike():
         self.device         = device
         self.learning_rate  = learning_rate
         self.train_val_data = train_val_data
+        self.dropout        = dropout
         #-------
 
         self.model = BigramLanguageModel(
@@ -363,7 +365,8 @@ class GPTLike():
             n_embd      = self.n_embd, 
             block_size  = self.block_size, 
             n_layer     = self.n_layer, 
-            n_head      = self.n_head
+            n_head      = self.n_head,
+            dropout     = self.dropout
         )
         self.loss_obj = EstimateLoss(
             eval_iters      = self.eval_iters, 
@@ -436,11 +439,12 @@ class Block(nn.Module):
     """ Transformer block: communication followed by computation """
     #-------------------------------------------------------------------------
     # DONE
-    def __init__(self, n_embd, n_head):
+    def __init__(self, n_embd, n_head, block_size, dropout):
         # n_embd: embedding dimension (64), n_head: the number of heads we'd like (4)
         super().__init__()
+
         head_size = n_embd // n_head # 64 // 4 = 16
-        self.self_attention = MultiHeadAttention(num_heads = n_head, head_size = head_size)
+        self.self_attention = MultiHeadAttention(n_embd = n_embd, num_heads = n_head, head_size = head_size, block_size = block_size, dropout = dropout)
         self.feed_forward   = FeedFoward(n_embd = n_embd)
         self.layer_norm_1   = nn.LayerNorm(normalized_shape = n_embd)
         self.layer_norm_2   = nn.LayerNorm(normalized_shape = n_embd)
@@ -476,14 +480,17 @@ class Block(nn.Module):
           and modify the data as needed. Additionally, it helps with the vanishing gradient problem
         '''
 
+        # note that for the layer normalization, if we were to check: x_layer_norm_1[0][0].var(), we would
+        #  get: tensor(1.0159, device='mps:0'), close to 1 which is what we want
+
         #--------
         x_layer_norm_1        = self.layer_norm_1(x) # [16, 32, 64] layer normalization
-        x_self_attention      = self.self_attention(x_layer_norm_1)
-        x_plus_self_attention = x + x_self_attention
+        x_self_attention      = self.self_attention(x_layer_norm_1) # [16, 32, 64]
+        x_plus_self_attention = x + x_self_attention # [16, 32, 64]
         #--------
-        x_layer_norm_2 = self.layer_norm_2(x_plus_self_attention)
-        x_feed_forward = self.feed_forward(x_layer_norm_2)
-        x_final        = x_plus_self_attention + x_feed_forward
+        x_layer_norm_2 = self.layer_norm_2(x_plus_self_attention) # [16, 32, 64]
+        x_feed_forward = self.feed_forward(x_layer_norm_2) # [16, 32, 64]
+        x_final        = x_plus_self_attention + x_feed_forward # [16, 32, 64]
         #--------
 
         return x_final
@@ -499,33 +506,41 @@ class Block(nn.Module):
 class Head(nn.Module):
     """ one head of self-attention """
     #-------------------------------------------------------------------------
-    # DONE
-    def __init__(self, head_size):
-        super().__init__()
-        
-        # standard key, query, value linear transformations
-        self.key   = nn.Linear(in_features = hyper.n_embd, out_features = head_size, bias=False)
-        self.query = nn.Linear(in_features = hyper.n_embd, out_features = head_size, bias=False)
-        self.value = nn.Linear(in_features = hyper.n_embd, out_features = head_size, bias=False)
-        
-        # create a buffer - this means that it is not a parameter of the model, thus no optimization is performed on it
-        self.register_buffer('tril', torch.tril(torch.ones(hyper.block_size, hyper.block_size)))
 
-        self.dropout = nn.Dropout(hyper.dropout) # dropout layer, we want to avoid overfitting
+    def __init__(self, n_embd, head_size, block_size, dropout):
+        super().__init__()
+        #n_embd = 64, head_size: 16, block_size: 32, dropout: 0.0
+
+        # standard key, query, value linear transformations
+        self.key   = nn.Linear(in_features = n_embd, out_features = head_size, bias=False)
+        self.query = nn.Linear(in_features = n_embd, out_features = head_size, bias=False)
+        self.value = nn.Linear(in_features = n_embd, out_features = head_size, bias=False)
+        
+        #--------
+        # create a buffer - this means that it is not a parameter of the model, thus no optimization is performed on it
+        ones_matrix = torch.ones(block_size, block_size) # [32, 32]
+        triangular_matrix = torch.tril(ones_matrix) # [32, 32] - lower triangular matrix is 1
+        self.register_buffer('tril', triangular_matrix) 
+        #--------
+
+        self.dropout = nn.Dropout(dropout) # dropout layer, we want to avoid overfitting
     #-------------------------------------------------------------------------
     #-------------------------------------------------------------------------
     def forward(self, x):
-        B,T,C = x.shape
-        
-        k = self.key(x)   # (B,T,C)
-        q = self.query(x) # (B,T,C)
-        
+        B,T,C = x.shape # x [16, 32, 64], B: 16, T: 32, C: 64
+        #-----
+        k = self.key(x)   # (B,T,C) # [16, 32, 16] - this is a linear layer the in dim is 64, out dim is 16
+        q = self.query(x) # (B,T,C) # [16, 32, 16] - same here
+        #-----
         # compute attention scores ("affinities")
-        wei = q @ k.transpose(-2,-1) * C**-0.5 # (B, T, C) @ (B, C, T) -> (B, T, T)
+        k_transposed = k.transpose(-2,-1)
+        scaling_factor = C**-0.5 # is equivalent to 1 / sqrt(C) which is the original formula
+
+        wei = ( q @ k_transposed ) * scaling_factor # (B, T, C) @ (B, C, T) -> (B, T, T)
         wei = wei.masked_fill(self.tril[:T, :T] == 0, float('-inf')) # (B, T, T)
         wei = F.softmax(wei, dim=-1) # (B, T, T)
         wei = self.dropout(wei)
-        
+        #-----
         # perform the weighted aggregation of the values
         v = self.value(x) # (B,T,C)
         out = wei @ v # (B, T, T) @ (B, T, C) -> (B, T, C)
@@ -538,10 +553,13 @@ class MultiHeadAttention(nn.Module):
     """ multiple heads of self-attention in parallel """
 
     #-------------------------------------------------------------------------
-    def __init__(self, num_heads, head_size):
+    def __init__(self, n_embd, num_heads, head_size, block_size, dropout):
         super().__init__()
 
-        head_list = [ Head(head_size) for _ in range(num_heads) ]
+        head_list = [ 
+            Head(n_embd = n_embd, head_size = head_size, block_size = block_size, dropout = dropout) 
+            for _ in range(num_heads) 
+        ]
 
         self.heads = nn.ModuleList(modules = head_list)
         self.proj = nn.Linear(in_features = hyper.n_embd, out_features = hyper.n_embd) # projection?
@@ -580,6 +598,7 @@ gpt_like = GPTLike(
     eval_interval   = hyper.eval_interval,
     max_iters       = hyper.max_iters,
     learning_rate   = hyper.learning_rate,
+    dropout         = hyper.dropout,
     train_val_data  = train_val_data,
     device          = hyper.device
 )
