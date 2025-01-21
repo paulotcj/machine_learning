@@ -269,7 +269,7 @@ class BigramLanguageModel(nn.Module):
             targets = targets.view(B*T) # from [16,32] to [512]
             loss = F.cross_entropy(logits, targets)
 
-        return logits, loss
+        return logits, loss # logits [512, 65], loss []
     #-------------------------------------------------------------------------
     #-------------------------------------------------------------------------
     # DONE
@@ -282,10 +282,10 @@ class BigramLanguageModel(nn.Module):
 
         for i in range(max_new_tokens):
 
-            if (i> 0) and (i%300 == 0 or i == max_new_tokens - 1):
-                print(f'i {i} - inpt_int_tnsr.shape: {inpt_int_tnsr.shape} - inpt_sliced.shape: {inpt_sliced.shape}')
-                print(f'        logits.shape: {logits.shape} - probs.shape: {probs.shape} - idx_next.shape: {idx_next.shape}')
-                print('-------------')
+            # if (i> 0) and (i%300 == 0 or i == max_new_tokens - 1):
+            #     print(f'i {i} - inpt_int_tnsr.shape: {inpt_int_tnsr.shape} - inpt_sliced.shape: {inpt_sliced.shape}')
+            #     print(f'        logits.shape: {logits.shape} - probs.shape: {probs.shape} - idx_next.shape: {idx_next.shape}')
+            #     print('-------------')
 
             # crop idx to the last block_size tokens - [1,1], [1,2]  ... until [1,32] which will be its final shape until the end
             #   note that inpt_int_tnsr will also grow as initially is [1,1]
@@ -320,19 +320,21 @@ class FeedFoward(nn.Module):
 
         # n_embd -> 64
 
-        feed_forward_dimension = 4 * n_embd
+        feed_forward_dimension = 4 * n_embd # 4 * 64 = 256
 
         self.net = nn.Sequential(
-            nn.Linear(in_features= n_embd, out_features = feed_forward_dimension),
-            nn.ReLU(),
-            nn.Linear(in_features = feed_forward_dimension, out_features = n_embd),
+            nn.Linear(in_features= n_embd, out_features = feed_forward_dimension),  # in: 64 dim, out: 256 dim
+            nn.ReLU(),                                                              # ReLU
+            nn.Linear(in_features = feed_forward_dimension, out_features = n_embd), # in: 256 dim, out: 64 dim
             nn.Dropout(p = hyper.dropout),
         )
 
     #-------------------------------------------------------------------------
     #-------------------------------------------------------------------------
     def forward(self, x):
-        return self.net(x)
+        # x - [16, 32, 64]
+        x_out = self.net(x)
+        return x_out # [16, 32, 64]
     #-------------------------------------------------------------------------
 #-------------------------------------------------------------------------
 #-------------------------------------------------------------------------
@@ -435,10 +437,10 @@ class Block(nn.Module):
     #-------------------------------------------------------------------------
     # DONE
     def __init__(self, n_embd, n_head):
-        # n_embd: embedding dimension, n_head: the number of heads we'd like
+        # n_embd: embedding dimension (64), n_head: the number of heads we'd like (4)
         super().__init__()
         head_size = n_embd // n_head # 64 // 4 = 16
-        self.self_attention = MultiHeadAttention(num_heads = n_head, head_size = head_size) #self attention?
+        self.self_attention = MultiHeadAttention(num_heads = n_head, head_size = head_size)
         self.feed_forward   = FeedFoward(n_embd = n_embd)
         self.layer_norm_1   = nn.LayerNorm(normalized_shape = n_embd)
         self.layer_norm_2   = nn.LayerNorm(normalized_shape = n_embd)
@@ -538,15 +540,26 @@ class MultiHeadAttention(nn.Module):
     #-------------------------------------------------------------------------
     def __init__(self, num_heads, head_size):
         super().__init__()
-        self.heads = nn.ModuleList([Head(head_size) for _ in range(num_heads)])
-        self.proj = nn.Linear(hyper.n_embd, hyper.n_embd)
-        self.dropout = nn.Dropout(hyper.dropout)
+
+        head_list = [ Head(head_size) for _ in range(num_heads) ]
+
+        self.heads = nn.ModuleList(modules = head_list)
+        self.proj = nn.Linear(in_features = hyper.n_embd, out_features = hyper.n_embd) # projection?
+        self.dropout = nn.Dropout(p = hyper.dropout)
     #-------------------------------------------------------------------------
     #-------------------------------------------------------------------------
     def forward(self, x):
-        out = torch.cat([h(x) for h in self.heads], dim=-1)
+        # out = torch.cat([h(x) for h in self.heads], dim=-1)
+        # out = self.dropout(self.proj(out))
+        # return out
+        heads_output_tensors = [ 
+            head(x) 
+            for head in self.heads 
+        ]
+
+        out = torch.cat(heads_output_tensors, dim=-1)
         out = self.dropout(self.proj(out))
-        return out
+        return out        
     #-------------------------------------------------------------------------
 #-------------------------------------------------------------------------
 
