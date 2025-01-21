@@ -211,7 +211,6 @@ class EstimateLoss():
 #-------------------------------------------------------------------------
 class BigramLanguageModel(nn.Module):
     #-------------------------------------------------------------------------
-    # DONE
     def __init__(self, vocab_size, n_embd, block_size, n_layer, n_head, dropout):
         super().__init__()
         #--------
@@ -238,7 +237,6 @@ class BigramLanguageModel(nn.Module):
         #--------
     #-------------------------------------------------------------------------
     #-------------------------------------------------------------------------
-    # DONE
     def forward(self, inpt_int_tnsr, targets=None):
         #targets - [16,32]
         B, T = inpt_int_tnsr.shape # B (16): batch size, T(32): sequence length (if we are generating text batch might be always 1, and T will grow typically to 32)
@@ -273,7 +271,6 @@ class BigramLanguageModel(nn.Module):
         return logits, loss # logits [512, 65], loss []
     #-------------------------------------------------------------------------
     #-------------------------------------------------------------------------
-    # DONE
     def generate(self, inpt_int_tnsr, max_new_tokens):
         # inpt_int_tnsr - [1,1] - tensor([[0]])
 
@@ -313,7 +310,6 @@ class BigramLanguageModel(nn.Module):
 #-------------------------------------------------------------------------
 #-------------------------------------------------------------------------
 class FeedFoward(nn.Module):
-    # DONE
     """ a simple linear layer followed by a non-linearity """
     #-------------------------------------------------------------------------
     def __init__(self, n_embd):
@@ -339,10 +335,8 @@ class FeedFoward(nn.Module):
     #-------------------------------------------------------------------------
 #-------------------------------------------------------------------------
 #-------------------------------------------------------------------------
-# done
 class GPTLike():
     #-------------------------------------------------------------------------
-    # done
     def __init__(self, vocab_size, n_embd, block_size, n_layer, n_head, eval_iters, eval_interval,
                   max_iters, learning_rate, dropout, train_val_data, device):
         #-------
@@ -383,7 +377,6 @@ class GPTLike():
         self.__show_params_summary()
     #-------------------------------------------------------------------------
     #-------------------------------------------------------------------------
-    # done
     def __show_params_summary(self):
         # print the number of parameters in the model
         param_list = [
@@ -395,7 +388,6 @@ class GPTLike():
         print(f'{param_sum} M parameters')    
     #-------------------------------------------------------------------------
     #-------------------------------------------------------------------------
-    # done
     def train(self):
 
         for iter in range(self.max_iters):
@@ -417,7 +409,6 @@ class GPTLike():
             self.optimizer.step()
     #-------------------------------------------------------------------------
     #-------------------------------------------------------------------------
-    # done
     def generate(self):
         # generate from the model
         context = torch.zeros((1, 1), dtype=torch.long, device=self.device) # is zero intentional as this usually means a new line ('\n')?
@@ -434,11 +425,9 @@ class GPTLike():
     #-------------------------------------------------------------------------
 #-------------------------------------------------------------------------
 #-------------------------------------------------------------------------
-# DONE
 class Block(nn.Module):
     """ Transformer block: communication followed by computation """
     #-------------------------------------------------------------------------
-    # DONE
     def __init__(self, n_embd, n_head, block_size, dropout):
         # n_embd: embedding dimension (64), n_head: the number of heads we'd like (4)
         super().__init__()
@@ -450,7 +439,6 @@ class Block(nn.Module):
         self.layer_norm_2   = nn.LayerNorm(normalized_shape = n_embd)
     #-------------------------------------------------------------------------
     #-------------------------------------------------------------------------
-    # DONE
     def forward(self, x):
         # x - [16, 32, 64] 
 
@@ -496,12 +484,6 @@ class Block(nn.Module):
         return x_final
     #-------------------------------------------------------------------------
 #-------------------------------------------------------------------------
-########################################################################################
-###########
-########### PAUSED HERE
-###########
-########################################################################################
-
 #-------------------------------------------------------------------------
 class Head(nn.Module):
     """ one head of self-attention """
@@ -534,19 +516,20 @@ class Head(nn.Module):
         q = self.query(x) # (B,T,C) # [16, 32, 16] - same here
         #-----
         # compute attention scores ("affinities")
-        k_transposed = k.transpose(-2,-1)
-        scaling_factor = C**-0.5 # is equivalent to 1 / sqrt(C) which is the original formula
+        k_transposed = k.transpose(-2,-1) # [16, 16 ,32] - transpose the last 2 dimensions
+        scaling_factor = C**-0.5 # (usually 0.125) is equivalent to 1 / sqrt(C) which is the original formula - 
 
-        wei = ( q @ k_transposed ) * scaling_factor # (B, T, C) @ (B, C, T) -> (B, T, T)
-        wei = wei.masked_fill(self.tril[:T, :T] == 0, float('-inf')) # (B, T, T)
-        wei = F.softmax(wei, dim=-1) # (B, T, T)
-        wei = self.dropout(wei)
+        weight      = q @ k_transposed # [16, 32, 32] -> q(B, T, C) @ k(B, C, T) = (B, T, T) ->  q[16, 32, 16] @ k[16, 32, 16] = wei[16, 32, 32]
+        wei_scaled  = weight * scaling_factor # [16, 32, 32]
+        wei_masked  = wei_scaled.masked_fill(self.tril[:T, :T] == 0, float('-inf')) # [16, 32, 32] -> (B, T, T)
+        wei_softmax = F.softmax(wei_masked, dim=-1) # [16, 32, 32] -> (B, T, T)
+        wei_dropout = self.dropout(wei_softmax) # [16, 32, 32]
         #-----
         # perform the weighted aggregation of the values
-        v = self.value(x) # (B,T,C)
-        out = wei @ v # (B, T, T) @ (B, T, C) -> (B, T, C)
+        v = self.value(x) # [16, 32, 16] -> (B,T,C)
+        out = wei_dropout @ v #[16, 32, 16] ->  wei(B, T, T) @ v(B, T, C)  out(B, T, C) -> wei[16, 32, 32] @ v[16, 32, 16] = out[16, 32, 16]
         
-        return out
+        return out #[16, 32, 16]
     #-------------------------------------------------------------------------
 #-------------------------------------------------------------------------
 #-------------------------------------------------------------------------
@@ -557,27 +540,34 @@ class MultiHeadAttention(nn.Module):
     def __init__(self, n_embd, num_heads, head_size, block_size, dropout):
         super().__init__()
 
+        #n_embd = 64, num_heads = 4, head_size = 16, block_size = 32, dropout = 0.0
+
         head_list = [ 
             Head(n_embd = n_embd, head_size = head_size, block_size = block_size, dropout = dropout) 
             for _ in range(num_heads) 
         ]
 
-        self.heads = nn.ModuleList(modules = head_list)
-        self.proj = nn.Linear(in_features = hyper.n_embd, out_features = hyper.n_embd) # projection?
-        self.dropout = nn.Dropout(p = hyper.dropout)
+        self.heads   = nn.ModuleList(modules = head_list)
+        self.proj    = nn.Linear(in_features = n_embd, out_features = n_embd) # projection?
+        self.dropout = nn.Dropout(p = dropout)
     #-------------------------------------------------------------------------
     #-------------------------------------------------------------------------
     def forward(self, x):
         # out = torch.cat([h(x) for h in self.heads], dim=-1)
         # out = self.dropout(self.proj(out))
         # return out
+
+        # x [16, 32, 64] (usually)
+
+        # in self.heads we have a list of heads (usually 4), and we call each head with the input x
         heads_output_tensors = [ 
             head(x) 
             for head in self.heads 
-        ]
+        ] # heads_output_tensors[0].shape -> [16, 32, 16]
 
-        out = torch.cat(heads_output_tensors, dim=-1)
-        out = self.dropout(self.proj(out))
+        out_concat = torch.cat(heads_output_tensors, dim=-1) # [16, 32, 64] - concatenate the heads output tensors along the last dimension
+        out_proj   = self.proj(out_concat) # [16, 32, 64] - apply a linear layer to the concatenated heads output tensor
+        out        = self.dropout(out_proj) # [16, 32, 64] - apply dropout 
         return out        
     #-------------------------------------------------------------------------
 #-------------------------------------------------------------------------
