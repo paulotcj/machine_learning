@@ -319,6 +319,11 @@ class FeedFoward(nn.Module):
 
         feed_forward_dimension = 4 * n_embd # 4 * 64 = 256
 
+        # so lets be clear about this, we expand and contract the dimensions. Take in 64, pass through
+        #   a linear layer, explading by a factor of 4 (256), pass throgh an activation function then
+        #   restrict it again by passing through another linear layer with its final dimensions of 64
+        #   64 -> 256 -> 64
+
         self.net = nn.Sequential(
             nn.Linear(in_features= n_embd, out_features = feed_forward_dimension),  # in: 64 dim, out: 256 dim
             nn.ReLU(),                                                              # ReLU
