@@ -547,9 +547,9 @@ class MultiHeadAttention(nn.Module):
             for _ in range(num_heads) 
         ]
 
-        self.heads   = nn.ModuleList(modules = head_list)
-        self.proj    = nn.Linear(in_features = n_embd, out_features = n_embd) # projection?
-        self.dropout = nn.Dropout(p = dropout)
+        self.heads      = nn.ModuleList(modules = head_list)
+        self.projection = nn.Linear(in_features = n_embd, out_features = n_embd) 
+        self.dropout    = nn.Dropout(p = dropout)
     #-------------------------------------------------------------------------
     #-------------------------------------------------------------------------
     def forward(self, x):
@@ -566,7 +566,7 @@ class MultiHeadAttention(nn.Module):
         ] # heads_output_tensors[0].shape -> [16, 32, 16]
 
         out_concat = torch.cat(heads_output_tensors, dim=-1) # [16, 32, 64] - concatenate the heads output tensors along the last dimension
-        out_proj   = self.proj(out_concat) # [16, 32, 64] - apply a linear layer to the concatenated heads output tensor
+        out_proj   = self.projection(out_concat) # [16, 32, 64] - apply a linear layer to the concatenated heads output tensor
         out        = self.dropout(out_proj) # [16, 32, 64] - apply dropout 
         return out        
     #-------------------------------------------------------------------------
