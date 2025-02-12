@@ -9,18 +9,18 @@ class HyperParameters():
     #-------------------------------------------------------------------------
     def __init__(self):
 
-        self.batch_size = 16 # how many independent sequences will we process in parallel?
-        self.block_size = 32 # what is the maximum context length for predictions?
-        self.max_iters = 50000
+        self.batch_size = 8 # how many independent sequences will we process in parallel?
+        self.block_size = 512 # what is the maximum context length for predictions?
+        self.max_iters = 50_000
         # self.max_iters = 100
         self.eval_interval = 100
-        self.learning_rate = 1e-3
+        self.learning_rate = 1e-4
         self.device = self.get_device()
         self.eval_iters = 200
-        self.n_embd = 64
-        self.n_head = 4
-        self.n_layer = 4
-        self.dropout = 0.0
+        self.n_embd = 512
+        self.n_head = 8
+        self.n_layer = 12
+        self.dropout = 0.1
     #-------------------------------------------------------------------------
     #-------------------------------------------------------------------------
     def get_device(self):
