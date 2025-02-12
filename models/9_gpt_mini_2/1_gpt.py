@@ -91,7 +91,7 @@ scaler = GradScaler(device.type)  # Mixed precision
 
 #-------------------------------------------------------------------------
 # Training Loop
-epochs = 1
+epochs = 5000
 gradient_accumulation_steps = 8  # To simulate larger batch size
 
 for epoch in range(epochs):
@@ -123,3 +123,30 @@ for epoch in range(epochs):
 
     print(f"Epoch {epoch+1} completed. Avg Loss: {total_loss / len(dataloader):.4f}")
 #-------------------------------------------------------------------------
+
+#-------------------------------------------------------------------------
+def generate_text(model, start_text, max_tokens=2000):
+    model.eval()
+    encoding = tiktoken.get_encoding("cl100k_base")
+    input_ids = torch.tensor(encoding.encode(start_text), dtype=torch.long).unsqueeze(0).to(device)
+
+    generated_ids = input_ids.tolist()[0]  # Start with input tokens
+
+    with torch.no_grad():
+        for _ in range(max_tokens):
+            x = torch.tensor([generated_ids[-model.block_size:]], dtype=torch.long).to(device)
+            logits = model(x)[:, -1, :]
+            next_token = torch.argmax(logits, dim=-1).item()
+            generated_ids.append(next_token)
+
+            # Stop if the model generates an end-of-text token (optional)
+            if next_token == encoding.eot_token:
+                break
+
+    return encoding.decode(generated_ids)
+#-------------------------------------------------------------------------
+
+# Example usage:
+start_text = "MENENIUS:"
+generated_text = generate_text(model, start_text)
+print("\nGenerated Output:\n", generated_text)
