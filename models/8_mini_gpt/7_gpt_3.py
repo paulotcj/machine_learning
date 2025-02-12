@@ -3,7 +3,7 @@ import torch.nn as nn
 from torch.nn import functional as F
 import tiktoken
 
-print('Hyperparameters init')
+
 #-------------------------------------------------------------------------
 class HyperParameters():
     #-------------------------------------------------------------------------
@@ -11,8 +11,8 @@ class HyperParameters():
 
         self.batch_size = 16 # how many independent sequences will we process in parallel?
         self.block_size = 32 # what is the maximum context length for predictions?
-        self.max_iters = 5000
-        # self.max_iters = 100
+        # self.max_iters = 5000
+        self.max_iters = 100
         self.eval_interval = 100
         self.learning_rate = 1e-3
         self.device = self.get_device()
@@ -28,9 +28,9 @@ class HyperParameters():
         if torch.cuda.is_available():
            device = 'cuda' 
            print('using cuda acceleration')
-        elif torch.backends.mps.is_built():
-            device = 'mps'
-            print('using mps acceleration')
+        # elif torch.backends.mps.is_built():
+        #     device = 'mps'
+        #     print('using mps acceleration')
         else:
             device = 'cpu'
             print('using cpu')
@@ -39,7 +39,6 @@ class HyperParameters():
         return device
     #-------------------------------------------------------------------------
 #-------------------------------------------------------------------------
-print('Part 1 - read data')
 #-------------------------------------------------------------------------
 class SourceData():
     #-------------------------------------------------------------------------
@@ -56,18 +55,10 @@ class SourceData():
                 self.text = f.read()
                 
         #------
-        # Load the tokenizer
-        tokenizer = tiktoken.get_tokenizer("cl100k_base")
-
-        # Get the vocabulary size
-        self.vocab_size = tokenizer.get_vocab_size()
-
-        print(f"The vocabulary size is: {self.vocab_size}")   
-        #------             
-
-
         self.enc = tiktoken.get_encoding("cl100k_base")
-
+        
+        self.vocab_size = self.enc.n_vocab
+        #------             
 
         # self.chars = sorted(list(set(self.text)))
 
@@ -86,43 +77,53 @@ class SourceData():
         
         print(f'vocab size: {self.vocab_size}')
 
-        print(f'first 5 character to integer mapping:')
-        self.__sample_dict(self.str_to_idx)
-        print(f'first 5 integer to character mapping:')
-        self.__sample_dict(self.idx_to_str)
+        # it doest make sense anymore
+        # print(f'first 5 character to integer mapping:')
+        # self.__sample_dict(self.str_to_idx)
+        # print(f'first 5 integer to character mapping:')
+        # self.__sample_dict(self.idx_to_str)
     #-------------------------------------------------------------------------
     #-------------------------------------------------------------------------
-    def __sample_dict(self, dict, num_samples=5, print_result = True):
+    # def __sample_dict(self, dict, num_samples=5, print_result = True):
         
-        temp_list = []
-        for idx, (key,val) in enumerate( dict.items() ):
-            if idx >= num_samples:
-                break
-            str_temp = f'key:{key}, val:{val}\n' 
-            temp_list.append( str_temp )
+    #     temp_list = []
+    #     for idx, (key,val) in enumerate( dict.items() ):
+    #         if idx >= num_samples:
+    #             break
+    #         str_temp = f'key:{key}, val:{val}\n' 
+    #         temp_list.append( str_temp )
 
-        if print_result:
-            merged = ''.join(temp_list)
-            print(merged)
+    #     if print_result:
+    #         merged = ''.join(temp_list)
+    #         print(merged)
         
-        return temp_list
+    #     return temp_list
+    # #------------------------------------------------------------------------- 
     #------------------------------------------------------------------------- 
     def encode(self, str_input):
-        return [ 
-            self.str_to_idx[char] 
-            for char in str_input
-        ] # encoder: take a string, output a list of integers   
+        
+        list_tokens = self.enc.encode(str_input)
+        
+        return list_tokens
+        
+        # return [ 
+        #     self.str_to_idx[char] 
+        #     for char in str_input
+        # ] # encoder: take a string, output a list of integers   
+    #------------------------------------------------------------------------- 
     #------------------------------------------------------------------------- 
     def decode(self, int_list):
-        return ''.join(
-            [
-                self.idx_to_str[i] 
-                for i in int_list
-            ]
-        ) # decoder: take a list of integers, output a string
+        
+        return_str = self.enc.decode(int_list)
+        
+        # return ''.join(
+        #     [
+        #         self.idx_to_str[i] 
+        #         for i in int_list
+        #     ]
+        # ) # decoder: take a list of integers, output a string
     #-------------------------------------------------------------------------   
 #-------------------------------------------------------------------------
-print('Part 3 - Train and test splits')
 #-------------------------------------------------------------------------
 class TrainValData():
     #-------------------------------------------------------------------------
