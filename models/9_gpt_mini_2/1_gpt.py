@@ -91,7 +91,7 @@ scaler = GradScaler(device.type)  # Mixed precision
 
 #-------------------------------------------------------------------------
 # Training Loop
-epochs = 5000
+epochs = 500
 gradient_accumulation_steps = 8  # To simulate larger batch size
 
 for epoch in range(epochs):
