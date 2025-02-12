@@ -11,8 +11,8 @@ class HyperParameters():
 
         self.batch_size = 16 # how many independent sequences will we process in parallel?
         self.block_size = 32 # what is the maximum context length for predictions?
-        # self.max_iters = 5000
-        self.max_iters = 100
+        self.max_iters = 50000
+        # self.max_iters = 100
         self.eval_interval = 100
         self.learning_rate = 1e-3
         self.device = self.get_device()
@@ -115,6 +115,8 @@ class SourceData():
     def decode(self, int_list):
         
         return_str = self.enc.decode(int_list)
+
+        return return_str
         
         # return ''.join(
         #     [
