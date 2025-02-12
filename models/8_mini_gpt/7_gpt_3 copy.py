@@ -10,8 +10,8 @@ class HyperParameters():
 
         self.batch_size = 16 # how many independent sequences will we process in parallel?
         self.block_size = 32 # what is the maximum context length for predictions?
-        # self.max_iters = 5000
-        self.max_iters = 100
+        self.max_iters = 5000
+        # self.max_iters = 100
         self.eval_interval = 100
         self.learning_rate = 1e-3
         self.device = self.get_device()
@@ -579,9 +579,15 @@ class MultiHeadAttention(nn.Module):
 
 
 torch.manual_seed(1337)
-hyper = HyperParameters()
+
 src_d = SourceData() #using default values
 src_d.show_summary()
+
+
+hyper = HyperParameters()
+
+
+
 train_val_data = TrainValData(text = src_d.text, encoder = src_d.encode, device = hyper.device)
 
 gpt_like = GPTLike(
