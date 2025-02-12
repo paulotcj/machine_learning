@@ -85,13 +85,13 @@ model = SmallGPT(vocab_size=vocab_size).to(device)
 optimizer = optim.AdamW(model.parameters(), lr=3e-4, betas=(0.9, 0.95), weight_decay=0.1)
 scheduler = optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=50_000)
 
-scaler = GradScaler(device)  # Mixed precision
+scaler = GradScaler(device.type)  # Mixed precision
 
 
 
 #-------------------------------------------------------------------------
 # Training Loop
-epochs = 5
+epochs = 1
 gradient_accumulation_steps = 8  # To simulate larger batch size
 
 for epoch in range(epochs):
@@ -102,7 +102,7 @@ for epoch in range(epochs):
     for i, (x, y) in enumerate(dataloader):
         x, y = x.to(device), y.to(device)
         
-        with autocast(device):  # Mixed precision
+        with autocast(device.type):  # Mixed precision
             logits = model(x)
             loss = nn.functional.cross_entropy(logits.view(-1, vocab_size), y.view(-1))
         
