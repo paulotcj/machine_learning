@@ -1,6 +1,7 @@
 import torch
 import torch.nn as nn
 from torch.nn import functional as F
+import tiktoken
 
 print('Hyperparameters init')
 #-------------------------------------------------------------------------
@@ -53,21 +54,36 @@ class SourceData():
         except:
             with open(file = alternate_file, mode = 'r', encoding='utf-8') as f:
                 self.text = f.read()
+                
+        #------
+        # Load the tokenizer
+        tokenizer = tiktoken.get_tokenizer("cl100k_base")
 
-        
+        # Get the vocabulary size
+        self.vocab_size = tokenizer.get_vocab_size()
+
+        print(f"The vocabulary size is: {self.vocab_size}")   
+        #------             
 
 
-        self.chars = sorted(list(set(self.text)))
+        self.enc = tiktoken.get_encoding("cl100k_base")
 
-        self.vocab_size = len(self.chars)
+
+        # self.chars = sorted(list(set(self.text)))
+
+        # self.vocab_size = len(self.chars)
 
         # create a mapping from characters to integers
-        self.str_to_idx = { char: idx  for idx,char in enumerate(self.chars) }
-        self.idx_to_str = { idx : char for idx,char in enumerate(self.chars) }        
+        # self.str_to_idx = { char: idx  for idx,char in enumerate(self.chars) }
+        # self.idx_to_str = { idx : char for idx,char in enumerate(self.chars) }        
     #-------------------------------------------------------------------------
     #-------------------------------------------------------------------------
     def show_summary(self):
-        print(f'here are all the unique characters that occur in this text:\n  {self.chars}')
+        # it doesn't make sense anymore, we used to print unique chars, the equivalent now
+        #   would be tokens, and therefore we would be printing all the possible words and 
+        #   subwords
+        # print(f'here are all the unique characters that occur in this text:\n  {self.chars}')
+        
         print(f'vocab size: {self.vocab_size}')
 
         print(f'first 5 character to integer mapping:')
