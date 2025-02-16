@@ -75,4 +75,9 @@ generator = pipeline(task = 'text-generation', model = 'gpt2') # if we were to u
 from transformers import pipeline, set_seed
 generator = pipeline('text-generation', model='gpt2')
 set_seed(42)
-generator("Hello, I'm a language model,", max_length=30, num_return_sequences=5)
+result = generator("Hello, I'm a language model,", max_length=30, num_return_sequences=5)
+print('-------------------------------------------------------------------------')
+print('\n\n')
+
+for i in result:
+    print(i)
