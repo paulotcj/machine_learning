@@ -88,8 +88,6 @@ class GPTConfig:
     n_embd: int = 768 # embedding dimension
 #-------------------------------------------------------------------------
 #-------------------------------------------------------------------------
-class GPT(nn.Module):
-    #-------------------------------------------------------------------------
     '''
     This implementation of GPT follows the same pattern of GPT2. When exploring the
       open weights from GPT2 128M model we would find something like this:
@@ -107,28 +105,60 @@ class GPT(nn.Module):
             transformer.h.0.mlp.c_fc.bias torch.Size([3072])
             transformer.h.0.mlp.c_proj.weight torch.Size([3072, 768])
             transformer.h.0.mlp.c_proj.bias torch.Size([768])
+
             [...] LAYERS FROM 0 TO 11
+            
             transformer.h.11.mlp.c_proj.weight torch.Size([3072, 768])
             transformer.h.11.mlp.c_proj.bias torch.Size([768])
             transformer.ln_f.weight torch.Size([768])
             transformer.ln_f.bias torch.Size([768])
             lm_head.weight torch.Size([50257, 768])
 
+    First we should define some basic hyper parameters: 
+        - 50257 is the token vocab size
+        - 768 is the embedding dimension
+        - 1024 is the block size
+
+
     As we can see GPT is composed of: 
-        1 - transformer (which will be explained below
-        2 - lm_head (language model head) a simple linear layer with in_features = 50257 and
-              out_features = 768
+        - transformer, which will be explained below
+        - lm_head (language model head) a simple linear layer with in_features = 50257 (vocab_size)
+            and out_features = 768 (embedding dimension)
     
     The transformer is composed of:
-        1 - wte (word token embeddings) with num_embeddings = 50257 and embeddings_dim = 768
-        2 - wpe (word position embeddings) with num_embeddings = 1024 and embeddings_dim = 768
-        3 - h (hidden layers, from 0 to 11)
-        4 - ln_f (layer normalization final)
+        - wte (word token embeddings) with num_embeddings = 50257 (vocab_size) and embeddings_dim = 768 (embedding dimension)
+        - wpe (word position embeddings) with num_embeddings = 1024 (block size) and embeddings_dim = 768 (embedding dimension)
+        - h (hidden layers, from 0 to 11 to be explained below)
+        - ln_f (layer normalization final) 
+            ln_f.weight with normalized_shape = 768 (embedding dimension)
+            ln_f.bias with normalized_shape = 768 (embedding dimension)
 
-    The lm_head is a simple linear layer 
+    The h (hidden layers) is composed of 12 hidden layers of the following components:
+        - ln_1.weight (layer normalization 1 weight) with normalized_shape = 768
+        - ln_1.bias   (layer normalization 1 bias)   with normalized_shape = 768
+
+        - attn.c_attn.weight (casual self attention weights - linear layer) in_features = 768 (embedding dimension) out_features = 2304 (3 * 768 embedding dimension) 
+        - attn.c_attn.bias   (casual self attention bias    - linear layer) bias = 2304 (3 * 768 embedding dimension) 
+
+        - attn.c_proj.weight (casual self attention projection weights - linear layer) in_features = 768 (embedding dimension), out_features = 768 (embedding dimension) 
+        - attn.c_proj.bias   (casual self attention projection bias    - linear layer) bias = = 768 (embedding dimension) 
+
+        - ln_2.weight (layer normalization 2 weight) with normalized_shape = 768
+        - ln_2.bias   (layer normalization 2 bias)   with normalized_shape = 768
+
+        - mlp.c_fc.weight torch.Size([768, 3072])
+        - mlp.c_fc.bias torch.Size([3072])
+
+        - mlp.c_proj.weight torch.Size([3072, 768])
+        - mlp.c_proj.bias torch.Size([768])
+
+
     
 
     '''
+class GPT(nn.Module):
+    #-------------------------------------------------------------------------
+
     def __init__(self, config):
         super().__init__()
         self.config = config
