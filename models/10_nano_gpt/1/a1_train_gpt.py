@@ -90,45 +90,6 @@ class GPTConfig:
 #-------------------------------------------------------------------------
 class GPT(nn.Module):
     #-------------------------------------------------------------------------
-    '''
-    This implementation of GPT follows the same pattern of GPT2. When exploring the
-      open weights from GPT2 128M model we would find something like this:
-            transformer.wte.weight torch.Size([50257, 768])
-            transformer.wpe.weight torch.Size([1024, 768])
-            transformer.h.0.ln_1.weight torch.Size([768])
-            transformer.h.0.ln_1.bias torch.Size([768])
-            transformer.h.0.attn.c_attn.weight torch.Size([768, 2304])
-            transformer.h.0.attn.c_attn.bias torch.Size([2304])
-            transformer.h.0.attn.c_proj.weight torch.Size([768, 768])
-            transformer.h.0.attn.c_proj.bias torch.Size([768])
-            transformer.h.0.ln_2.weight torch.Size([768])
-            transformer.h.0.ln_2.bias torch.Size([768])
-            transformer.h.0.mlp.c_fc.weight torch.Size([768, 3072])
-            transformer.h.0.mlp.c_fc.bias torch.Size([3072])
-            transformer.h.0.mlp.c_proj.weight torch.Size([3072, 768])
-            transformer.h.0.mlp.c_proj.bias torch.Size([768])
-            [...] LAYERS FROM 0 TO 11
-            transformer.h.11.mlp.c_proj.weight torch.Size([3072, 768])
-            transformer.h.11.mlp.c_proj.bias torch.Size([768])
-            transformer.ln_f.weight torch.Size([768])
-            transformer.ln_f.bias torch.Size([768])
-            lm_head.weight torch.Size([50257, 768])
-
-    As we can see GPT is composed of: 
-        1 - transformer (which will be explained below
-        2 - lm_head (language model head) a simple linear layer with in_features = 50257 and
-              out_features = 768
-    
-    The transformer is composed of:
-        1 - wte (word token embeddings) with num_embeddings = 50257 and embeddings_dim = 768
-        2 - wpe (word position embeddings) with num_embeddings = 1024 and embeddings_dim = 768
-        3 - h (hidden layers, from 0 to 11)
-        4 - ln_f (layer normalization final)
-
-    The lm_head is a simple linear layer 
-    
-
-    '''
     def __init__(self, config):
         super().__init__()
         self.config = config
