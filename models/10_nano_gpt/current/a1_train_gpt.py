@@ -6,6 +6,12 @@ from torch.nn import functional as F
 
 
 #-------------------------------------------------------------------------
+'''
+Causal: In the context of GPT-2, "causal" means that the attention mechanism is restricted to only 
+consider previous tokens in the sequence. This is crucial for autoregressive models like GPT-2, which 
+generate text one token at a time. The model should not have access to future tokens during training 
+or inference.
+'''
 class CausalSelfAttention(nn.Module):
     #-------------------------------------------------------------------------
     def __init__(self, config):
@@ -122,35 +128,34 @@ class GPTConfig:
 
     As we can see GPT is composed of: 
         - transformer, which will be explained below
-        - lm_head (language model head) a simple linear layer with in_features = 50257 (vocab_size)
-            and out_features = 768 (embedding dimension)
+        - lm_head (language model head - LinearLayer) in_features = 50257 (vocab_size), out_features = 768 (embedding dimension), bias  = False
     
+    -------------------
+
     The transformer is composed of:
-        - wte (word token embeddings) with num_embeddings = 50257 (vocab_size) and embeddings_dim = 768 (embedding dimension)
-        - wpe (word position embeddings) with num_embeddings = 1024 (block size) and embeddings_dim = 768 (embedding dimension)
-        - h (hidden layers, from 0 to 11 to be explained below)
-        - ln_f (layer normalization final) 
-            ln_f.weight with normalized_shape = 768 (embedding dimension)
-            ln_f.bias with normalized_shape = 768 (embedding dimension)
+        - wte (word token embeddings   - Embedding) with num_embeddings = 50257 (vocab_size) and embeddings_dim = 768 (embedding dimension)
+        - wpe (word position embedding - Embedding) with num_embeddings = 1024 (block size) and embeddings_dim = 768 (embedding dimension)
+        - h (hidden layers, from 0 to 11 to be explained below - ModuleList[Block])
+        - ln_f (layer normalization final - LayerNorm) ln_f.weight normalized_shape = 768 (embedding dimension) ln_f.bias normalized_shape = 768 (embedding dimension)
 
-    The h (hidden layers) is composed of 12 hidden layers of the following components:
-        - ln_1.weight (layer normalization 1 weight) with normalized_shape = 768
-        - ln_1.bias   (layer normalization 1 bias)   with normalized_shape = 768
+    The h (hidden layers - ModuleList[Block]) is composed of 12 hidden layers of the following components:
+        - ln_1 (layer normalization LayerNorm), ln_1.weight normalized_shape = 768, ln_1.bias normalized_shape = 768
 
-        - attn.c_attn.weight (casual self attention weights - linear layer) in_features = 768 (embedding dimension) out_features = 2304 (3 * 768 embedding dimension) 
-        - attn.c_attn.bias   (casual self attention bias    - linear layer) bias = 2304 (3 * 768 embedding dimension) 
+        - attn (CausalSelfAttention - note that this is CAUSAL)
+                - attn.c_attn.weight (casual self attention weights - linear layer) in_features = 768 (embedding dimension) out_features = 2304 (3 * 768 embedding dimension) 
+                - attn.c_attn.bias   (casual self attention bias    - linear layer) bias = 2304 (3 * 768 embedding dimension) 
 
-        - attn.c_proj.weight (casual self attention projection weights - linear layer) in_features = 768 (embedding dimension), out_features = 768 (embedding dimension) 
-        - attn.c_proj.bias   (casual self attention projection bias    - linear layer) bias = = 768 (embedding dimension) 
+                - attn.c_proj.weight (casual self attention projection weights - linear layer) in_features = 768 (embedding dimension), out_features = 768 (embedding dimension) 
+                - attn.c_proj.bias   (casual self attention projection bias    - linear layer) bias = = 768 (embedding dimension) 
 
-        - ln_2.weight (layer normalization 2 weight) with normalized_shape = 768
-        - ln_2.bias   (layer normalization 2 bias)   with normalized_shape = 768
+        - ln_2 (layer normalization LayerNorm), ln_2.weight normalized_shape = 768, ln_2.bias normalized_shape = 768
 
-        - mlp.c_fc.weight torch.Size([768, 3072])
-        - mlp.c_fc.bias torch.Size([3072])
+        - mlp (MLP Multi Layer Perceptron)
+            - mlp.c_fc.weight torch.Size([768, 3072])
+            - mlp.c_fc.bias torch.Size([3072])
 
-        - mlp.c_proj.weight torch.Size([3072, 768])
-        - mlp.c_proj.bias torch.Size([768])
+            - mlp.c_proj.weight torch.Size([3072, 768])
+            - mlp.c_proj.bias torch.Size([768])
 
 
     
