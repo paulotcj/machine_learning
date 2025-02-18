@@ -120,11 +120,14 @@ class GPTConfig:
             transformer.ln_f.bias torch.Size([768])
             lm_head.weight torch.Size([50257, 768])
 
+    -------------------
+
     First we should define some basic hyper parameters: 
         - 50257 is the token vocab size
         - 768 is the embedding dimension
         - 1024 is the block size
 
+    -------------------
 
     As we can see GPT is composed of: 
         - transformer, which will be explained below
@@ -138,27 +141,25 @@ class GPTConfig:
         - h (hidden layers, from 0 to 11 to be explained below - ModuleList[Block])
         - ln_f (layer normalization final - LayerNorm) ln_f.weight normalized_shape = 768 (embedding dimension) ln_f.bias normalized_shape = 768 (embedding dimension)
 
+    -------------------
+
     The h (hidden layers - ModuleList[Block]) is composed of 12 hidden layers of the following components:
         - ln_1 (layer normalization LayerNorm), ln_1.weight normalized_shape = 768, ln_1.bias normalized_shape = 768
-
         - attn (CausalSelfAttention - note that this is CAUSAL)
-                - attn.c_attn.weight (casual self attention weights - linear layer) in_features = 768 (embedding dimension) out_features = 2304 (3 * 768 embedding dimension) 
-                - attn.c_attn.bias   (casual self attention bias    - linear layer) bias = 2304 (3 * 768 embedding dimension) 
-
-                - attn.c_proj.weight (casual self attention projection weights - linear layer) in_features = 768 (embedding dimension), out_features = 768 (embedding dimension) 
-                - attn.c_proj.bias   (casual self attention projection bias    - linear layer) bias = = 768 (embedding dimension) 
-
         - ln_2 (layer normalization LayerNorm), ln_2.weight normalized_shape = 768, ln_2.bias normalized_shape = 768
-
         - mlp (MLP Multi Layer Perceptron)
-            - mlp.c_fc.weight torch.Size([768, 3072])
-            - mlp.c_fc.bias torch.Size([3072])
 
-            - mlp.c_proj.weight torch.Size([3072, 768])
-            - mlp.c_proj.bias torch.Size([768])
+    -------------------
 
+    The CausalSelfAttention
+        - c_attn (attention  - linear layer) in_features = 768 (embedding dimension) out_features = 2304 (3 * 768 embedding dimension), bias = 2304 (3 * 768 embedding dimension) 
+        - c_proj (projection - linear layer) in_features = 768 (embedding dimension), out_features = 768 (embedding dimension), bias = 768 (embedding dimension) 
 
-    
+    -------------------
+
+    The MLP (Multi Layer Perceptron)
+        - c_fc (fully connected - linear layer) in_features = 768 (embedding dimension), out_features = 3072 (4 * 768), bias = 3072 (4 * 768)
+        - c_proj (projection    - linear layer) in_features = 3072 (4 * 768), out_features = 768 (embedding dimension), bias = 768 (embedding dimension)
 
     '''
 class GPT(nn.Module):
