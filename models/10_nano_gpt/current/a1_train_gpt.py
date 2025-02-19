@@ -12,7 +12,7 @@ consider previous tokens in the sequence. This is crucial for autoregressive mod
 generate text one token at a time. The model should not have access to future tokens during training 
 or inference.
 '''
-class CausalSelfAttention(nn.Module):
+class CausalSelfAttention(nn.Module): # multi head attention
     #-------------------------------------------------------------------------
     def __init__(self, config):
         super().__init__()
