@@ -178,7 +178,7 @@ class GPT(nn.Module):
         self.lm_head = nn.Linear(config.n_embd, config.vocab_size, bias=False)
     #-------------------------------------------------------------------------
     #-------------------------------------------------------------------------
-    def forward(self, idx):
+    def forward(self, idx, targets=None):
         # idx is of shape (B, T)
         B, T = idx.size()
         assert T <= self.config.block_size, f"Cannot forward sequence of length {T}, block size is only {self.config.block_size}"
@@ -193,7 +193,11 @@ class GPT(nn.Module):
         # forward the final layernorm and the classifier
         x = self.transformer.ln_f(x)
         logits = self.lm_head(x) # (B, T, vocab_size)
-        return logits    
+        loss = None
+        if targets is not None:
+            loss = F.cross_entropy(logits.view(-1, logits.size(-1)), targets.view(-1))
+        return logits, loss
+
     #-------------------------------------------------------------------------
     #-------------------------------------------------------------------------
     '''
@@ -302,52 +306,62 @@ model = GPT(GPTConfig())
 model.to(device)
 logits, loss = model(x, y)
 
-print(logits.shape)
-# import sys; sys.exit(0)
+print(f'loss: {loss}')
+exit()
 
-# prefix tokens
-model.eval()
-num_return_sequences = 5
-max_length = 30
+'''
+The loss in this first pass is:
+  loss: 10.892094612121582
 
-tokens = enc.encode("Hello, I'm a language model,")
-tokens = torch.tensor(tokens, dtype=torch.long) # (8,)
-tokens = tokens.unsqueeze(0).repeat(num_return_sequences, 1) # (5, 8)
-x = tokens.to(device)
+If we were to check the if the tensors had a proper random initialization, here's the math:
+  - The result from the first token should be random and considering the vocab size of 50257
+    the probability of any random token to be selected is 1/50257 = 0.00001989772569
+    and then -ln(0.00001989772569) = 10.8249051197, which is really close the the result we got.
+    Therefore the tensors had a proper random initialization
+'''
 
-# generate! right now x is (B, T) where B = 5, T = 8
-# set the seed to 42
-torch.manual_seed(42)
-torch.cuda.manual_seed(42)
-while x.size(1) < max_length:
-    # forward the model to get the logits
-    with torch.no_grad():
-        logits = model(x) # (B, T, vocab_size)
-        # take the logits at the last position
-        logits = logits[:, -1, :] # (B, vocab_size)
-        # get the probabilities
-        probs = F.softmax(logits, dim=-1)
-        # do top-k sampling of 50 (huggingface pipeline default)
-        # topk_probs here becomes (5, 50), topk_indices is (5, 50)
-        topk_probs, topk_indices = torch.topk(probs, 50, dim=-1)
-        # select a token from the top-k probabilities
-        # note: multinomial does not demand the input to sum to 1
-        ix = torch.multinomial(topk_probs, 1) # (B, 1)
-        # gather the corresponding indices
-        xcol = torch.gather(topk_indices, -1, ix) # (B, 1)
-        # append to the sequence
-        x = torch.cat((x, xcol), dim=1)
+# # prefix tokens
+# model.eval()
+# num_return_sequences = 5
+# max_length = 30
+# tokens = enc.encode("Hello, I'm a language model,")
+# tokens = torch.tensor(tokens, dtype=torch.long) # (8,)
+# tokens = tokens.unsqueeze(0).repeat(num_return_sequences, 1) # (5, 8)
+# x = tokens.to(device)
 
-print('-------------------------------------------------------------------------')
-# print the generated text
-for i in range(num_return_sequences):
-    tokens = x[i, :max_length].tolist()
-    decoded = enc.decode(tokens)
-    print(">", decoded)
+# # generate! right now x is (B, T) where B = 5, T = 8
+# # set the seed to 42
+# torch.manual_seed(42)
+# torch.cuda.manual_seed(42)
+# while x.size(1) < max_length:
+#     # forward the model to get the logits
+#     with torch.no_grad():
+#         logits = model(x) # (B, T, vocab_size)
+#         # take the logits at the last position
+#         logits = logits[:, -1, :] # (B, vocab_size)
+#         # get the probabilities
+#         probs = F.softmax(logits, dim=-1)
+#         # do top-k sampling of 50 (huggingface pipeline default)
+#         # topk_probs here becomes (5, 50), topk_indices is (5, 50)
+#         topk_probs, topk_indices = torch.topk(probs, 50, dim=-1)
+#         # select a token from the top-k probabilities
+#         # note: multinomial does not demand the input to sum to 1
+#         ix = torch.multinomial(topk_probs, 1) # (B, 1)
+#         # gather the corresponding indices
+#         xcol = torch.gather(topk_indices, -1, ix) # (B, 1)
+#         # append to the sequence
+#         x = torch.cat((x, xcol), dim=1)
 
-#-------
-print('-------------------------------------------------------------------------')
-print('\n\n')
-end_time = time.time()
-delta_time = end_time - start_time
-print(f"Execution time: {delta_time:.4f} seconds")
+# print('-------------------------------------------------------------------------')
+# # print the generated text
+# for i in range(num_return_sequences):
+#     tokens = x[i, :max_length].tolist()
+#     decoded = enc.decode(tokens)
+#     print(">", decoded)
+
+# #-------
+# print('-------------------------------------------------------------------------')
+# print('\n\n')
+# end_time = time.time()
+# delta_time = end_time - start_time
+# print(f"Execution time: {delta_time:.4f} seconds")
