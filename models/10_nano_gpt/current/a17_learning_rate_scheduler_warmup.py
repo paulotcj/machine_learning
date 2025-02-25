@@ -1,3 +1,24 @@
+'''
+step   14 | loss: 6.906826 | norm: 1.0980 | dt: 123.17ms | tok/sec: 133022.60
+step   15 | loss: 6.705018 | norm: 1.0225 | dt: 123.96ms | tok/sec: 132174.70
+step   16 | loss: 6.655288 | norm: 1.0316 | dt: 123.71ms | tok/sec: 132436.30
+step   17 | loss: 6.579201 | norm: 0.8902 | dt: 124.70ms | tok/sec: 131392.53
+step   18 | loss: 6.534759 | norm: 1.1982 | dt: 122.85ms | tok/sec: 133364.66
+step   19 | loss: 6.347050 | norm: 0.8681 | dt: 124.06ms | tok/sec: 132069.53
+step   20 | loss: 6.447468 | norm: 1.5298 | dt: 124.18ms | tok/sec: 131933.37
+step   21 | loss: 6.170990 | norm: 1.3854 | dt: 135.50ms | tok/sec: 120916.87
+step   22 | loss: 6.288618 | norm: 3.2109 | dt: 134.69ms | tok/sec: 121644.62
+step   23 | loss: 6.168759 | norm: 1.0956 | dt: 134.69ms | tok/sec: 121645.05
+step   24 | loss: 6.128232 | norm: 1.0371 | dt: 135.29ms | tok/sec: 121100.55
+step   25 | loss: 6.343570 | norm: 1.4049 | dt: 135.77ms | tok/sec: 120677.78
+step   26 | loss: 6.445970 | norm: 1.6202 | dt: 134.79ms | tok/sec: 121550.16
+step   27 | loss: 6.310476 | norm: 1.1479 | dt: 134.86ms | tok/sec: 121489.56
+step   28 | loss: 6.202624 | norm: 1.0846 | dt: 135.42ms | tok/sec: 120990.11
+step   29 | loss: 6.128293 | norm: 1.1525 | dt: 135.94ms | tok/sec: 120522.00
+step   30 | loss: 6.091666 | norm: 0.7597 | dt: 134.65ms | tok/sec: 121675.20
+step   31 | loss: 6.091702 | norm: 0.7064 | dt: 134.36ms | tok/sec: 121937.52
+'''
+
 import math
 from dataclasses import dataclass
 import torch

@@ -1,3 +1,22 @@
+'''
+step   12 | loss: 6.612565 | lr 5.9668e-04 | norm: 1.0819 | dt: 128.71ms | tok/sec: 127298.84
+step   13 | loss: 6.652749 | lr 5.9254e-04 | norm: 1.2058 | dt: 129.42ms | tok/sec: 126595.31
+step   14 | loss: 6.672220 | lr 5.8679e-04 | norm: 1.0982 | dt: 128.80ms | tok/sec: 127206.47
+step   15 | loss: 6.518553 | lr 5.7945e-04 | norm: 1.6082 | dt: 129.22ms | tok/sec: 126788.70
+step   16 | loss: 6.532152 | lr 5.7057e-04 | norm: 1.1955 | dt: 129.02ms | tok/sec: 126987.62
+step   17 | loss: 6.529936 | lr 5.6021e-04 | norm: 0.9852 | dt: 130.53ms | tok/sec: 125517.09
+step   18 | loss: 6.557483 | lr 5.4843e-04 | norm: 1.1437 | dt: 128.48ms | tok/sec: 127523.02
+step   19 | loss: 6.382880 | lr 5.3531e-04 | norm: 1.7738 | dt: 129.87ms | tok/sec: 126155.37
+step   20 | loss: 6.503415 | lr 5.2092e-04 | norm: 1.5564 | dt: 128.52ms | tok/sec: 127483.75
+step   21 | loss: 6.198293 | lr 5.0535e-04 | norm: 1.2114 | dt: 129.02ms | tok/sec: 126985.51
+step   22 | loss: 6.271311 | lr 4.8870e-04 | norm: 1.0308 | dt: 130.01ms | tok/sec: 126021.88
+step   23 | loss: 6.168852 | lr 4.7107e-04 | norm: 1.3598 | dt: 128.10ms | tok/sec: 127904.44
+step   24 | loss: 6.086384 | lr 4.5258e-04 | norm: 1.1141 | dt: 128.68ms | tok/sec: 127328.32
+step   25 | loss: 6.303913 | lr 4.3332e-04 | norm: 0.9239 | dt: 129.87ms | tok/sec: 126154.44
+step   26 | loss: 6.386680 | lr 4.1343e-04 | norm: 1.1415 | dt: 129.21ms | tok/sec: 126803.91
+step   27 | loss: 6.249225 | lr 3.9303e-04 | norm: 1.2159 | dt: 128.81ms | tok/sec: 127191.40
+'''
+
 import math
 import inspect
 from dataclasses import dataclass

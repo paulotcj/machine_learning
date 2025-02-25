@@ -1,3 +1,15 @@
+'''
+step   10 | loss: 7.028956 | lr 6.0000e-04 | norm: 1.8351 | dt: 3855.56ms | tok/sec: 135982.33
+step   11 | loss: 6.740683 | lr 5.9917e-04 | norm: 1.5009 | dt: 3868.75ms | tok/sec: 135518.85
+step   12 | loss: 6.528240 | lr 5.9668e-04 | norm: 1.1483 | dt: 3703.16ms | tok/sec: 141578.56
+step   13 | loss: 6.376919 | lr 5.9254e-04 | norm: 1.0641 | dt: 3974.04ms | tok/sec: 131928.11
+step   14 | loss: 6.339537 | lr 5.8679e-04 | norm: 2.5897 | dt: 3901.56ms | tok/sec: 134379.05
+step   15 | loss: 6.243823 | lr 5.7945e-04 | norm: 1.0017 | dt: 3951.39ms | tok/sec: 132684.46
+step   16 | loss: 6.212921 | lr 5.7057e-04 | norm: 0.7823 | dt: 4396.17ms | tok/sec: 119260.20
+step   17 | loss: 6.210563 | lr 5.6021e-04 | norm: 1.1362 | dt: 3956.24ms | tok/sec: 132521.91
+step   18 | loss: 6.156693 | lr 5.4843e-04 | norm: 0.9848 | dt: 3945.69ms | tok/sec: 132875.96
+step   19 | loss: 6.148070 | lr 5.3531e-04 | norm: 1.5321 | dt: 3941.94ms | tok/sec: 133002.70
+'''
 import math
 import inspect
 from dataclasses import dataclass
