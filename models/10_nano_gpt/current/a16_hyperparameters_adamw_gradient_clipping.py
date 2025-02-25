@@ -1,23 +1,3 @@
-'''
-step 26, loss: 6.494344711303711, dt: 126.28ms, tok/sec: 129746.79
-step 27, loss: 6.382092475891113, dt: 127.75ms, tok/sec: 128252.01
-step 28, loss: 6.304886817932129, dt: 126.72ms, tok/sec: 129291.03
-step 29, loss: 6.213507175445557, dt: 126.67ms, tok/sec: 129348.22
-step 30, loss: 6.203151226043701, dt: 127.10ms, tok/sec: 128903.72
-step 31, loss: 6.227931976318359, dt: 127.20ms, tok/sec: 128806.11
-step 32, loss: 6.189470291137695, dt: 126.55ms, tok/sec: 129462.02
-step 33, loss: 6.312307357788086, dt: 127.51ms, tok/sec: 128496.38
-step 34, loss: 6.409172534942627, dt: 126.98ms, tok/sec: 129028.61
-step 35, loss: 6.276366233825684, dt: 127.33ms, tok/sec: 128676.83
-step 36, loss: 6.224465847015381, dt: 127.49ms, tok/sec: 128512.00
-step 37, loss: 6.225424289703369, dt: 126.89ms, tok/sec: 129120.49
-step 38, loss: 6.226751327514648, dt: 126.66ms, tok/sec: 129353.09
-step 39, loss: 6.044832229614258, dt: 127.57ms, tok/sec: 128432.50
-step 40, loss: 6.213140964508057, dt: 126.61ms, tok/sec: 129402.29
-step 41, loss: 5.982927322387695, dt: 126.93ms, tok/sec: 129077.81
-step 42, loss: 6.102788925170898, dt: 127.26ms, tok/sec: 128740.23
-step 43, loss: 6.002697944641113, dt: 127.52ms, tok/sec: 128482.44
-'''
 import math
 from dataclasses import dataclass
 import torch
@@ -253,7 +233,7 @@ model.to(device)
 model = torch.compile(model)
 
 # optimize!
-optimizer = torch.optim.AdamW(model.parameters(), lr=3e-4)
+optimizer = torch.optim.AdamW(model.parameters(), lr=3e-4, betas=(0.9, 0.95), eps=1e-8)
 for i in range(50):
     t0 = time.time()
     x, y = train_loader.next_batch()
@@ -262,13 +242,14 @@ for i in range(50):
     with torch.autocast(device_type=device, dtype=torch.bfloat16):
         logits, loss = model(x, y)
     loss.backward()
+    norm = torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
     optimizer.step()
     torch.cuda.synchronize() # wait for the GPU to finish work
     t1 = time.time()
     dt = t1 - t0 # time difference in seconds
     tokens_processed = train_loader.B * train_loader.T
     tokens_per_sec = tokens_processed / dt
-    print(f"step {i:4d} | loss: {loss.item():.6f} | dt: {dt*1000:.2f}ms | tok/sec: {tokens_per_sec:.2f}")
+    print(f"step {i:4d} | loss: {loss.item():.6f} | norm: {norm:.4f} | dt: {dt*1000:.2f}ms | tok/sec: {tokens_per_sec:.2f}")
 
 import sys; sys.exit(0)
 
