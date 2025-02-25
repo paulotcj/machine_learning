@@ -1,3 +1,21 @@
+'''
+We are going to be deterministic with the gradient numbers.
+In this example we will process a batch of 4 rows and 16 cols and validate them against a set of 4 rows and 1 col.
+
+In the first example we will process them all at once. execute the backward pass and get the gradients of the first
+linear layer.
+
+In the second example we will use a simulation of a DDP (distributed data parallel). Where we loop through the data
+4 times as per 4 rows, send 16 numbers to the forward method. Get a loss and then execute the apropriate adjustments
+for the adjusted loss and then execute the backward pass.
+
+All of this should result in equal gradients as they are equivalent.
+
+Quick note as a refresher: gradients are used in the backpropagation, they tell how much each weight in net[0].weight 
+should change to reduce the loss.
+'''
+
+
 import torch
 
 # super simple little MLP
@@ -13,13 +31,17 @@ y = torch.randn(4, 1)  # rand 4 rows 1 col
 
 net.zero_grad()
 
-yhat = net(x) #forward pass
+yhat = net(x) #forward pass, process all at once [4,16]
 
 loss = torch.nn.functional.mse_loss(yhat, y) #get loss
 
-loss.backward() #backward pass
+loss.backward() # apply the backward pass
 
-print(net[0].weight.grad.view(-1)[:10])
+print(net[0].weight.grad.view(-1)[:10]) # this is the gradient achieved after the backward pass
+'''
+tensor([ 0.0184,  0.0163,  0.0032, -0.0253,  0.0035, -0.0100,  0.0018,  0.0106,
+         0.0270, -0.0163])
+'''
 
 # the loss objective here is (due to readuction='mean')
 # L = 1/4 * [
@@ -48,6 +70,7 @@ print('\n\n')
 
 net.zero_grad()
 
+
 #-----------------
 for i in range(4):
     yhat = net(x[i])
@@ -58,3 +81,7 @@ for i in range(4):
 
 
 print(net[0].weight.grad.view(-1)[:10])
+'''
+tensor([ 0.0184,  0.0163,  0.0032, -0.0253,  0.0035, -0.0100,  0.0018,  0.0106,
+         0.0270, -0.0163])
+'''
