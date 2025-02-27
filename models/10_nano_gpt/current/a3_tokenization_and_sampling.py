@@ -170,13 +170,29 @@ class GPT(nn.Module):
         return model
     #-------------------------------------------------------------------------
 #-------------------------------------------------------------------------
+#-------------------------------------------------------------------------
+def get_device():
+    device = 'cpu'
+    if torch.cuda.is_available():
+        device = 'cuda' 
+        print('using cuda acceleration')
+    # elif torch.backends.mps.is_built(): # usually a good M1 chip (and later) is faster than using their GPU
+    #     device = 'mps'
+    #     print('using mps acceleration')
+    else:
+        device = 'cpu'
+        print('using cpu')
 
+
+    return device
+#-------------------------------------------------------------------------
+device = get_device()
 num_return_sequences = 5
 max_length = 30
 
 model = GPT.from_pretrained('gpt2')
 model.eval()
-model.to('cuda')
+model.to(device)
 
 # prefix tokens
 import tiktoken
@@ -184,12 +200,14 @@ enc = tiktoken.get_encoding('gpt2')
 tokens = enc.encode("Hello, I'm a language model,")
 tokens = torch.tensor(tokens, dtype=torch.long) # (8,)
 tokens = tokens.unsqueeze(0).repeat(num_return_sequences, 1) # (5, 8)
-x = tokens.to('cuda')
+x = tokens.to(device)
 
 # generate! right now x is (B, T) where B = 5, T = 8
 # set the seed to 42
 torch.manual_seed(42)
 torch.cuda.manual_seed(42)
+
+#-------------------------------------------------------------------------
 while x.size(1) < max_length:
     # forward the model to get the logits
     with torch.no_grad():
@@ -208,9 +226,11 @@ while x.size(1) < max_length:
         xcol = torch.gather(topk_indices, -1, ix) # (B, 1)
         # append to the sequence
         x = torch.cat((x, xcol), dim=1)
-
+#-------------------------------------------------------------------------
+#-------------------------------------------------------------------------
 # print the generated text
 for i in range(num_return_sequences):
     tokens = x[i, :max_length].tolist()
     decoded = enc.decode(tokens)
     print(">", decoded)
+#-------------------------------------------------------------------------
