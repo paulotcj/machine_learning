@@ -4,10 +4,9 @@ import torch
 import torch.nn as nn
 from torch.nn import functional as F
 
-# -----------------------------------------------------------------------------
-
+#-------------------------------------------------------------------------
 class CausalSelfAttention(nn.Module):
-
+    #-------------------------------------------------------------------------
     def __init__(self, config):
         super().__init__()
         assert config.n_embd % config.n_head == 0
@@ -21,7 +20,8 @@ class CausalSelfAttention(nn.Module):
         # not really a 'bias', more of a mask, but following the OpenAI/HF naming though
         self.register_buffer("bias", torch.tril(torch.ones(config.block_size, config.block_size))
                                      .view(1, 1, config.block_size, config.block_size))
-
+    #-------------------------------------------------------------------------
+    #-------------------------------------------------------------------------
     def forward(self, x):
         B, T, C = x.size() # batch size, sequence length, embedding dimensionality (n_embd)
         # calculate query, key, values for all heads in batch and move head forward to be the batch dim
@@ -41,35 +41,43 @@ class CausalSelfAttention(nn.Module):
         # output projection
         y = self.c_proj(y)
         return y
-
+    #-------------------------------------------------------------------------
+#-------------------------------------------------------------------------
+#-------------------------------------------------------------------------
 class MLP(nn.Module):
-
+    #-------------------------------------------------------------------------
     def __init__(self, config):
         super().__init__()
         self.c_fc    = nn.Linear(config.n_embd, 4 * config.n_embd)
         self.gelu    = nn.GELU(approximate='tanh')
         self.c_proj  = nn.Linear(4 * config.n_embd, config.n_embd)
-
+    #-------------------------------------------------------------------------
+    #-------------------------------------------------------------------------
     def forward(self, x):
         x = self.c_fc(x)
         x = self.gelu(x)
         x = self.c_proj(x)
         return x
-
+    #-------------------------------------------------------------------------
+#-------------------------------------------------------------------------
+#-------------------------------------------------------------------------
 class Block(nn.Module):
-
+    #-------------------------------------------------------------------------
     def __init__(self, config):
         super().__init__()
         self.ln_1 = nn.LayerNorm(config.n_embd)
         self.attn = CausalSelfAttention(config)
         self.ln_2 = nn.LayerNorm(config.n_embd)
         self.mlp = MLP(config)
-
+    #-------------------------------------------------------------------------
+    #-------------------------------------------------------------------------
     def forward(self, x):
         x = x + self.attn(self.ln_1(x))
         x = x + self.mlp(self.ln_2(x))
         return x
-
+    #-------------------------------------------------------------------------
+#-------------------------------------------------------------------------
+#-------------------------------------------------------------------------
 @dataclass
 class GPTConfig:
     block_size: int = 1024 # max sequence length
@@ -77,9 +85,10 @@ class GPTConfig:
     n_layer: int = 12 # number of layers
     n_head: int = 12 # number of heads
     n_embd: int = 768 # embedding dimension
-
+#-------------------------------------------------------------------------
+#-------------------------------------------------------------------------
 class GPT(nn.Module):
-
+    #-------------------------------------------------------------------------
     def __init__(self, config):
         super().__init__()
         self.config = config
@@ -91,7 +100,8 @@ class GPT(nn.Module):
             ln_f = nn.LayerNorm(config.n_embd),
         ))
         self.lm_head = nn.Linear(config.n_embd, config.vocab_size, bias=False)
-
+    #-------------------------------------------------------------------------
+    #-------------------------------------------------------------------------
     def forward(self, idx):
         # idx is of shape (B, T)
         B, T = idx.size()
@@ -108,7 +118,8 @@ class GPT(nn.Module):
         x = self.transformer.ln_f(x)
         logits = self.lm_head(x) # (B, T, vocab_size)
         return logits
-
+    #-------------------------------------------------------------------------
+    #-------------------------------------------------------------------------
     @classmethod
     def from_pretrained(cls, model_type):
         """Loads pretrained GPT-2 model weights from huggingface"""
@@ -157,16 +168,26 @@ class GPT(nn.Module):
                     sd[k].copy_(sd_hf[k])
 
         return model
+    #-------------------------------------------------------------------------
+#-------------------------------------------------------------------------
+#-------------------------------------------------------------------------
+def get_device():
+    device = 'cpu'
+    if torch.cuda.is_available():
+        device = 'cuda' 
+        print('using cuda acceleration')
+    # elif torch.backends.mps.is_built(): # usually a good M1 chip (and later) is faster than using their GPU
+    #     device = 'mps'
+    #     print('using mps acceleration')
+    else:
+        device = 'cpu'
+        print('using cpu')
 
-# -----------------------------------------------------------------------------
-# attempt to autodetect the device
-device = "cpu"
-if torch.cuda.is_available():
-    device = "cuda"
-elif hasattr(torch.backends, "mps") and torch.backends.mps.is_available():
-    device = "mps"
-print(f"using device: {device}")
-device = "cpu" # OVERRIDE
+
+    return device
+#-------------------------------------------------------------------------
+device = get_device()
+
 
 # get a data batch
 import tiktoken
@@ -201,6 +222,8 @@ x = tokens.to(device)
 # set the seed to 42
 torch.manual_seed(42)
 torch.cuda.manual_seed(42)
+
+#-------------------------------------------------------------------------
 while x.size(1) < max_length:
     # forward the model to get the logits
     with torch.no_grad():
@@ -219,9 +242,11 @@ while x.size(1) < max_length:
         xcol = torch.gather(topk_indices, -1, ix) # (B, 1)
         # append to the sequence
         x = torch.cat((x, xcol), dim=1)
-
+#-------------------------------------------------------------------------
+#-------------------------------------------------------------------------
 # print the generated text
 for i in range(num_return_sequences):
     tokens = x[i, :max_length].tolist()
     decoded = enc.decode(tokens)
     print(">", decoded)
+#-------------------------------------------------------------------------
