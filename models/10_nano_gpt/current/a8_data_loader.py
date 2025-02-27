@@ -179,9 +179,9 @@ def get_device():
     if torch.cuda.is_available():
         device = 'cuda' 
         print('using cuda acceleration')
-    # elif torch.backends.mps.is_built(): # usually a good M1 chip (and later) is faster than using their GPU
-    #     device = 'mps'
-    #     print('using mps acceleration')
+    elif torch.backends.mps.is_built():
+        device = 'mps'
+        print('using mps acceleration')
     else:
         device = 'cpu'
         print('using cpu')
