@@ -7,10 +7,9 @@ import torch
 import torch.nn as nn
 from torch.nn import functional as F
 from hellaswag import render_example, iterate_examples
-# -----------------------------------------------------------------------------
-
+#-------------------------------------------------------------------------
 class CausalSelfAttention(nn.Module):
-
+    #-------------------------------------------------------------------------
     def __init__(self, config):
         super().__init__()
         assert config.n_embd % config.n_head == 0
@@ -23,6 +22,8 @@ class CausalSelfAttention(nn.Module):
         self.n_head = config.n_head
         self.n_embd = config.n_embd
 
+    #-------------------------------------------------------------------------
+    #-------------------------------------------------------------------------
     def forward(self, x):
         B, T, C = x.size() # batch size, sequence length, embedding dimensionality (n_embd)
         # calculate query, key, values for all heads in batch and move head forward to be the batch dim
@@ -38,36 +39,44 @@ class CausalSelfAttention(nn.Module):
         # output projection
         y = self.c_proj(y)
         return y
-
+    #-------------------------------------------------------------------------
+#-------------------------------------------------------------------------
+#-------------------------------------------------------------------------
 class MLP(nn.Module):
-
+    #-------------------------------------------------------------------------
     def __init__(self, config):
         super().__init__()
         self.c_fc    = nn.Linear(config.n_embd, 4 * config.n_embd)
         self.gelu    = nn.GELU(approximate='tanh')
         self.c_proj  = nn.Linear(4 * config.n_embd, config.n_embd)
         self.c_proj.NANOGPT_SCALE_INIT = 1
-
+    #-------------------------------------------------------------------------
+    #-------------------------------------------------------------------------
     def forward(self, x):
         x = self.c_fc(x)
         x = self.gelu(x)
         x = self.c_proj(x)
         return x
-
+    #-------------------------------------------------------------------------
+#-------------------------------------------------------------------------
+#-------------------------------------------------------------------------
 class Block(nn.Module):
-
+    #-------------------------------------------------------------------------
     def __init__(self, config):
         super().__init__()
         self.ln_1 = nn.LayerNorm(config.n_embd)
         self.attn = CausalSelfAttention(config)
         self.ln_2 = nn.LayerNorm(config.n_embd)
         self.mlp = MLP(config)
-
+    #-------------------------------------------------------------------------
+    #-------------------------------------------------------------------------
     def forward(self, x):
         x = x + self.attn(self.ln_1(x))
         x = x + self.mlp(self.ln_2(x))
         return x
-
+    #-------------------------------------------------------------------------
+#-------------------------------------------------------------------------
+#-------------------------------------------------------------------------
 @dataclass
 class GPTConfig:
     block_size: int = 1024 # max sequence length
@@ -75,9 +84,10 @@ class GPTConfig:
     n_layer: int = 12 # number of layers
     n_head: int = 12 # number of heads
     n_embd: int = 768 # embedding dimension
-
+#-------------------------------------------------------------------------
+#-------------------------------------------------------------------------
 class GPT(nn.Module):
-
+    #-------------------------------------------------------------------------
     def __init__(self, config):
         super().__init__()
         self.config = config
@@ -95,7 +105,8 @@ class GPT(nn.Module):
 
         # init params
         self.apply(self._init_weights)
-
+    #-------------------------------------------------------------------------
+    #-------------------------------------------------------------------------
     def _init_weights(self, module):
         if isinstance(module, nn.Linear):
             std = 0.02
@@ -106,7 +117,8 @@ class GPT(nn.Module):
                 torch.nn.init.zeros_(module.bias)
         elif isinstance(module, nn.Embedding):
             torch.nn.init.normal_(module.weight, mean=0.0, std=0.02)
-
+    #-------------------------------------------------------------------------
+    #-------------------------------------------------------------------------
     def forward(self, idx, targets=None):
         # idx is of shape (B, T)
         B, T = idx.size()
@@ -126,7 +138,8 @@ class GPT(nn.Module):
         if targets is not None:
             loss = F.cross_entropy(logits.view(-1, logits.size(-1)), targets.view(-1))
         return logits, loss
-
+    #-------------------------------------------------------------------------
+    #-------------------------------------------------------------------------
     @classmethod
     def from_pretrained(cls, model_type):
         """Loads pretrained GPT-2 model weights from huggingface"""
@@ -175,7 +188,8 @@ class GPT(nn.Module):
                     sd[k].copy_(sd_hf[k])
 
         return model
-
+    #-------------------------------------------------------------------------
+    #-------------------------------------------------------------------------
     def configure_optimizers(self, weight_decay, learning_rate, device):
         # start with all of the candidate parameters (that require grad)
         param_dict = {pn: p for pn, p in self.named_parameters()}
@@ -200,18 +214,22 @@ class GPT(nn.Module):
             print(f"using fused AdamW: {use_fused}")
         optimizer = torch.optim.AdamW(optim_groups, lr=learning_rate, betas=(0.9, 0.95), eps=1e-8, fused=use_fused)
         return optimizer
+    #-------------------------------------------------------------------------
+#-------------------------------------------------------------------------
 
-# -----------------------------------------------------------------------------
+
 import tiktoken
 import numpy as np
-
+#-------------------------------------------------------------------------
 def load_tokens(filename):
     npt = np.load(filename)
     npt = npt.astype(np.int32) # added after video
     ptt = torch.tensor(npt, dtype=torch.long)
     return ptt
-
+#-------------------------------------------------------------------------
+#-------------------------------------------------------------------------
 class DataLoaderLite:
+    #-------------------------------------------------------------------------
     def __init__(self, B, T, process_rank, num_processes, split):
         self.B = B
         self.T = T
@@ -230,13 +248,15 @@ class DataLoaderLite:
         if master_process:
             print(f"found {len(shards)} shards for split {split}")
         self.reset()
-
+    #-------------------------------------------------------------------------
+    #-------------------------------------------------------------------------
     def reset(self):
         # state, init at shard zero
         self.current_shard = 0
         self.tokens = load_tokens(self.shards[self.current_shard])
         self.current_position = self.B * self.T * self.process_rank
-
+    #-------------------------------------------------------------------------
+    #-------------------------------------------------------------------------
     def next_batch(self):
         B, T = self.B, self.T
         buf = self.tokens[self.current_position : self.current_position+B*T+1]
@@ -250,11 +270,12 @@ class DataLoaderLite:
             self.tokens = load_tokens(self.shards[self.current_shard])
             self.current_position = B * T * self.process_rank
         return x, y
-
-# -----------------------------------------------------------------------------
+    #-------------------------------------------------------------------------
+#-------------------------------------------------------------------------
 # helper function for HellaSwag eval
 # takes tokens, mask, and logits, returns the index of the completion with the lowest loss
 
+#-------------------------------------------------------------------------
 def get_most_likely_row(tokens, mask, logits):
     # evaluate the autoregressive loss at all positions
     shift_logits = (logits[..., :-1, :]).contiguous()
@@ -273,8 +294,8 @@ def get_most_likely_row(tokens, mask, logits):
     # the one with the lowest loss should be the most likely
     pred_norm = avg_loss.argmin().item()
     return pred_norm
+#-------------------------------------------------------------------------
 
-# -----------------------------------------------------------------------------
 # simple launch:
 # python train_gpt2.py
 # DDP launch for e.g. 8 GPUs:
@@ -304,13 +325,24 @@ else:
     ddp_local_rank = 0
     ddp_world_size = 1
     master_process = True
-    # attempt to autodetect device
-    device = "cpu"
+#-------------------------------------------------------------------------
+def get_device():
+    device = 'cpu'
     if torch.cuda.is_available():
-        device = "cuda"
-    elif hasattr(torch.backends, "mps") and torch.backends.mps.is_available():
-        device = "mps"
-    print(f"using device: {device}")
+        device = 'cuda' 
+        print('using cuda acceleration')
+    # elif torch.backends.mps.is_built():
+    #     device = 'mps'
+    #     print('using mps acceleration')
+    else:
+        device = 'cpu'
+        print('using cpu')
+
+
+    return device
+#-------------------------------------------------------------------------
+device = get_device()
+import time
 
 torch.manual_seed(1337)
 if torch.cuda.is_available():
@@ -348,6 +380,7 @@ max_lr = 6e-4
 min_lr = max_lr * 0.1
 warmup_steps = 715
 max_steps = 19073 # 19,073 steps is ~1 epoch, if data is 10B tokens and batch size 0.5M tokens
+#-------------------------------------------------------------------------
 def get_lr(it):
     # 1) linear warmup for warmup_iters steps
     if it < warmup_steps:
@@ -360,7 +393,8 @@ def get_lr(it):
     assert 0 <= decay_ratio <= 1
     coeff = 0.5 * (1.0 + math.cos(math.pi * decay_ratio)) # coeff starts at 1 and goes to 0
     return min_lr + coeff * (max_lr - min_lr)
-
+#-------------------------------------------------------------------------
+#-------------------------------------------------------------------------
 # optimize!
 optimizer = raw_model.configure_optimizers(weight_decay=0.1, learning_rate=6e-4, device=device)
 
@@ -368,13 +402,17 @@ optimizer = raw_model.configure_optimizers(weight_decay=0.1, learning_rate=6e-4,
 log_dir = "log"
 os.makedirs(log_dir, exist_ok=True)
 log_file = os.path.join(log_dir, f"log.txt")
+
+#-------------------------------------------------------------------------
 with open(log_file, "w") as f: # open for writing to clear the file
     pass
-
+#-------------------------------------------------------------------------
+#-------------------------------------------------------------------------
 for step in range(max_steps):
     t0 = time.time()
     last_step = (step == max_steps - 1)
 
+    #-------------------------------------------------------------------------
     # once in a while evaluate our validation loss
     if step % 250 == 0 or last_step:
         model.eval()
@@ -391,10 +429,13 @@ for step in range(max_steps):
                 val_loss_accum += loss.detach()
         if ddp:
             dist.all_reduce(val_loss_accum, op=dist.ReduceOp.AVG)
+
+	#-------------------------------------------------------------------------
         if master_process:
             print(f"validation loss: {val_loss_accum.item():.4f}")
             with open(log_file, "a") as f:
                 f.write(f"{step} val {val_loss_accum.item():.4f}\n")
+	    #-------------------------------------------------------------------------
             if step > 0 and (step % 5000 == 0 or last_step):
                 # optionally write model checkpoints
                 checkpoint_path = os.path.join(log_dir, f"model_{step:05d}.pt")
@@ -407,26 +448,36 @@ for step in range(max_steps):
                 # you might also want to add optimizer.state_dict() and
                 # rng seeds etc., if you wanted to more exactly resume training
                 torch.save(checkpoint, checkpoint_path)
+	    #-------------------------------------------------------------------------
+	#-------------------------------------------------------------------------
 
+    #-------------------------------------------------------------------------
     # once in a while evaluate hellaswag
     if (step % 250 == 0 or last_step) and (not use_compile):
         num_correct_norm = 0
         num_total = 0
+	
+	#-------------------------------------------------------------------------
         for i, example in enumerate(iterate_examples("val")):
             # only process examples where i % ddp_world_size == ddp_rank
             if i % ddp_world_size != ddp_rank:
                 continue
+		
             # render the example into tokens and labels
             _, tokens, mask, label = render_example(example)
             tokens = tokens.to(device)
             mask = mask.to(device)
+	    
             # get the logits
             with torch.no_grad():
                 with torch.autocast(device_type=device, dtype=torch.bfloat16):
                     logits, loss = model(tokens)
                 pred_norm = get_most_likely_row(tokens, mask, logits)
+		
             num_total += 1
             num_correct_norm += int(pred_norm == label)
+	#-------------------------------------------------------------------------
+	    
         # reduce the stats across all processes
         if ddp:
             num_total = torch.tensor(num_total, dtype=torch.long, device=device)
@@ -436,11 +487,14 @@ for step in range(max_steps):
             num_total = num_total.item()
             num_correct_norm = num_correct_norm.item()
         acc_norm = num_correct_norm / num_total
+	
         if master_process:
             print(f"HellaSwag accuracy: {num_correct_norm}/{num_total}={acc_norm:.4f}")
             with open(log_file, "a") as f:
                 f.write(f"{step} hella {acc_norm:.4f}\n")
+    #-------------------------------------------------------------------------
 
+    #-------------------------------------------------------------------------
     # once in a while generate from the model (except step 0, which is noise)
     if ((step > 0 and step % 250 == 0) or last_step) and (not use_compile):
         model.eval()
@@ -452,6 +506,7 @@ for step in range(max_steps):
         xgen = tokens.to(device)
         sample_rng = torch.Generator(device=device)
         sample_rng.manual_seed(42 + ddp_rank)
+        #-------------------------------------------------------------------------
         while xgen.size(1) < max_length:
             # forward the model to get the logits
             with torch.no_grad():
@@ -471,16 +526,21 @@ for step in range(max_steps):
                 xcol = torch.gather(topk_indices, -1, ix) # (B, 1)
                 # append to the sequence
                 xgen = torch.cat((xgen, xcol), dim=1)
+	#-------------------------------------------------------------------------
+
+	#-------------------------------------------------------------------------		
         # print the generated text
         for i in range(num_return_sequences):
             tokens = xgen[i, :max_length].tolist()
             decoded = enc.decode(tokens)
             print(f"rank {ddp_rank} sample {i}: {decoded}")
-
+	#-------------------------------------------------------------------------
+    #-------------------------------------------------------------------------
     # do one step of the optimization
     model.train()
     optimizer.zero_grad()
     loss_accum = 0.0
+    #-------------------------------------------------------------------------
     for micro_step in range(grad_accum_steps):
         x, y = train_loader.next_batch()
         x, y = x.to(device), y.to(device)
@@ -495,15 +555,23 @@ for step in range(max_steps):
         if ddp:
             model.require_backward_grad_sync = (micro_step == grad_accum_steps - 1)
         loss.backward()
+    #-------------------------------------------------------------------------
+    
+    
     if ddp:
         dist.all_reduce(loss_accum, op=dist.ReduceOp.AVG)
     norm = torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
     # determine and set the learning rate for this iteration
     lr = get_lr(step)
+    
+    
     for param_group in optimizer.param_groups:
         param_group['lr'] = lr
+    
     optimizer.step()
-    torch.cuda.synchronize() # wait for the GPU to finish work
+    
+    if torch.cuda.is_available():
+        torch.cuda.synchronize() # wait for the GPU to finish work
     t1 = time.time()
     dt = t1 - t0 # time difference in seconds
     tokens_processed = train_loader.B * train_loader.T * grad_accum_steps * ddp_world_size
@@ -512,6 +580,6 @@ for step in range(max_steps):
         print(f"step {step:5d} | loss: {loss_accum.item():.6f} | lr {lr:.4e} | norm: {norm:.4f} | dt: {dt*1000:.2f}ms | tok/sec: {tokens_per_sec:.2f}")
         with open(log_file, "a") as f:
             f.write(f"{step} train {loss_accum.item():.6f}\n")
-
+#-------------------------------------------------------------------------
 if ddp:
     destroy_process_group()
