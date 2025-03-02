@@ -14,21 +14,35 @@ import tiktoken
 from datasets import load_dataset # pip install datasets
 from tqdm import tqdm # pip install tqdm
 
-#-------------------------------------------------------------------------
+print('\n\n')
+print('-------------------------------------------------------------------------')
 local_dir = "edu_fineweb10B"
 remote_name = "sample-10BT"
 shard_size = int(100_000_000)
 
-print(f'')
 
-exit()
+print(f'local_dir: {local_dir}')
+print(f'remote_name: {remote_name}')
+print(f'shard_size: {shard_size}')
 
+
+print('-------------------------------------------------------------------------')
 # create the cache the local directory if it doesn't exist yet
 DATA_CACHE_DIR = os.path.join(os.path.dirname(__file__), local_dir)
-os.makedirs(DATA_CACHE_DIR, exist_ok=True)
+print(f'Creating DATA_CACHE_DIR: {DATA_CACHE_DIR}')
+os.makedirs(DATA_CACHE_DIR, exist_ok=True) # create DATA_CACHE_DIR, if it exists no error should be raised
 
-# download the dataset
-fw = load_dataset("HuggingFaceFW/fineweb-edu", name=remote_name, split="train")
+print('-------------------------------------------------------------------------')
+print('download the dataset')
+
+dataset_path = "HuggingFaceFW/fineweb-edu"
+dataset_split = "train"
+
+print(f'load_dataset\n    path: {dataset_path}\n    name: {remote_name}\n    split:{dataset_split}')
+fw = load_dataset(path = dataset_path, name=remote_name, split=dataset_split)
+print('-------------------------------------------------------------------------')
+
+exit()
 
 # init the tokenizer
 enc = tiktoken.get_encoding("gpt2")
