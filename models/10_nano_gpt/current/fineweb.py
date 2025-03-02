@@ -16,14 +16,32 @@ from tqdm import tqdm # pip install tqdm
 
 print('\n\n')
 print('-------------------------------------------------------------------------')
-local_dir = "edu_fineweb10B"
-remote_name = "sample-10BT"
 shard_size = int(100_000_000)
 
+#------------
+# local_dir = "edu_fineweb10B"
+# remote_name = "sample-10BT"
+
+# dataset_path = "HuggingFaceFW/fineweb-edu"
+# dataset_split = "train"
+#------------
+local_dir = "shakespeare_dataset"
+remote_name = None
+
+dataset_path = "notaphoenix/shakespeare_dataset"
+dataset_split = "training"
 
 print(f'local_dir: {local_dir}')
 print(f'remote_name: {remote_name}')
 print(f'shard_size: {shard_size}')
+
+print(f'    path: {dataset_path}\n    name: {remote_name}\n    split:{dataset_split}')
+
+
+print('-------------------------------------------------------------------------')
+print('init the tokenizer')
+enc = tiktoken.get_encoding("gpt2")
+eot = enc._special_tokens['<|endoftext|>'] # end of text token
 
 
 print('-------------------------------------------------------------------------')
@@ -32,21 +50,17 @@ DATA_CACHE_DIR = os.path.join(os.path.dirname(__file__), local_dir)
 print(f'Creating DATA_CACHE_DIR: {DATA_CACHE_DIR}')
 os.makedirs(DATA_CACHE_DIR, exist_ok=True) # create DATA_CACHE_DIR, if it exists no error should be raised
 
+
 print('-------------------------------------------------------------------------')
 print('download the dataset')
-
-dataset_path = "HuggingFaceFW/fineweb-edu"
-dataset_split = "train"
-
-print(f'load_dataset\n    path: {dataset_path}\n    name: {remote_name}\n    split:{dataset_split}')
 fw = load_dataset(path = dataset_path, name=remote_name, split=dataset_split)
-print('-------------------------------------------------------------------------')
 
-exit()
 
-# init the tokenizer
-enc = tiktoken.get_encoding("gpt2")
-eot = enc._special_tokens['<|endoftext|>'] # end of text token
+
+
+
+
+
 #-------------------------------------------------------------------------
 def tokenize(doc):
     # tokenizes a single document and returns a numpy array of uint16 tokens
@@ -64,14 +78,23 @@ def write_datafile(filename, tokens_np):
 
 
 
+print('-------------------------------------------------------------------------')
+cpu_count = os.cpu_count()
 # tokenize all documents and write output shards, each of shard_size tokens (last shard has remainder)
-nprocs = max(1, os.cpu_count()//2)
+nprocs = max(1, cpu_count//2)
+
+
+print(f'cpu_count: {cpu_count}')
+print(f'nprocs: {nprocs}')
+exit()
 
 #-------------------------------------------------------------------------
-with mp.Pool(nprocs) as pool:
+with mp.Pool(nprocs) as pool: #processes pool
     shard_index = 0
+    
     # preallocate buffer to hold current shard
     all_tokens_np = np.empty((shard_size,), dtype=np.uint16)
+
     token_count = 0
     progress_bar = None
 
