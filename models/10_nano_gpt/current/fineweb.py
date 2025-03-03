@@ -14,6 +14,7 @@ import tiktoken
 from datasets import load_dataset # pip install datasets
 from tqdm import tqdm # pip install tqdm
 
+mp.set_start_method('fork')
 
 
 print('\n\n')
@@ -56,7 +57,7 @@ os.makedirs(DATA_CACHE_DIR, exist_ok=True) # create DATA_CACHE_DIR, if it exists
 print('-------------------------------------------------------------------------')
 print('download the dataset')
 fw = load_dataset(path = dataset_path, name=remote_name, split=dataset_split)
-
+# fw has 9672101 json entries with documents
 
 
 
@@ -108,16 +109,19 @@ print(f'nprocs: {nprocs}')
 
 #-------------------------------------------------------------------------
 with mp.Pool(nprocs) as pool: #processes pool
+
+    
+
     shard_index = 0
     # preallocate buffer to hold current shard
-    all_tokens_np = np.empty((shard_size,), dtype=np.uint16)
+    all_tokens_np = np.empty((shard_size,), dtype=np.uint16) # shard size - 100_000_000
 
     token_count = 0
     progress_bar = None
 
     #---------------------------------------------------
-    # for tokens in pool.imap(func = tokenize, iterable = dataset_downloaded, chunksize = 16):
-    for tokens in pool.imap(tokenize, fw, chunksize=16):
+    # tokenize
+    for tokens in pool.imap(tokenize, fw, chunksize=16): # from fw with 9672101 entries, send 16 at time to a process
 
         # is there enough space in the current shard for the new tokens?
         if token_count + len(tokens) < shard_size:
