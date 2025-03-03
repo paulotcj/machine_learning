@@ -14,17 +14,7 @@ import tiktoken
 from datasets import load_dataset # pip install datasets
 from tqdm import tqdm # pip install tqdm
 
-identify_os = None
-if os.name == 'nt':
-    identify_os = 'windows'
-elif os.name == 'posix':
-    if 'darwin' in os.uname().sysname.lower():
-        identify_os = 'macos'
-    else:
-        identify_os = 'linux'
-print(f'Operating System: {identify_os}')
 
-exit()
 
 print('\n\n')
 print('-------------------------------------------------------------------------')
@@ -95,7 +85,17 @@ def write_datafile(filename, tokens_np):
 
 print('-------------------------------------------------------------------------')
 
+identify_os = None
+if os.name == 'nt':
+    identify_os = 'windows'
+elif os.name == 'posix':
+    if 'darwin' in os.uname().sysname.lower():
+        identify_os = 'macos'
+    else:
+        identify_os = 'linux'
+print(f'Operating System: {identify_os}')
 
+exit()
 
 
 cpu_count = os.cpu_count()
