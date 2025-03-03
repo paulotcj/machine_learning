@@ -95,7 +95,7 @@ elif os.name == 'posix':
         identify_os = 'linux'
 print(f'Operating System: {identify_os}')
 
-exit()
+
 
 
 cpu_count = os.cpu_count()
