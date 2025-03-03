@@ -14,7 +14,9 @@ import tiktoken
 from datasets import load_dataset # pip install datasets
 from tqdm import tqdm # pip install tqdm
 
-mp.set_start_method('fork')
+
+
+
 
 
 print('\n\n')
@@ -86,15 +88,7 @@ def write_datafile(filename, tokens_np):
 
 print('-------------------------------------------------------------------------')
 
-identify_os = None
-if os.name == 'nt':
-    identify_os = 'windows'
-elif os.name == 'posix':
-    if 'darwin' in os.uname().sysname.lower():
-        identify_os = 'macos'
-    else:
-        identify_os = 'linux'
-print(f'Operating System: {identify_os}')
+
 
 
 
@@ -106,6 +100,23 @@ nprocs = max(1, cpu_count//2)
 
 print(f'cpu_count: {cpu_count}')
 print(f'nprocs: {nprocs}')
+
+
+identify_os = None
+if os.name == 'nt':
+    identify_os = 'windows'
+elif os.name == 'posix':
+    if 'darwin' in os.uname().sysname.lower():
+        identify_os = 'macos'
+    else:
+        identify_os = 'linux'
+print(f'Operating System: {identify_os}')
+
+
+if identify_os != 'windows':
+    mp.set_start_method('fork')
+else:
+    nprocs = 1 # windows does not support fork, so we can only use 1 process
 
 #-------------------------------------------------------------------------
 with mp.Pool(nprocs) as pool: #processes pool
