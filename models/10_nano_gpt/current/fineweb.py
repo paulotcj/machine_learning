@@ -14,6 +14,18 @@ import tiktoken
 from datasets import load_dataset # pip install datasets
 from tqdm import tqdm # pip install tqdm
 
+identify_os = None
+if os.name == 'nt':
+    identify_os = 'windows'
+elif os.name == 'posix':
+    if 'darwin' in os.uname().sysname.lower():
+        identify_os = 'macos'
+    else:
+        identify_os = 'linux'
+print(f'Operating System: {identify_os}')
+
+exit()
+
 print('\n\n')
 print('-------------------------------------------------------------------------')
 shard_size = int(100_000_000)
@@ -82,6 +94,10 @@ def write_datafile(filename, tokens_np):
 
 
 print('-------------------------------------------------------------------------')
+
+
+
+
 cpu_count = os.cpu_count()
 # tokenize all documents and write output shards, each of shard_size tokens (last shard has remainder)
 nprocs = max(1, cpu_count//2)
