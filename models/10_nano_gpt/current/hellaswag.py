@@ -35,7 +35,7 @@ import torch.nn as nn
 from torch.nn import functional as F
 from transformers import GPT2LMHeadModel
 
-# -----------------------------------------------------------------------------
+#-------------------------------------------------------------------------
 DATA_CACHE_DIR = os.path.join(os.path.dirname(__file__), "hellaswag")
 
 #-------------------------------------------------------------------------
@@ -186,10 +186,21 @@ def evaluate(model_type, device):
 
     #-------------------------------------------------------------------------
 #-------------------------------------------------------------------------
-if __name__ == "__main__":
+#-------------------------------------------------------------------------
+def main():
     import argparse
     parser = argparse.ArgumentParser()
+
+    # example of usage:
+    # python hellaswag.py -m gpt2 -d cuda
+    #  or
+    # python hellaswag.py --model_type gpt2 --device cuda
     parser.add_argument("-m", "--model_type", type=str, default="gpt2", help="the model type to use")
     parser.add_argument("-d", "--device", type=str, default="cuda", help="the device to use")
+
     args = parser.parse_args()
+    
     evaluate(args.model_type, args.device)
+#-------------------------------------------------------------------------
+if __name__ == "__main__":
+    main()
