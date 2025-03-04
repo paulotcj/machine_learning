@@ -253,8 +253,8 @@ identify_os = setup_os_related()
 
 
 print('-------------------------------------------------------------------------')
-# max_shard_size = int(100_000_000)
-max_shard_size = int(90_000)
+max_shard_size = int(100_000_000)
+# max_shard_size = int(90_000)
 
 #------------
 local_dir = "edu_fineweb10B"
