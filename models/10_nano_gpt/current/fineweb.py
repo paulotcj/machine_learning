@@ -294,14 +294,16 @@ downloaded_dataset = load_dataset(path = dataset_path, name=remote_name, split=d
 print('-------------------------------------------------------------------------')
 
 chunksize = 16
-print(f'chunksize:{chunksize}')
+print(f'chunksize:{chunksize}') # for multi-processing
 
+
+
+print('-------------------------------------------------------------------------')
+print('Starting the process')
 
 # if identify_os == 'windows':
 #     ps_ds.single_process()
 # else:
 #     ps_ds.multi_process()
 
-print('-------------------------------------------------------------------------')
-print('Starting the process')
 single_process()
