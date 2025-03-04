@@ -12,7 +12,7 @@ import multiprocessing as mp
 import numpy as np
 import tiktoken
 from datasets import load_dataset # pip install datasets
-from tqdm import tqdm # pip install tqdm
+from tqdm import tqdm # pip install tqdm - progress bar
 
 # ------------------------------------------
 local_dir = "edu_fineweb10B"
@@ -43,6 +43,8 @@ def write_datafile(filename, tokens_np):
 
 # tokenize all documents and write output shards, each of shard_size tokens (last shard has remainder)
 nprocs = max(1, os.cpu_count()//2)
+
+#-------------------------------------------------------------------------
 with mp.Pool(nprocs) as pool:
     shard_index = 0
     # preallocate buffer to hold current shard
@@ -60,9 +62,11 @@ with mp.Pool(nprocs) as pool:
             if progress_bar is None:
                 progress_bar = tqdm(total=shard_size, unit="tokens", desc=f"Shard {shard_index}")
             progress_bar.update(len(tokens))
+
         else:
             # write the current shard and start a new one
             split = "val" if shard_index == 0 else "train"
+
             filename = os.path.join(DATA_CACHE_DIR, f"edufineweb_{split}_{shard_index:06d}")
             # split the document into whatever fits in this shard; the remainder goes to next one
             remainder = shard_size - token_count
@@ -80,3 +84,4 @@ with mp.Pool(nprocs) as pool:
         split = "val" if shard_index == 0 else "train"
         filename = os.path.join(DATA_CACHE_DIR, f"edufineweb_{split}_{shard_index:06d}")
         write_datafile(filename, all_tokens_np[:token_count])
+#-------------------------------------------------------------------------
