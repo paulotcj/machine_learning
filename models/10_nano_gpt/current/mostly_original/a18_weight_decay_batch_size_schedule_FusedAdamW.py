@@ -24,7 +24,13 @@ import torch.nn as nn
 from torch.nn import functional as F
 
 #-------------------------------------------------------------------------
-class CausalSelfAttention(nn.Module):
+'''
+Causal: In the context of GPT-2, "causal" means that the attention mechanism is restricted to only 
+consider previous tokens in the sequence. This is crucial for autoregressive models like GPT-2, which 
+generate text one token at a time. The model should not have access to future tokens during training 
+or inference.
+'''
+class CausalSelfAttention(nn.Module): # multi head attention
     #-------------------------------------------------------------------------
     def __init__(self, config):
         super().__init__()
@@ -104,6 +110,74 @@ class GPTConfig:
     n_embd: int = 768 # embedding dimension
 #-------------------------------------------------------------------------
 #-------------------------------------------------------------------------
+    '''
+    This implementation of GPT follows the same pattern of GPT2. When exploring the
+      open weights from GPT2 128M model we would find something like this:
+            transformer.wte.weight torch.Size([50257, 768])
+            transformer.wpe.weight torch.Size([1024, 768])
+            transformer.h.0.ln_1.weight torch.Size([768])
+            transformer.h.0.ln_1.bias torch.Size([768])
+            transformer.h.0.attn.c_attn.weight torch.Size([768, 2304])
+            transformer.h.0.attn.c_attn.bias torch.Size([2304])
+            transformer.h.0.attn.c_proj.weight torch.Size([768, 768])
+            transformer.h.0.attn.c_proj.bias torch.Size([768])
+            transformer.h.0.ln_2.weight torch.Size([768])
+            transformer.h.0.ln_2.bias torch.Size([768])
+            transformer.h.0.mlp.c_fc.weight torch.Size([768, 3072])
+            transformer.h.0.mlp.c_fc.bias torch.Size([3072])
+            transformer.h.0.mlp.c_proj.weight torch.Size([3072, 768])
+            transformer.h.0.mlp.c_proj.bias torch.Size([768])
+
+            [...] LAYERS FROM 0 TO 11
+            
+            transformer.h.11.mlp.c_proj.weight torch.Size([3072, 768])
+            transformer.h.11.mlp.c_proj.bias torch.Size([768])
+            transformer.ln_f.weight torch.Size([768])
+            transformer.ln_f.bias torch.Size([768])
+            lm_head.weight torch.Size([50257, 768])
+
+    -------------------
+
+    First we should define some basic hyper parameters: 
+        - 50257 is the token vocab size
+        - 768 is the embedding dimension
+        - 1024 is the block size
+
+    -------------------
+
+    As we can see GPT is composed of: 
+        - transformer, which will be explained below
+        - lm_head (language model head - LinearLayer) in_features = 50257 (vocab_size), out_features = 768 (embedding dimension), bias  = False
+    
+    -------------------
+
+    The transformer is composed of:
+        - wte (word token embeddings   - Embedding) with num_embeddings = 50257 (vocab_size) and embeddings_dim = 768 (embedding dimension)
+        - wpe (word position embedding - Embedding) with num_embeddings = 1024 (block size) and embeddings_dim = 768 (embedding dimension)
+        - h (hidden layers, from 0 to 11 to be explained below - ModuleList[Block])
+        - ln_f (layer normalization final - LayerNorm) ln_f.weight normalized_shape = 768 (embedding dimension) ln_f.bias normalized_shape = 768 (embedding dimension)
+
+    -------------------
+
+    The h (hidden layers - ModuleList[Block]) is composed of 12 hidden layers of the following components:
+        - ln_1 (layer normalization LayerNorm), ln_1.weight normalized_shape = 768, ln_1.bias normalized_shape = 768
+        - attn (CausalSelfAttention - note that this is CAUSAL)
+        - ln_2 (layer normalization LayerNorm), ln_2.weight normalized_shape = 768, ln_2.bias normalized_shape = 768
+        - mlp (MLP Multi Layer Perceptron)
+
+    -------------------
+
+    The CausalSelfAttention
+        - c_attn (attention  - linear layer) in_features = 768 (embedding dimension) out_features = 2304 (3 * 768 embedding dimension), bias = 2304 (3 * 768 embedding dimension) 
+        - c_proj (projection - linear layer) in_features = 768 (embedding dimension), out_features = 768 (embedding dimension), bias = 768 (embedding dimension) 
+
+    -------------------
+
+    The MLP (Multi Layer Perceptron)
+        - c_fc (fully connected - linear layer) in_features = 768 (embedding dimension), out_features = 3072 (4 * 768), bias = 3072 (4 * 768)
+        - c_proj (projection    - linear layer) in_features = 3072 (4 * 768), out_features = 768 (embedding dimension), bias = 768 (embedding dimension)
+
+    '''
 class GPT(nn.Module):
     #-------------------------------------------------------------------------
     def __init__(self, config):
@@ -158,6 +232,22 @@ class GPT(nn.Module):
         return logits, loss
     #-------------------------------------------------------------------------
     #-------------------------------------------------------------------------
+    '''
+    The decorator below (@classmethod) is used to define a method that is bound to the 
+    class and not the instance of the class. This means that when you call a class method, 
+    it receives the class as its first argument, which is conventionally named cls. This 
+    is similar to how instance methods receive the instance as their first argument, 
+    conventionally named self.
+    They are often used for methods that need to access or modify  class-level attributes, 
+    rather than instance-level attributes.
+    For instance:
+        class MyClass:
+            class_attribute = 0
+            ...
+            @classmethod
+            def increment_class_attribute(cls):
+                cls.class_attribute += 1
+    '''
     @classmethod
     def from_pretrained(cls, model_type):
         """Loads pretrained GPT-2 model weights from huggingface"""
