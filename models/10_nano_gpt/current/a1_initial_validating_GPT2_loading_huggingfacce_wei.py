@@ -88,12 +88,11 @@ class Block(nn.Module):
 @dataclass
 class GPTConfig:
     # note you can define the values here in any order
-    block_size: int = 1024 # max sequence length
-    vocab_size: int = 50257 # number of tokens: 50,000 BPE merges + 256 bytes tokens + 1 <|endoftext|> token
-    n_layer: int = 12 # number of layers
-    n_head: int = 12 # number of heads
-    n_embd: int = 768 # embedding dimension
-
+    block_size : int = 1024 # max sequence length
+    vocab_size : int = 50257 # number of tokens: 50,000 BPE merges + 256 bytes tokens + 1 <|endoftext|> token
+    n_layer    : int = 12 # number of layers
+    n_head     : int = 12 # number of heads
+    n_embd     : int = 768 # embedding dimension
 #-------------------------------------------------------------------------
 #-------------------------------------------------------------------------
     '''
@@ -168,15 +167,34 @@ class GPT(nn.Module):
     #-------------------------------------------------------------------------
     def __init__(self, gpt_config : GPTConfig):
         super().__init__()
+
         self.gpt_config = gpt_config
 
-        self.transformer = nn.ModuleDict(dict(
-            wte = nn.Embedding(gpt_config.vocab_size, gpt_config.n_embd),
-            wpe = nn.Embedding(gpt_config.block_size, gpt_config.n_embd),
-            h = nn.ModuleList([Block(gpt_config) for _ in range(gpt_config.n_layer)]),
-            ln_f = nn.LayerNorm(gpt_config.n_embd),
-        ))
+        # below we need to define the following:
+        #   transformer and lm_head
+        #
+        # and transformer is composed of: 
+        #   wte, wpe, h, ln_f
+        #--------
+        # transformer dict - define wte, wpe, h, ln_f
+
+        # h - hidden layers. composed of a list of Block objects
+        block_list = [ Block(gpt_config) 
+                       for _ in range(gpt_config.n_layer) ]
+
+        # the transformer dictionary 
+        transf_dict = dict(
+                wte  = nn.Embedding(gpt_config.vocab_size, gpt_config.n_embd),
+                wpe  = nn.Embedding(gpt_config.block_size, gpt_config.n_embd),
+                h    = nn.ModuleList(block_list),
+                ln_f = nn.LayerNorm(gpt_config.n_embd) )
+        #--------
+        # define transformer
+        self.transformer = nn.ModuleDict( transf_dict )
+        #--------
+        #define lm_head
         self.lm_head = nn.Linear(gpt_config.n_embd, gpt_config.vocab_size, bias=False)
+        #--------
     #-------------------------------------------------------------------------
     #-------------------------------------------------------------------------
     '''
