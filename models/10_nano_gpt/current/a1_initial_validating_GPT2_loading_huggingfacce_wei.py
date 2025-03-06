@@ -238,8 +238,9 @@ class GPT(nn.Module):
         config_args['block_size'] = 1024 # always 1024 for GPT model checkpoints
 
         print('-------')
+        print('config_args.items()')
         for k,v in config_args.items():
-            print(f"    {k}: {v}")
+            print(f"    k: {k} - v: {v}")
         print('-------')    
         #-------
 
@@ -251,13 +252,29 @@ class GPT(nn.Module):
 
 
         model = GPT(gpt_config)
-        sd = model.state_dict()
-        sd_keys = sd.keys()
-        sd_keys = [k for k in sd_keys if not k.endswith('.attn.bias')] # discard this mask / buffer, not a param
+        state_dict = model.state_dict() # from nn.Module        
+        state_dict_keys = state_dict.keys()
+
+        print('-------')  
+        print('state_dict.keys()')
+        for k in state_dict.keys():
+            print(f"    k: {k}")
+        print('-------')
+
+
+        state_dict_keys = [
+            k 
+            for k in state_dict_keys 
+            if not k.endswith('.attn.bias')
+        ] # discard this mask / buffer, not a param
+
 
         # init a huggingface/transformers model
         model_hf = GPT2LMHeadModel.from_pretrained(model_type)
         sd_hf = model_hf.state_dict()
+
+
+
 
         # copy while ensuring all of the parameters are aligned and match in names and shapes
         sd_keys_hf = sd_hf.keys()
@@ -266,18 +283,18 @@ class GPT(nn.Module):
         transposed = ['attn.c_attn.weight', 'attn.c_proj.weight', 'mlp.c_fc.weight', 'mlp.c_proj.weight']
         # basically the openai checkpoints use a "Conv1D" module, but we only want to use a vanilla Linear
         # this means that we have to transpose these weights when we import them
-        assert len(sd_keys_hf) == len(sd_keys), f"mismatched keys: {len(sd_keys_hf)} != {len(sd_keys)}"
+        assert len(sd_keys_hf) == len(state_dict_keys), f"mismatched keys: {len(sd_keys_hf)} != {len(state_dict_keys)}"
         for k in sd_keys_hf:
             if any(k.endswith(w) for w in transposed):
                 # special treatment for the Conv1D weights we need to transpose
-                assert sd_hf[k].shape[::-1] == sd[k].shape
+                assert sd_hf[k].shape[::-1] == state_dict[k].shape
                 with torch.no_grad():
-                    sd[k].copy_(sd_hf[k].t())
+                    state_dict[k].copy_(sd_hf[k].t())
             else:
                 # vanilla copy over the other parameters
-                assert sd_hf[k].shape == sd[k].shape
+                assert sd_hf[k].shape == state_dict[k].shape
                 with torch.no_grad():
-                    sd[k].copy_(sd_hf[k])
+                    state_dict[k].copy_(sd_hf[k])
 
         return model
     #-------------------------------------------------------------------------
