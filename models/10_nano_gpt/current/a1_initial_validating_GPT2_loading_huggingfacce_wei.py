@@ -87,11 +87,13 @@ class Block(nn.Module):
 #-------------------------------------------------------------------------
 @dataclass
 class GPTConfig:
+    # note you can define the values here in any order
     block_size: int = 1024 # max sequence length
     vocab_size: int = 50257 # number of tokens: 50,000 BPE merges + 256 bytes tokens + 1 <|endoftext|> token
     n_layer: int = 12 # number of layers
     n_head: int = 12 # number of heads
     n_embd: int = 768 # embedding dimension
+
 #-------------------------------------------------------------------------
 #-------------------------------------------------------------------------
     '''
@@ -164,17 +166,17 @@ class GPTConfig:
     '''
 class GPT(nn.Module):
     #-------------------------------------------------------------------------
-    def __init__(self, config):
+    def __init__(self, gpt_config : GPTConfig):
         super().__init__()
-        self.config = config
+        self.gpt_config = gpt_config
 
         self.transformer = nn.ModuleDict(dict(
-            wte = nn.Embedding(config.vocab_size, config.n_embd),
-            wpe = nn.Embedding(config.block_size, config.n_embd),
-            h = nn.ModuleList([Block(config) for _ in range(config.n_layer)]),
-            ln_f = nn.LayerNorm(config.n_embd),
+            wte = nn.Embedding(gpt_config.vocab_size, gpt_config.n_embd),
+            wpe = nn.Embedding(gpt_config.block_size, gpt_config.n_embd),
+            h = nn.ModuleList([Block(gpt_config) for _ in range(gpt_config.n_layer)]),
+            ln_f = nn.LayerNorm(gpt_config.n_embd),
         ))
-        self.lm_head = nn.Linear(config.n_embd, config.vocab_size, bias=False)
+        self.lm_head = nn.Linear(gpt_config.n_embd, gpt_config.vocab_size, bias=False)
     #-------------------------------------------------------------------------
     #-------------------------------------------------------------------------
     '''
@@ -217,15 +219,20 @@ class GPT(nn.Module):
         config_args['vocab_size'] = 50257 # always 50257 for GPT model checkpoints
         config_args['block_size'] = 1024 # always 1024 for GPT model checkpoints
 
+        print('-------')
         for k,v in config_args.items():
-            print(f"{k}: {v}")        
+            print(f"    {k}: {v}")
+        print('-------')    
         #-------
 
 
-
         # create a from-scratch initialized minGPT model
-        config = GPTConfig(**config_args)
-        model = GPT(config)
+        gpt_config = GPTConfig(**config_args) # the values from config can be passed in any order
+
+        print(f'config: {gpt_config}')
+
+
+        model = GPT(gpt_config)
         sd = model.state_dict()
         sd_keys = sd.keys()
         sd_keys = [k for k in sd_keys if not k.endswith('.attn.bias')] # discard this mask / buffer, not a param
