@@ -244,30 +244,34 @@ class GPT(nn.Module):
         print('-------')    
         #-------
 
-
+        #
         # create a from-scratch initialized minGPT model
         gpt_config = GPTConfig(**config_args) # the values from config can be passed in any order
 
         print(f'config: {gpt_config}')
 
-
+        #-------------------
+        # create our own model and its state dictionary
         model = GPT(gpt_config)
         state_dict = model.state_dict() # from nn.Module        
         state_dict_keys = state_dict.keys()
 
         print('-------')  
-        print('state_dict.keys()')
-        for k in state_dict.keys():
-            print(f"    k: {k}")
+        print('state_dict_keys')
+        for i in state_dict_keys:
+            print(f"    k: {i}")
         print('-------')
 
 
+        # filter out '.attn.bias' from state_dict_keys
         state_dict_keys = [
             k 
             for k in state_dict_keys 
             if not k.endswith('.attn.bias')
         ] # discard this mask / buffer, not a param
 
+
+        #-----------
         removed_items = sorted(
                 list( 
                 set( state_dict.keys() )
@@ -276,48 +280,64 @@ class GPT(nn.Module):
                 ) 
             )
         )
-
         print('-------')  
         print('removed_items')
         for i in removed_items:
             print(f"    i: {i}")
         print('-------')
+        #-----------
+        #-------------------
 
-
+        #-------------------
+        # Let's grab the model from HuggingFace and then filter out what we don't want
         # init a huggingface/transformers model
         model_hugginface = GPT2LMHeadModel.from_pretrained(model_type)
         state_dict_huggingface = model_hugginface.state_dict()
 
 
         # copy while ensuring all of the parameters are aligned and match in names and shapes
-        sd_keys_hf = state_dict_huggingface.keys()
+        state_dict_keys_huggingface = state_dict_huggingface.keys()
 
         #-------
         # ignore ".attn.masked_bias" it's just a buffer, and ".attn.bias" is a mask (buffer)
-        sd_keys_hf = [
+        state_dict_keys_huggingface = [
             k 
-            for k in sd_keys_hf 
+            for k in state_dict_keys_huggingface 
             if not k.endswith('.attn.masked_bias') and not k.endswith('.attn.bias')
         ]
         #-------
 
         
         transposed = ['attn.c_attn.weight', 'attn.c_proj.weight', 'mlp.c_fc.weight', 'mlp.c_proj.weight']
-        
         # basically the openai checkpoints use a "Conv1D" module, but we only want to use a vanilla Linear
         # this means that we have to transpose these weights when we import them
-        assert len(sd_keys_hf) == len(state_dict_keys), f"mismatched keys: {len(sd_keys_hf)} != {len(state_dict_keys)}"
-        for k in sd_keys_hf:
-            if any(k.endswith(w) for w in transposed):
+        #-------------------
+
+        #-------------------
+        # copy phase
+        # at this point the dict state from hugging face and our dict state should be identical
+        assert len(state_dict_keys_huggingface) == len(state_dict_keys), f"mismatched keys: {len(state_dict_keys_huggingface)} != {len(state_dict_keys)}"
+
+
+        for k in state_dict_keys_huggingface:
+
+            if any( k.endswith(w) for w in transposed ): # let's transpose what needs to transposed
                 # special treatment for the Conv1D weights we need to transpose
+                #   e.g.: state_dict_huggingface[k].shape ---> torch.Size([768, 2304])
+                #     state_dict_huggingface[k].shape[::-1] -> torch.Size([2304, 768])
+                #     state_dict[k].shape -------------------> torch.Size([2304, 768])
                 assert state_dict_huggingface[k].shape[::-1] == state_dict[k].shape
+
                 with torch.no_grad():
-                    state_dict[k].copy_(state_dict_huggingface[k].t())
+                    transposed_component = state_dict_huggingface[k].t()
+                    state_dict[k].copy_( transposed_component )
             else:
                 # vanilla copy over the other parameters
                 assert state_dict_huggingface[k].shape == state_dict[k].shape
                 with torch.no_grad():
                     state_dict[k].copy_(state_dict_huggingface[k])
+
+        #-------------------
 
         return model
     #-------------------------------------------------------------------------
