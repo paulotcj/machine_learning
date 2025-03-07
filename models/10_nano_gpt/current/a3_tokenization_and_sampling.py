@@ -4,6 +4,7 @@ import torch
 import torch.nn as nn
 from torch.nn import functional as F
 
+
 #-------------------------------------------------------------------------
 '''
 Causal: In the context of GPT-2, "causal" means that the attention mechanism is restricted to only 
@@ -86,11 +87,12 @@ class Block(nn.Module):
 #-------------------------------------------------------------------------
 @dataclass
 class GPTConfig:
-    block_size: int = 1024 # max sequence length
-    vocab_size: int = 50257 # number of tokens: 50,000 BPE merges + 256 bytes tokens + 1 <|endoftext|> token
-    n_layer: int = 12 # number of layers
-    n_head: int = 12 # number of heads
-    n_embd: int = 768 # embedding dimension
+    # note you can define the values here in any order
+    block_size : int = 1024 # max sequence length
+    vocab_size : int = 50257 # number of tokens: 50,000 BPE merges + 256 bytes tokens + 1 <|endoftext|> token
+    n_layer    : int = 12 # number of layers
+    n_head     : int = 12 # number of heads
+    n_embd     : int = 768 # embedding dimension
 #-------------------------------------------------------------------------
 #-------------------------------------------------------------------------
     '''
@@ -163,17 +165,36 @@ class GPTConfig:
     '''
 class GPT(nn.Module):
     #-------------------------------------------------------------------------
-    def __init__(self, config):
+    def __init__(self, gpt_config : GPTConfig):
         super().__init__()
-        self.config = config
 
-        self.transformer = nn.ModuleDict(dict(
-            wte = nn.Embedding(config.vocab_size, config.n_embd),
-            wpe = nn.Embedding(config.block_size, config.n_embd),
-            h = nn.ModuleList([Block(config) for _ in range(config.n_layer)]),
-            ln_f = nn.LayerNorm(config.n_embd),
-        ))
-        self.lm_head = nn.Linear(config.n_embd, config.vocab_size, bias=False)
+        self.gpt_config = gpt_config
+
+        # below we need to define the following:
+        #   transformer and lm_head
+        #
+        # and transformer is composed of: 
+        #   wte, wpe, h, ln_f
+        #--------
+        # transformer dict - define wte, wpe, h, ln_f
+
+        # h - hidden layers. composed of a list of Block objects
+        block_list = [ Block(gpt_config) 
+                       for _ in range(gpt_config.n_layer) ]
+
+        # the transformer dictionary 
+        transf_dict = dict(
+                wte  = nn.Embedding(gpt_config.vocab_size, gpt_config.n_embd),
+                wpe  = nn.Embedding(gpt_config.block_size, gpt_config.n_embd),
+                h    = nn.ModuleList(block_list),
+                ln_f = nn.LayerNorm(gpt_config.n_embd) )
+        #--------
+        # define transformer
+        self.transformer = nn.ModuleDict( transf_dict )
+        #--------
+        #define lm_head
+        self.lm_head = nn.Linear(gpt_config.n_embd, gpt_config.vocab_size, bias=False)
+        #--------
     #-------------------------------------------------------------------------
     #-------------------------------------------------------------------------
     def forward(self, idx):
@@ -192,7 +213,7 @@ class GPT(nn.Module):
         x = self.transformer.ln_f(x)
         logits = self.lm_head(x) # (B, T, vocab_size)
         return logits
-    #-------------------------------------------------------------------------
+    #-------------------------------------------------------------------------    
     #-------------------------------------------------------------------------
     '''
     The decorator below (@classmethod) is used to define a method that is bound to the 
@@ -213,10 +234,16 @@ class GPT(nn.Module):
     @classmethod
     def from_pretrained(cls, model_type):
         """Loads pretrained GPT-2 model weights from huggingface"""
+
+        #-------
         assert model_type in {'gpt2', 'gpt2-medium', 'gpt2-large', 'gpt2-xl'}
+
         from transformers import GPT2LMHeadModel
         print("loading weights from pretrained gpt: %s" % model_type)
+        #-------
 
+        #-------
+        # select pre config of the model type
         # n_layer, n_head and n_embd are determined from model_type
         config_args = {
             'gpt2':         dict(n_layer=12, n_head=12, n_embd=768),  # 124M params
@@ -224,38 +251,111 @@ class GPT(nn.Module):
             'gpt2-large':   dict(n_layer=36, n_head=20, n_embd=1280), # 774M params
             'gpt2-xl':      dict(n_layer=48, n_head=25, n_embd=1600), # 1558M params
         }[model_type]
+        
         config_args['vocab_size'] = 50257 # always 50257 for GPT model checkpoints
         config_args['block_size'] = 1024 # always 1024 for GPT model checkpoints
-        # create a from-scratch initialized minGPT model
-        config = GPTConfig(**config_args)
-        model = GPT(config)
-        sd = model.state_dict()
-        sd_keys = sd.keys()
-        sd_keys = [k for k in sd_keys if not k.endswith('.attn.bias')] # discard this mask / buffer, not a param
 
+        print('-------')
+        print('config_args.items()')
+        for k,v in config_args.items():
+            print(f"    k: {k} - v: {v}")
+        print('-------')    
+        #-------
+
+        #
+        # create a from-scratch initialized minGPT model
+        gpt_config = GPTConfig(**config_args) # the values from config can be passed in any order
+
+        print(f'config: {gpt_config}')
+
+        #-------------------
+        # create our own model and its state dictionary
+        model = GPT(gpt_config)
+        state_dict = model.state_dict() # from nn.Module        
+        state_dict_keys = state_dict.keys()
+
+        print('-------')  
+        print('state_dict_keys')
+        for i in state_dict_keys:
+            print(f"    k: {i}")
+        print('-------')
+
+
+        # filter out '.attn.bias' from state_dict_keys
+        state_dict_keys = [
+            k 
+            for k in state_dict_keys 
+            if not k.endswith('.attn.bias')
+        ] # discard this mask / buffer, not a param
+
+
+        #-----------
+        removed_items = sorted(
+                list( 
+                set( state_dict.keys() )
+                .symmetric_difference( 
+                    set(state_dict_keys) 
+                ) 
+            )
+        )
+        print('-------')  
+        print('removed_items')
+        for i in removed_items:
+            print(f"    i: {i}")
+        print('-------')
+        #-----------
+        #-------------------
+
+        #-------------------
+        # Let's grab the model from HuggingFace and then filter out what we don't want
         # init a huggingface/transformers model
-        model_hf = GPT2LMHeadModel.from_pretrained(model_type)
-        sd_hf = model_hf.state_dict()
+        model_hugginface = GPT2LMHeadModel.from_pretrained(model_type)
+        state_dict_huggingface = model_hugginface.state_dict()
+
 
         # copy while ensuring all of the parameters are aligned and match in names and shapes
-        sd_keys_hf = sd_hf.keys()
-        sd_keys_hf = [k for k in sd_keys_hf if not k.endswith('.attn.masked_bias')] # ignore these, just a buffer
-        sd_keys_hf = [k for k in sd_keys_hf if not k.endswith('.attn.bias')] # same, just the mask (buffer)
+        state_dict_keys_huggingface = state_dict_huggingface.keys()
+
+        #-------
+        # ignore ".attn.masked_bias" it's just a buffer, and ".attn.bias" is a mask (buffer)
+        state_dict_keys_huggingface = [
+            k 
+            for k in state_dict_keys_huggingface 
+            if not k.endswith('.attn.masked_bias') and not k.endswith('.attn.bias')
+        ]
+        #-------
+
+        
         transposed = ['attn.c_attn.weight', 'attn.c_proj.weight', 'mlp.c_fc.weight', 'mlp.c_proj.weight']
         # basically the openai checkpoints use a "Conv1D" module, but we only want to use a vanilla Linear
         # this means that we have to transpose these weights when we import them
-        assert len(sd_keys_hf) == len(sd_keys), f"mismatched keys: {len(sd_keys_hf)} != {len(sd_keys)}"
-        for k in sd_keys_hf:
-            if any(k.endswith(w) for w in transposed):
+        #-------------------
+
+        #-------------------
+        # copy phase
+        # at this point the dict state from hugging face and our dict state should be identical
+        assert len(state_dict_keys_huggingface) == len(state_dict_keys), f"mismatched keys: {len(state_dict_keys_huggingface)} != {len(state_dict_keys)}"
+
+
+        for k in state_dict_keys_huggingface:
+
+            if any( k.endswith(w) for w in transposed ): # let's transpose what needs to transposed
                 # special treatment for the Conv1D weights we need to transpose
-                assert sd_hf[k].shape[::-1] == sd[k].shape
+                #   e.g.: state_dict_huggingface[k].shape ---> torch.Size([768, 2304])
+                #     state_dict_huggingface[k].shape[::-1] -> torch.Size([2304, 768])
+                #     state_dict[k].shape -------------------> torch.Size([2304, 768])
+                assert state_dict_huggingface[k].shape[::-1] == state_dict[k].shape
+
                 with torch.no_grad():
-                    sd[k].copy_(sd_hf[k].t())
+                    transposed_component = state_dict_huggingface[k].t()
+                    state_dict[k].copy_( transposed_component )
             else:
                 # vanilla copy over the other parameters
-                assert sd_hf[k].shape == sd[k].shape
+                assert state_dict_huggingface[k].shape == state_dict[k].shape
                 with torch.no_grad():
-                    sd[k].copy_(sd_hf[k])
+                    state_dict[k].copy_(state_dict_huggingface[k])
+
+        #-------------------
 
         return model
     #-------------------------------------------------------------------------
