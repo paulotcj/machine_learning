@@ -389,6 +389,12 @@ import tiktoken
 enc = tiktoken.get_encoding('gpt2')
 tokens = enc.encode("Hello, I'm a language model,")
 tokens = torch.tensor(tokens, dtype=torch.long) # (8,)
+
+
+
+# unsqueeze(0) -> add one extra dimension to the tensor at position 0. 
+#   From [15496,    11,   314,  1101,   257,  3303,  2746,    11] to [[15496,    11,   314,  1101,   257,  3303,  2746,    11]]
+# then we use repeat. Repeat 5X along the first dim and 1x along the second
 tokens = tokens.unsqueeze(0).repeat(num_return_sequences, 1) # (5, 8)
 x = tokens.to(device)
 
