@@ -168,7 +168,7 @@ class GPT(nn.Module):
     def __init__(self, gpt_config : GPTConfig):
         super().__init__()
 
-        self.gpt_config = gpt_config
+        self.config = gpt_config
 
         # below we need to define the following:
         #   transformer and lm_head

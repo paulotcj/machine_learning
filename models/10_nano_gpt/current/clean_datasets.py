@@ -7,7 +7,7 @@ def clean_datasets_cache():
     """Cleans the Hugging Face datasets cache directory."""
     cache_dir = os.path.expanduser(os.path.join("~", ".cache", "huggingface"))
     print(f'cache_dir: {cache_dir}')
-    exit()
+    # exit()
     if os.path.exists(cache_dir):
         try:
             shutil.rmtree(cache_dir)
