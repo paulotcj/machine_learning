@@ -274,6 +274,31 @@ class GPT(nn.Module):
         state_dict = model.state_dict() # from nn.Module        
         state_dict_keys = state_dict.keys()
 
+
+        #----------------------------------------
+        # create a deep dict copy to be checked later
+        import copy
+        dict_copy = copy.deepcopy(model.state_dict())
+
+        # this shallow copy should be the same
+        same = True
+        for key in state_dict.keys():
+            if not torch.equal(state_dict[key], model.state_dict()[key]):
+                same = False
+                break
+        print(f'state_dict == model.state_dict(): {same}')
+
+        # this is a deep copy, and at this stage should be the same
+        same = True
+        for key in dict_copy.keys():
+            if not torch.equal(dict_copy[key], model.state_dict()[key]):
+                same = False
+                break
+        print(f'dict_copy == model.state_dict(): {same}')             
+        #----------------------------------------
+
+     
+
         print('-------')  
         print('state_dict_keys')
         for i in state_dict_keys:
@@ -355,7 +380,34 @@ class GPT(nn.Module):
                 with torch.no_grad():
                     state_dict[k].copy_(state_dict_huggingface[k])
 
+            #----
+            
+
         #-------------------
+
+
+        #----------------------------------------
+        # check if the copies differ. At this stage they should
+
+        # shallow copy, this should be the same
+        same = True
+        for key in state_dict.keys():
+            if not torch.equal(state_dict[key], model.state_dict()[key]):
+                same = False
+                break
+        print(f'state_dict == model.state_dict(): {same}')
+
+        # deep copy, this should be different since the target dict was updated
+        same = True
+        for key in dict_copy.keys():
+            if not torch.equal(dict_copy[key], model.state_dict()[key]):
+                same = False
+                break
+        print(f'dict_copy == model.state_dict(): {same}')        
+        #----------------------------------------
+
+
+
 
         return model
     #-------------------------------------------------------------------------
