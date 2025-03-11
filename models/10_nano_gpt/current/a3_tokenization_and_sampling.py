@@ -426,15 +426,15 @@ while x.size(1) < max_length:
         ix = torch.multinomial(input = topk_probs, num_samples = 1) # (B, 1)
 
         # gather the corresponding indices
-        xcol = torch.gather(input = topk_indices, -1, ix) # (B, 1)
+        xcol = torch.gather(input = topk_indices, dim = -1, index = ix) # (B, 1)
 
         # append to the sequence
         x = torch.cat((x, xcol), dim=1)
 #-------------------------------------------------------------------------
 #-------------------------------------------------------------------------
 # print the generated text
-for i in range(num_return_sequences):
-    tokens = x[i, :max_length].tolist()
+for i in range(num_return_sequences): # num_return_sequences = 5
+    tokens = x[i, :max_length].tolist() # max_length - 30
     decoded = enc.decode(tokens)
     print(">", decoded)
 #-------------------------------------------------------------------------
