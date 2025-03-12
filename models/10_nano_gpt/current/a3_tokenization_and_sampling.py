@@ -206,16 +206,22 @@ class GPT(nn.Module):
         # forward the token and posisition embeddings
         #  create a 1-dim tensor 
         pos = torch.arange(start = 0, end = T, dtype=torch.long, device=idx.device) # shape (T)
+
         pos_emb = self.transformer.wpe(pos) # position embeddings of shape (T, n_embd)
         tok_emb = self.transformer.wte(idx) # token embeddings of shape (B, T, n_embd)
+        
         x = tok_emb + pos_emb # residual connection / skip connection
         
-        # forward the blocks of the transformer
+        # forward the blocks of the transformer hidden layers
         for block in self.transformer.h:
             x = block(x)
+
         # forward the final layernorm and the classifier
         x = self.transformer.ln_f(x)
+
+        # linear layer
         logits = self.lm_head(x) # (B, T, vocab_size)
+
         return logits
     #-------------------------------------------------------------------------    
     #-------------------------------------------------------------------------
