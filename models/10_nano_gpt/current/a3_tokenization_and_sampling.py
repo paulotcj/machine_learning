@@ -200,12 +200,15 @@ class GPT(nn.Module):
     def forward(self, idx):
         # idx is of shape (B, T)
         B, T = idx.size()
+        
         assert T <= self.config.block_size, f"Cannot forward sequence of length {T}, block size is only {self.config.block_size}"
+        
         # forward the token and posisition embeddings
         pos = torch.arange(0, T, dtype=torch.long, device=idx.device) # shape (T)
         pos_emb = self.transformer.wpe(pos) # position embeddings of shape (T, n_embd)
         tok_emb = self.transformer.wte(idx) # token embeddings of shape (B, T, n_embd)
         x = tok_emb + pos_emb
+        
         # forward the blocks of the transformer
         for block in self.transformer.h:
             x = block(x)
@@ -271,31 +274,11 @@ class GPT(nn.Module):
         #-------------------
         # create our own model and its state dictionary
         model = GPT(gpt_config)
+
+        # we are going to set the values to state_dict, but since this is a reference and any updates here will
+        #   reflect at model
         state_dict = model.state_dict() # from nn.Module        
         state_dict_keys = state_dict.keys()
-
-
-        #----------------------------------------
-        # create a deep dict copy to be checked later
-        import copy
-        dict_copy = copy.deepcopy(model.state_dict())
-
-        # this shallow copy should be the same
-        same = True
-        for key in state_dict.keys():
-            if not torch.equal(state_dict[key], model.state_dict()[key]):
-                same = False
-                break
-        print(f'state_dict == model.state_dict(): {same}')
-
-        # this is a deep copy, and at this stage should be the same
-        same = True
-        for key in dict_copy.keys():
-            if not torch.equal(dict_copy[key], model.state_dict()[key]):
-                same = False
-                break
-        print(f'dict_copy == model.state_dict(): {same}')             
-        #----------------------------------------
 
      
 
@@ -386,25 +369,7 @@ class GPT(nn.Module):
         #-------------------
 
 
-        #----------------------------------------
-        # check if the copies differ. At this stage they should
 
-        # shallow copy, this should be the same
-        same = True
-        for key in state_dict.keys():
-            if not torch.equal(state_dict[key], model.state_dict()[key]):
-                same = False
-                break
-        print(f'state_dict == model.state_dict(): {same}')
-
-        # deep copy, this should be different since the target dict was updated
-        same = True
-        for key in dict_copy.keys():
-            if not torch.equal(dict_copy[key], model.state_dict()[key]):
-                same = False
-                break
-        print(f'dict_copy == model.state_dict(): {same}')        
-        #----------------------------------------
 
 
 
