@@ -17,9 +17,13 @@ class CausalSelfAttention(nn.Module): # multi head attention
     def __init__(self, config):
         super().__init__()
         assert config.n_embd % config.n_head == 0
+
         # key, query, value projections for all heads, but in a batch
+        #  concatenated attention
         self.c_attn = nn.Linear(config.n_embd, 3 * config.n_embd)
+
         # output projection
+        #  concatenated projection
         self.c_proj = nn.Linear(config.n_embd, config.n_embd)
         # regularization
         self.n_head = config.n_head
