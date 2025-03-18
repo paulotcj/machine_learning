@@ -19,18 +19,20 @@ class CausalSelfAttention(nn.Module): # multi head attention
         assert config.n_embd % config.n_head == 0
 
         # key, query, value projections for all heads, but in a batch
-        #  concatenated attention
+        #  concatenated attention - https://arxiv.org/pdf/1706.03762 - page 4 - Multi-Head Attention - right image
         self.c_attn = nn.Linear(config.n_embd, 3 * config.n_embd)
 
         # output projection
-        #  concatenated projection
+        #  concatenated projection - https://arxiv.org/pdf/1706.03762 - page 4 - Multi-Head Attention - right image
         self.c_proj = nn.Linear(config.n_embd, config.n_embd)
         # regularization
         self.n_head = config.n_head
         self.n_embd = config.n_embd
+
+        mask = torch.tril(torch.ones(config.block_size, config.block_size)).view(1, 1, config.block_size, config.block_size)
+
         # not really a 'bias', more of a mask, but following the OpenAI/HF naming though
-        self.register_buffer("bias", torch.tril(torch.ones(config.block_size, config.block_size))
-                                     .view(1, 1, config.block_size, config.block_size))
+        self.register_buffer("bias", mask)
     #-------------------------------------------------------------------------
     #-------------------------------------------------------------------------
     def forward(self, x):
