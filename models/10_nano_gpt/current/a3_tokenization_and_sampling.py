@@ -18,9 +18,10 @@ class CausalSelfAttention(nn.Module): # multi head attention
         super().__init__()
         assert config.n_embd % config.n_head == 0
 
-        # key, query, value projections for all heads, but in a batch
+        # key, query, value projections for all heads, but in a batch, instead of 3 linear layers for q,v,k we have
+        #   just 1 with enough bandwith for the 3 of them
         #  concatenated attention - https://arxiv.org/pdf/1706.03762 - page 4 - Multi-Head Attention - right image
-        self.c_attn = nn.Linear(config.n_embd, 3 * config.n_embd)
+        self.c_attn = nn.Linear(config.n_embd, 3 * config.n_embd) # (768, 768 * 3) -> (768, 2304)
 
         # output projection
         #  concatenated projection - https://arxiv.org/pdf/1706.03762 - page 4 - Multi-Head Attention - right image
@@ -29,30 +30,56 @@ class CausalSelfAttention(nn.Module): # multi head attention
         self.n_head = config.n_head
         self.n_embd = config.n_embd
 
-        mask = torch.tril(torch.ones(config.block_size, config.block_size)).view(1, 1, config.block_size, config.block_size)
+        mask = torch.tril( #triangular matrix
+            torch.ones(config.block_size, config.block_size) # ones matrix of size (block_size, block_size) -> (1024, 1024)
+        ).view(1, 1, config.block_size, config.block_size) # creates a view with dim (1,1,1024,1024) basically adds 2 more dummy dims
 
         # not really a 'bias', more of a mask, but following the OpenAI/HF naming though
         self.register_buffer("bias", mask)
     #-------------------------------------------------------------------------
     #-------------------------------------------------------------------------
     def forward(self, x):
-        B, T, C = x.size() # batch size, sequence length, embedding dimensionality (n_embd)
+        B, T, C = x.size() # batch size, sequence length, embedding dimensionality (n_embd) B = 5, T = 8, C = 768
+
         # calculate query, key, values for all heads in batch and move head forward to be the batch dim
         # nh is "number of heads", hs is "head size", and C (number of channels) = nh * hs
         # e.g. in GPT-2 (124M), n_head=12, hs=64, so nh*hs=C=768 channels in the Transformer
-        qkv = self.c_attn(x)
-        q, k, v = qkv.split(self.n_embd, dim=2)
-        k = k.view(B, T, self.n_head, C // self.n_head).transpose(1, 2) # (B, nh, T, hs)
-        q = q.view(B, T, self.n_head, C // self.n_head).transpose(1, 2) # (B, nh, T, hs)
-        v = v.view(B, T, self.n_head, C // self.n_head).transpose(1, 2) # (B, nh, T, hs)
+        qkv = self.c_attn(input = x) # [5, 8, 2304]
+
+        # all [5, 8, 768]
+        q, k, v = qkv.split(split_size = self.n_embd, dim=2) # split_size = 768, but the output is 2304, so 3 splits
+
+        # the view splits the last dimension (768) and doesn't alter the first one, as their
+        #   numbers were unchanged. But in general this is a simple reorganization as the number
+        #   of elements didn't change.
+        #   [5, 8, 12, 64] -> from [5, 8, 768]         | [5, 12, 8, 64]
+        k = k.view(B, T, self.n_head, C // self.n_head).transpose(1, 2) # (B, nh, T, hs) 
+        q = q.view(B, T, self.n_head, C // self.n_head).transpose(1, 2) # (B, nh, T, hs) 
+        v = v.view(B, T, self.n_head, C // self.n_head).transpose(1, 2) # (B, nh, T, hs) 
+
+        # multiply Q (query) by K (key), and traspose the second matrix K, then apply the scaling factor
         # attention (materializes the large (T,T) matrix for all the queries and keys)
-        att = (q @ k.transpose(-2, -1)) * (1.0 / math.sqrt(k.size(-1)))
+        # att [5, 12, 8, 8] <- q [5, 12, 8, 64] ,  k.trans [5, 12, 64, 8]
+        att = (q @ k.transpose(-2, -1)) * ( 1.0 / math.sqrt(k.size(-1)) )
+
+        # apply mask - don't let it peek into the future tokens
         att = att.masked_fill(self.bias[:,:,:T,:T] == 0, float('-inf'))
+
         att = F.softmax(att, dim=-1)
+
+        # y [5, 12, 8, 64] , att [5, 12, 8, 8]  , v [5, 12, 8, 64]
         y = att @ v # (B, nh, T, T) x (B, nh, T, hs) -> (B, nh, T, hs)
-        y = y.transpose(1, 2).contiguous().view(B, T, C) # re-assemble all head outputs side by side
-        # output projection
+
+
+        # .contiguous(): This ensures that the tensor's memory layout is contiguous.
+        # y = y.transpose(1, 2).contiguous().view(B, T, C) # re-assemble all head outputs side by side
+
+        # y [5, 8, 768]   |   y.trans.cont [5, 8, 12, 64] -> y.view [5, 8, 768] | B = 5, T = 8, C = 768
+        y = y.transpose(1,2).contiguous().view(B, T, C)
+
+        # output projection  - [5, 8, 768]
         y = self.c_proj(y)
+
         return y
     #-------------------------------------------------------------------------
 #-------------------------------------------------------------------------
