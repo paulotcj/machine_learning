@@ -52,10 +52,11 @@ class CausalSelfAttention(nn.Module): # multi head attention
         # the view splits the last dimension (768) and doesn't alter the first one, as their
         #   numbers were unchanged. But in general this is a simple reorganization as the number
         #   of elements didn't change.
-        #   [5, 8, 12, 64] -> from [5, 8, 768]         | [5, 12, 8, 64]
+        #   [5, 8, 12, 64] |||  from [5, 8, 768] -> view [5, 8, 12, 64] -> [5, 12, 8, 64]
         k = k.view(B, T, self.n_head, C // self.n_head).transpose(1, 2) # (B, nh, T, hs) 
         q = q.view(B, T, self.n_head, C // self.n_head).transpose(1, 2) # (B, nh, T, hs) 
         v = v.view(B, T, self.n_head, C // self.n_head).transpose(1, 2) # (B, nh, T, hs) 
+
 
         # multiply Q (query) by K (key), and traspose the second matrix K, then apply the scaling factor
         # attention (materializes the large (T,T) matrix for all the queries and keys)
@@ -72,11 +73,10 @@ class CausalSelfAttention(nn.Module): # multi head attention
 
 
         # .contiguous(): This ensures that the tensor's memory layout is contiguous.
-        # y = y.transpose(1, 2).contiguous().view(B, T, C) # re-assemble all head outputs side by side
-
         # y [5, 8, 768]   |   y.trans.cont [5, 8, 12, 64] -> y.view [5, 8, 768] | B = 5, T = 8, C = 768
-        y = y.transpose(1,2).contiguous().view(B, T, C)
+        y = y.transpose(1, 2).contiguous().view(B, T, C) # re-assemble all head outputs side by side
 
+        
         # output projection  - [5, 8, 768]
         y = self.c_proj(y)
 
