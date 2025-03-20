@@ -228,9 +228,19 @@ class GPT(nn.Module):
         #define lm_head
         self.lm_head = nn.Linear(gpt_config.n_embd, gpt_config.vocab_size, bias=False)
         #--------
+
+        '''
+        An explanation is necessary for the weight sharing below: transformer.wte (token embedding)
+        is used to convert input token IDs into dense vectors. lm_head is used to convert the final 
+        hidden states back into token probabilities for the output. By sharing weights, the model 
+        ensures that the same vector space is used for both input and output tokens. This symmetry 
+        can help the model learn more effectively, as the same representation is used consistently 
+        throughout the network. Plus, research and empirical results have shown that weight sharing 
+        can lead to better performance in language models
+        '''
 	
         # weight sharing scheme - transformer token embeddings take the weights of the language model head weights
-        self.transformer.wte.weight = self.lm_head.weight	
+        self.transformer.wte.weight = self.lm_head.weight
     #-------------------------------------------------------------------------
     #-------------------------------------------------------------------------
     def forward(self, idx, targets=None):
