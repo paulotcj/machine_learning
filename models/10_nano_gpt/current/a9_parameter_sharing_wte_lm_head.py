@@ -229,7 +229,7 @@ class GPT(nn.Module):
         self.lm_head = nn.Linear(gpt_config.n_embd, gpt_config.vocab_size, bias=False)
         #--------
 	
-        # weight sharing scheme
+        # weight sharing scheme - transformer token embeddings take the weights of the language model head weights
         self.transformer.wte.weight = self.lm_head.weight	
     #-------------------------------------------------------------------------
     #-------------------------------------------------------------------------
