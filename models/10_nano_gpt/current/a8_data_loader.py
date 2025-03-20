@@ -254,9 +254,20 @@ class GPT(nn.Module):
 
         # linear layer
         logits = self.lm_head(x) # (B, T, vocab_size)
+
+
         loss = None
         if targets is not None:
-            loss = F.cross_entropy(logits.view(-1, logits.size(-1)), targets.view(-1))
+
+            # for logits.view(-1, logits.size(-1)):
+            #    -1 means guess the size, while we define the size of the last dim as being 5027
+            #    since in one example logits is [4, 32, 50257], that means [ 4 * 32 , 5027 ] -> [ 128, 5027 ]
+            # for targets.view(-1)
+            #     we are amalgamating targets into a single dim, therefore [128], targets shape is [4, 32]
+
+            loss = F.cross_entropy(input = logits.view(-1, logits.size(-1)) , target = targets.view(-1))
+
+
         return logits, loss
     #-------------------------------------------------------------------------
     #-------------------------------------------------------------------------
@@ -442,15 +453,20 @@ import tiktoken
 class DataLoaderLite:
     #-------------------------------------------------------------------------
     def __init__(self, B, T):
+        # B - batch size, T - sequence length
         self.B = B
         self.T = T
 
         # at init load tokens from disk and store them in memory
-        with open('input.txt', 'r') as f:
+        # **** DELETE THIS CHANGE ***
+        file_path = './models/10_nano_gpt/current/'
+        with open(f'{file_path}input.txt', 'r') as f:
             text = f.read()
+
         enc = tiktoken.get_encoding('gpt2')
         tokens = enc.encode(text)
         self.tokens = torch.tensor(tokens)
+
         print(f"loaded {len(self.tokens)} tokens")
         print(f"1 epoch = {len(self.tokens) // (B * T)} batches")
 
@@ -460,14 +476,24 @@ class DataLoaderLite:
     #-------------------------------------------------------------------------
     def next_batch(self):
         B, T = self.B, self.T
+        '''
+        We are going to read and use sequentially everything in the file. we will use the curr pos
+        to keep track where we left. In the line below we are reading from tokens, starting from where
+        we left off last, and then adding the range of B(batch size) + T(sequence len) + 1 as it's non-inclusive
+        '''
         buf = self.tokens[self.current_position : self.current_position+B*T+1]
-        x = (buf[:-1]).view(B, T) # inputs
-        y = (buf[1:]).view(B, T) # targets
+
+        # 1 token offset. Then reshape it to [B, T] as 'buf' is a 1 dim tensor
+        x = (buf[:-1]).view(B, T) # inputs - from idx 0 to the end minus the last token
+        y = (buf[1:]).view(B, T) # targets - from the idx 1 to the last token
+
         # advance the position in the tensor
         self.current_position += B * T
+
         # if loading the next batch would be out of bounds, reset
         if self.current_position + (B * T + 1) > len(self.tokens):
             self.current_position = 0
+
         return x, y
     #-------------------------------------------------------------------------
 #-------------------------------------------------------------------------
@@ -481,13 +507,19 @@ model.to(device)
 #-------------------------------------------------------------------------
 # optimize!
 optimizer = torch.optim.AdamW(model.parameters(), lr=3e-4)
+
 for i in range(50):
     x, y = train_loader.next_batch()
     x, y = x.to(device), y.to(device)
+
     optimizer.zero_grad()
+
+    # forward
     logits, loss = model(x, y)
+
     loss.backward()
     optimizer.step()
+
     print(f"step {i}, loss: {loss.item()}")
 #-------------------------------------------------------------------------
 
