@@ -27,7 +27,7 @@ class CausalSelfAttention(nn.Module): # multi head attention
         #  concatenated projection - https://arxiv.org/pdf/1706.03762 - page 4 - Multi-Head Attention - right image
         self.c_proj = nn.Linear(config.n_embd, config.n_embd)
 	
-	self.c_proj.NANOGPT_SCALE_INIT = 1
+        self.c_proj.NANOGPT_SCALE_INIT = 1
 	
         # regularization
         self.n_head = config.n_head
@@ -94,7 +94,7 @@ class MLP(nn.Module):
         self.c_fc    = nn.Linear(config.n_embd, 4 * config.n_embd) # context fully connected
         self.gelu    = nn.GELU(approximate='tanh') # GELU activation will use the tanh approximation for its computation, which can be faster than the exact computation.
         self.c_proj  = nn.Linear(4 * config.n_embd, config.n_embd) # context projection
-	self.c_proj.NANOGPT_SCALE_INIT = 1
+        self.c_proj.NANOGPT_SCALE_INIT = 1
     #-------------------------------------------------------------------------
     #-------------------------------------------------------------------------
     def forward(self, x):
