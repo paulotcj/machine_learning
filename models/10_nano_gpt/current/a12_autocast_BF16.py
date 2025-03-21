@@ -590,9 +590,6 @@ torch.set_float32_matmul_precision('high')
 model = GPT(GPTConfig())
 model.to(device)
 
-# compile - this greatly increase the performance
-model = torch.compile(model)
-
 import time
 #-------------------------------------------------------------------------
 # optimize!
