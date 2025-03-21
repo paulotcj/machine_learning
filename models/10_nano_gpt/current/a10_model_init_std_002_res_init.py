@@ -254,9 +254,14 @@ class GPT(nn.Module):
     def _init_weights(self, module):
         # just trying to make sure things are initialized correctly. 
         #   Linear layers should be std = 0.02 and a mean of 0, except if they have a flag NANOGPT_SCALE_INIT
-        #       in this case they should be 0.02 * 1 / sqrt(2 * self.config.n_layer) ->
-        #       0.02 * (2 * self.config.n_layer) ** -0.5
-        #
+        #     this flag is reserved for accumulation residual layers in this case they should be 
+        #     0.02 * 1 / sqrt(2 * self.config.n_layer) -> 0.02 * (2 * self.config.n_layer) ** -0.5
+        #     this helps to control the growth of activations in the forward pass (for res nets)
+        #     This will typically affect the C_PROJ (linear) of MLP and CausalSelfAttention. You can
+        #     confirm these are the 2 last res nets of these components.
+        # Note that the values around 0.02 are a mere simplification of the Xavier initialization.
+        #   for many parameters as in d_model = 768, we would have 1/sqrt(768) = 0.03608439182
+        #   or if we were using d_model as 1600, we would have 1/sqrt(1600) = 0.025
 
         if isinstance(module, nn.Linear):
             std = 0.02
