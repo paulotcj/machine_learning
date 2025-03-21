@@ -569,8 +569,21 @@ torch.manual_seed(1337)
 if torch.cuda.is_available():
     torch.cuda.manual_seed(1337)
 
-train_loader = DataLoaderLite(B=16, T=1024)
+# train_loader = DataLoaderLite(B=16, T=1024)
+train_loader = DataLoaderLite(B=4, T=32)
 
+'''
+The 'high' precision setting allows float32 matrix multiplications to use TensorFloat32, which 
+has 10 mantissa bits explicitly stored, or to treat each float32 number as the sum of two 
+bfloat16 numbers, which provides approximately 16 mantissa bits with 14 bits explicitly stored. 
+If the appropriate fast algorithms are not available, the computations fall back to using the 
+'highest' precision setting, which employs the full float32 datatype with 24 mantissa bits.
+
+This configuration is particularly beneficial for CUDA devices, where TensorFloat32 operations 
+can be significantly faster than traditional float32 operations. The 'high' precision setting 
+leverages these faster operations to improve performance without a substantial loss in precision, 
+making it a useful option for many machine learning and scientific computing applications.
+'''
 torch.set_float32_matmul_precision('high')
 
 # get logits
@@ -582,8 +595,10 @@ import time
 # optimize!
 optimizer = torch.optim.AdamW(model.parameters(), lr=3e-4)
 
+print(f'train_loader.B * train_loader.T: {train_loader.B * train_loader.T}')
 for i in range(50):
     t0 = time.time()
+
     x, y = train_loader.next_batch()
     x, y = x.to(device), y.to(device)
 
@@ -594,12 +609,21 @@ for i in range(50):
 
     loss.backward()
     optimizer.step()
+
     if torch.cuda.is_available():
         torch.cuda.synchronize() # wait for the GPU to finish work
+
     t1 = time.time()
-    dt = (t1 - t0)*1000 # time difference in miliseconds
-    tokens_per_sec = (train_loader.B * train_loader.T) / (t1 - t0)
-    print(f"step {i}, loss: {loss.item()}, dt: {dt:.2f}ms, tok/sec: {tokens_per_sec:.2f}")
+
+    t1_min_t0 = t1 - t0
+    dt = t1_min_t0*1000 # time difference in miliseconds
+
+    # here's an example: B = 4, T = 32 -> 4 * 32 = 128
+    # and let's say dt = 0.09306
+    # then 128 / 0.09306 = 1,375.45 tokens/s
+    tokens_per_sec = (train_loader.B * train_loader.T) / (t1_min_t0)
+
+    print(f"step {i}, \tloss: {loss.item():.16f}, dt: {dt:.2f}ms, tok/sec: {tokens_per_sec:.2f}\tt1 - t0: {t1_min_t0:.5f}")
 #-------------------------------------------------------------------------
 
 import sys; sys.exit(0)
