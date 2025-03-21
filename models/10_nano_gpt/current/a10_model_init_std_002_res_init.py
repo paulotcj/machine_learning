@@ -252,13 +252,23 @@ class GPT(nn.Module):
     #-------------------------------------------------------------------------
     #-------------------------------------------------------------------------
     def _init_weights(self, module):
+        # just trying to make sure things are initialized correctly. 
+        #   Linear layers should be std = 0.02 and a mean of 0, except if they have a flag NANOGPT_SCALE_INIT
+        #       in this case they should be 0.02 * 1 / sqrt(2 * self.config.n_layer) ->
+        #       0.02 * (2 * self.config.n_layer) ** -0.5
+        #
+
         if isinstance(module, nn.Linear):
             std = 0.02
+
             if hasattr(module, 'NANOGPT_SCALE_INIT'):
                 std *= (2 * self.config.n_layer) ** -0.5
+
             torch.nn.init.normal_(module.weight, mean=0.0, std=std)
+
             if module.bias is not None:
                 torch.nn.init.zeros_(module.bias)
+
         elif isinstance(module, nn.Embedding):
             torch.nn.init.normal_(module.weight, mean=0.0, std=0.02)
     #-------------------------------------------------------------------------
