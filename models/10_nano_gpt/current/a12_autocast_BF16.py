@@ -2,19 +2,18 @@
 using device: cuda
 loaded 338025 tokens
 1 epoch = 20 batches
-step 0, loss: 10.936077117919922, dt: 5796.88ms, tok/sec: 2826.35
-step 1, loss: 9.398362159729004, dt: 4891.01ms, tok/sec: 3349.82
-step 2, loss: 8.943073272705078, dt: 7109.38ms, tok/sec: 2304.56
-step 3, loss: 8.82275104522705, dt: 4828.12ms, tok/sec: 3393.45
-step 4, loss: 8.487845420837402, dt: 6968.99ms, tok/sec: 2350.99
-step 5, loss: 8.468871116638184, dt: 5203.67ms, tok/sec: 3148.55
-step 6, loss: 8.294546127319336, dt: 8018.47ms, tok/sec: 2043.28
+step 0, loss: 10.93589973449707, dt: 16793.11ms, tok/sec: 975.64
+step 1, loss: 9.398466110229492, dt: 195.78ms, tok/sec: 83686.47
+step 2, loss: 8.942922592163086, dt: 193.47ms, tok/sec: 84683.61
+step 3, loss: 8.823429107666016, dt: 193.58ms, tok/sec: 84636.36
+step 4, loss: 8.487922668457031, dt: 194.15ms, tok/sec: 84390.24
+step 5, loss: 8.468751907348633, dt: 193.72ms, tok/sec: 84576.67
+step 6, loss: 8.294594764709473, dt: 194.74ms, tok/sec: 84133.70
+step 7, loss: 8.08134937286377, dt: 193.57ms, tok/sec: 84639.38
+step 8, loss: 7.806794166564941, dt: 193.47ms, tok/sec: 84686.42
+step 9, loss: 7.56414270401001, dt: 194.17ms, tok/sec: 84378.74
+step 10, loss: 7.396631240844727, dt: 193.32ms, tok/sec: 84752.64
 '''
-
-
-
-
-
 import math
 from dataclasses import dataclass
 import torch
@@ -590,6 +589,7 @@ torch.set_float32_matmul_precision('high')
 # get logits
 model = GPT(GPTConfig())
 model.to(device)
+model = torch.compile(model)
 
 import time
 #-------------------------------------------------------------------------
