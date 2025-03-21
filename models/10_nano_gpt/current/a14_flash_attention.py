@@ -81,11 +81,11 @@ class CausalSelfAttention(nn.Module): # multi head attention
         k = k.view(B, T, self.n_head, C // self.n_head).transpose(1, 2) # (B, nh, T, hs) 
         q = q.view(B, T, self.n_head, C // self.n_head).transpose(1, 2) # (B, nh, T, hs) 
         v = v.view(B, T, self.n_head, C // self.n_head).transpose(1, 2) # (B, nh, T, hs) 
+
+        
         y = F.scaled_dot_product_attention(q, k, v, is_causal=True) # flash attention
 	
-    
         y = y.transpose(1, 2).contiguous().view(B, T, C) # re-assemble all head outputs side by side
-
         
         # output projection  - [5, 8, 768]
         y = self.c_proj(y)
