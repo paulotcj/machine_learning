@@ -603,6 +603,14 @@ for i in range(50):
     x, y = train_loader.next_batch()
     x, y = x.to(device), y.to(device)
     optimizer.zero_grad()
+
+    '''
+    Cast all operatoins within this block (and device, typically a CUDA enabled device) to bfloat16.
+    bfloat16 is particularly desiable because it offers a good balance between precision and large
+    improvements in performance (for CUDA devices).
+    Note: For your specific CUDA card, check the estimated bfloat16 operations and possible other floating
+    points types, as NVIDIA often updates their types and performance estimates.
+    '''
     with torch.autocast(device_type=device, dtype=torch.bfloat16):
         # forward
         logits, loss = model(x, y)
