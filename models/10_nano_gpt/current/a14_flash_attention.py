@@ -82,7 +82,35 @@ class CausalSelfAttention(nn.Module): # multi head attention
         q = q.view(B, T, self.n_head, C // self.n_head).transpose(1, 2) # (B, nh, T, hs) 
         v = v.view(B, T, self.n_head, C // self.n_head).transpose(1, 2) # (B, nh, T, hs) 
 
-        
+
+        #--------------------------------------------------
+        # Replace this by flash attention - start
+
+        # # multiply Q (query) by K (key), and traspose the second matrix K, then apply the scaling factor
+        # # attention (materializes the large (T,T) matrix for all the queries and keys)
+        # # att [5, 12, 8, 8] <- q [5, 12, 8, 64] ,  k.trans [5, 12, 64, 8]
+        # att = (q @ k.transpose(-2, -1)) * ( 1.0 / math.sqrt(k.size(-1)) )
+
+        # # apply mask - don't let it peek into the future tokens
+        # att = att.masked_fill(self.bias[:,:,:T,:T] == 0, float('-inf'))
+
+        # att = F.softmax(att, dim=-1)
+
+        # # y [5, 12, 8, 64] , att [5, 12, 8, 8]  , v [5, 12, 8, 64]
+        # y = att @ v # (B, nh, T, T) x (B, nh, T, hs) -> (B, nh, T, hs)
+
+
+        # # .contiguous(): This ensures that the tensor's memory layout is contiguous.
+        # # y [5, 8, 768]   |   y.trans.cont [5, 8, 12, 64] -> y.view [5, 8, 768] | B = 5, T = 8, C = 768
+                
+
+        # Replace this by flash attention - end
+        #--------------------------------------------------
+        '''
+        The old code above was challenging for torch.compile to optimize. Flash attention is a 'kernel
+        fusion' operation. Flash attention can be up to 7.6X faster than the old implementation
+        '''
+
         y = F.scaled_dot_product_attention(q, k, v, is_causal=True) # flash attention
 	
         y = y.transpose(1, 2).contiguous().view(B, T, C) # re-assemble all head outputs side by side

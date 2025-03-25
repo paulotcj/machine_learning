@@ -275,6 +275,8 @@ class GPT(nn.Module):
         #     this helps to control the growth of activations in the forward pass (for res nets)
         #     This will typically affect the C_PROJ (linear) of MLP and CausalSelfAttention. You can
         #     confirm these are the 2 last res nets of these components.
+        #   Also noteworth is the fact that we have 2 * self.config.n_layer, this is due that the Block
+        #     is where we have the res nets and they are for Attention and MLP
         # Note that the values around 0.02 are a mere simplification of the Xavier initialization.
         #   for many parameters as in d_model = 768, we would have 1/sqrt(768) = 0.03608439182
         #   or if we were using d_model as 1600, we would have 1/sqrt(1600) = 0.025
