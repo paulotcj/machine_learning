@@ -74,7 +74,7 @@ for row_k, row_v in enumerate(input_vec):
     #-----------------------------------
     for col_k, col_v in enumerate(row_v):
         print(f'    col {col_k} ---------')
-        # col_v = col_v
+
         old_row_max = row_max
         row_max = max(old_row_max, col_v)
 
@@ -94,7 +94,7 @@ for row_k, row_v in enumerate(input_vec):
 
     online_softmax[row_k] = temp
     #------
-    
+
 #-----------------------------------
 
 
