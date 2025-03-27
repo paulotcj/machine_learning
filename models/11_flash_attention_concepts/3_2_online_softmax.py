@@ -15,8 +15,8 @@ intput_vec = [
 input_vec = torch.tensor(intput_vec)
 
 
-print(f'long_input_vec shape: {input_vec.shape}')
-print(f'long_input_vec:\n{input_vec}')
+print(f'intput_vec shape: {input_vec.shape}')
+print(f'intput_vec:\n{input_vec}')
 
 
 
@@ -93,4 +93,39 @@ print('\n\n')
 #   by default, it uses a relative tolerance of 1e-5 and an absolute tolerance of 1e-8
 print(f'torch.allclose(naive_softmax, expected_softmax): {torch.allclose(naive_softmax, expected_softmax)}')
 
+
+print('----------------------------------------------')
+print('\n\n')
+
+
+
+
+online_softmax = torch.zeros_like(intput_vec)
+print(f'online_softmax zeros:\n{online_softmax}')
 exit()
+
+print('----------------------------------------------')
+print('\n\n')
+
+exit()
+
+for row in range(row_count):
+    row_max = 0.0
+    normalizer_term = 0.0
+    print("--- new row ---")
+    for col in range(col_count):  # scalar level iteration
+        val = intput_vec[row, col]
+        old_row_max = row_max
+        row_max = max(old_row_max, val)
+        # np.exp(old_max_row - max_row) is the adjustment factor of our precedent normalizer term,
+        # after this multiplication it's like we had always substracted row_max up to this point
+        # instead of old_row_max
+        normalizer_term = normalizer_term * torch.exp(old_row_max - row_max) + torch.exp(val - row_max)
+        if old_row_max != row_max:
+            print("new max discovered")
+        print(f"current row max: {row_max}, denominator: {normalizer_term}")
+
+    # leverage our 2 statistics
+    online_softmax[row, :] = torch.exp(intput_vec[row, :] - row_max) / normalizer_term
+
+assert torch.allclose(online_softmax, expected_softmax)
