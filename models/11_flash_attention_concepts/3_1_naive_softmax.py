@@ -6,13 +6,13 @@ import torch
 
 # input_vec : torch.Tensor = torch.rand((row_count, col_count))
 
-intput_vec = [
+input_vec = [
     [ 0.11  ,  0.22  , 0.33  , 0.44  ],
     [ 0.55  ,  0.77  , 0.22  , 0.11  ],
     [ 0.001 ,  0.002 , 0.999 , 0.003 ]
 ]
 
-input_vec = torch.tensor(intput_vec)
+input_vec = torch.tensor(input_vec)
 
 
 print(f'long_input_vec shape: {input_vec.shape}')
