@@ -87,7 +87,8 @@ for row_k, row_v in enumerate(input_vec):
         print(f'        current row max: {row_max:.4f}, denominator: {normalizer_term:.4f}')
     #-----------------------------------
 
-    temp = torch.exp( input_vec[row_k] - row_max ) / normalizer_term
+    input_safe = input_vec[row_k] - row_max
+    temp = torch.exp( input_safe ) / normalizer_term
 
     online_softmax[row_k] = temp
 #-----------------------------------
