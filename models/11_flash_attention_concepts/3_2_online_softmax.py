@@ -30,70 +30,6 @@ print('\n\n')
 print(f'expected_softmax:\n{expected_softmax}')
 
 
-
-print('----------------------------------------------')
-print('\n\n')
-
-
-# read, max output
-row_max = []
-
-# get the max tensor from each row
-for tensor in input_vec:
-    max_val = tensor[0]
-    for i in tensor:
-        max_val = max(max_val , i)
-    row_max.append(max_val)
-
-row_max = torch.tensor(row_max).unsqueeze(1) # convert it to tensor and then add 1 dim, from shape (4,) to (4, 1)
-print(f'input row max\n{row_max}')
-
-print('----------------------------------------------')
-print('\n\n')
-
-
-# make the iput safe (check safe softmax)
-input_safe = input_vec - row_max
-
-print(f'input_safe:\n{input_safe}')
-
-print('----------------------------------------------')
-print('\n\n')
-
-
-softmax_numerator = torch.exp(input_safe)
-print(f'softmax_numerator:\n{softmax_numerator}')
-
-print('----------------------------------------------')
-print('\n\n')
-
-
-normalizer_term = torch.sum(softmax_numerator, dim=1)
-print(f'normalizer_tem:\n{normalizer_term}')
-print('----')
-normalizer_term = normalizer_term.unsqueeze(1)
-print(f'normalizer_tem:\n{normalizer_term}')
-
-
-
-print('----------------------------------------------')
-print('\n\n')
-
-
-naive_softmax = softmax_numerator / normalizer_term
-
-print(f'naive_softmax:\n{naive_softmax}')
-
-
-print('----------------------------------------------')
-print('\n\n')
-
-
-# checks if all elements of tensors a and b are close to each other within a certain tolerance 
-#   by default, it uses a relative tolerance of 1e-5 and an absolute tolerance of 1e-8
-print(f'torch.allclose(naive_softmax, expected_softmax): {torch.allclose(naive_softmax, expected_softmax)}')
-
-
 print('----------------------------------------------')
 print('\n\n')
 
@@ -116,8 +52,20 @@ print('----------------------------------------------')
 print('\n\n')
 
 
-#-----------------------------------
+# we load the input vector in small blocks (adapted to the size of the `SRAM`) and compute 
+# 2 statistics in a single pass:
+# - the maximum value
+# - the denominator
 
+# The achievement lies in the fact that you are supposed to know the maximum value of the vector 
+#   to compute the denominator.
+# At each step, our knowledge of the maximum value may evolve (we may meet a value bigger than 
+#   our precedent maximum).
+# When it happens, we just adjust the result of our computation of the precedent step.
+
+# The adjustment procedure is based on rules of exponentiation: when multiplying a base raised 
+#   to one exponent by the same base raised to another exponent, the exponents add.
+#-----------------------------------
 for row_k, row_v in enumerate(input_vec):
     row_max = 0.0
     normalizer_term = 0.0
@@ -127,11 +75,11 @@ for row_k, row_v in enumerate(input_vec):
     #-----------------------------------
     for col_k, col_v in enumerate(row_v):
         print(f'    col {col_k} ---------')
-        val = col_v
+        # col_v = col_v
         old_row_max = row_max
-        row_max = max(old_row_max, val)
+        row_max = max(old_row_max, col_v)
 
-        normalizer_term = normalizer_term * torch.exp(old_row_max - row_max) + torch.exp(val - row_max)
+        normalizer_term = normalizer_term * torch.exp(old_row_max - row_max) + torch.exp(col_v - row_max)
 
         if old_row_max != row_max:
             print(f'        new max discovered: {row_max:.4f}')
@@ -139,11 +87,12 @@ for row_k, row_v in enumerate(input_vec):
         print(f'        current row max: {row_max:.4f}, denominator: {normalizer_term:.4f}')
     #-----------------------------------
 
-    # leverage our 2 statistics
-    online_softmax[row_k, :] = torch.exp(input_vec[row_k, :] - row_max) / normalizer_term
+    temp = torch.exp( input_vec[row_k] - row_max ) / normalizer_term
+
+    online_softmax[row_k] = temp
 #-----------------------------------
 
-exit()
+
 print('----------------------------------------------')
 print('\n\n')
 
