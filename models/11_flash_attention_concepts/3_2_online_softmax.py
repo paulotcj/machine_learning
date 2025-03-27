@@ -63,8 +63,7 @@ print('\n\n')
 #   our precedent maximum).
 # When it happens, we just adjust the result of our computation of the precedent step.
 
-# The adjustment procedure is based on rules of exponentiation: when multiplying a base raised 
-#   to one exponent by the same base raised to another exponent, the exponents add.
+
 #-----------------------------------
 for row_k, row_v in enumerate(input_vec):
     row_max = 0.0
@@ -75,13 +74,16 @@ for row_k, row_v in enumerate(input_vec):
     for col_k, col_v in enumerate(row_v):
         print(f'    col {col_k} ---------')
 
+        #---- 
         old_row_max = row_max
         row_max = max(old_row_max, col_v)
-
-        normalizer_term = normalizer_term * torch.exp(old_row_max - row_max) + torch.exp(col_v - row_max)
-
         if old_row_max != row_max:
-            print(f'        new max discovered: {row_max:.4f}')
+            print(f'        new max discovered: {row_max:.4f}')        
+        #----
+
+        # The adjustment procedure is based on rules of exponentiation: when multiplying a base raised 
+        #   to one exponent by the same base raised to another exponent, the exponents add.
+        normalizer_term = normalizer_term * torch.exp(old_row_max - row_max) + torch.exp(col_v - row_max)
 
         print(f'        current row max: {row_max:.4f}, denominator: {normalizer_term:.4f}')
     #-----------------------------------
