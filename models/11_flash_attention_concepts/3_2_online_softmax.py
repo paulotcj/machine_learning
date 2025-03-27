@@ -71,7 +71,6 @@ for row_k, row_v in enumerate(input_vec):
     normalizer_term = 0.0
     print(f'row {row_k} -----------------------------------------------------')
 
-
     #-----------------------------------
     for col_k, col_v in enumerate(row_v):
         print(f'    col {col_k} ---------')
@@ -87,10 +86,15 @@ for row_k, row_v in enumerate(input_vec):
         print(f'        current row max: {row_max:.4f}, denominator: {normalizer_term:.4f}')
     #-----------------------------------
 
+    #------
+    # this section is pretty standard, you can compare with regular/safe softmax
+    #   the only different thing is how 'normalizer_term' was calculated
     input_safe = input_vec[row_k] - row_max
     temp = torch.exp( input_safe ) / normalizer_term
 
     online_softmax[row_k] = temp
+    #------
+    
 #-----------------------------------
 
 
