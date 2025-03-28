@@ -672,10 +672,12 @@ for step in range(max_steps):
     # determine and set the learning rate for this iteration
     lr = get_lr(step)
     for param_group in optimizer.param_groups:
+
         if 'lr' not in param_group:
-            print(f'*** NOTE - LR IS NOT PRESENT in param_group')
+            param_summary = f'*** NOTE - LR IS NOT PRESENT in param_group'
         else:
-            print(f"param_group['lr']: { param_group['lr'] } - new LR: {lr}")
+            param_summary = f"param_group['lr']: { param_group['lr'] } - new LR: {lr}"
+
         param_group['lr'] = lr
     
     optimizer.step()
@@ -687,7 +689,7 @@ for step in range(max_steps):
     dt = t1 - t0 # time difference in seconds
     tokens_processed = train_loader.B * train_loader.T
     tokens_per_sec = tokens_processed / dt
-    print(f"step {step:4d} | loss: {loss.item():.6f} | lr {lr:.4e} | norm: {norm:.4f} | dt: {dt*1000:.2f}ms | tok/sec: {tokens_per_sec:.2f}")
+    print(f"step {step:4d} | loss: {loss.item():.6f} | lr {lr:.4e} | norm: {norm:.4f} | dt: {dt*1000:.2f}ms | tok/sec: {tokens_per_sec:.2f} | {param_summary}")
 #-------------------------------------------------------------------------
 
 import sys; sys.exit(0)
