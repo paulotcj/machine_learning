@@ -676,7 +676,7 @@ for step in range(max_steps):
         if 'lr' not in param_group:
             param_summary = f'*** NOTE - LR IS NOT PRESENT in param_group'
         else:
-            param_summary = f"param_group['lr']: { param_group['lr']:.4f } - new LR: {lr:.4f}"
+            param_summary = f"param_group['lr']: {param_group['lr']:.4f} - new LR: {lr:.4f}"
 
         param_group['lr'] = lr
     
