@@ -613,6 +613,9 @@ model = torch.compile(model)
 import time
 #-------------------------------------------------------------------------
 # optimize!
+
+# using hyperparameters from GPT3 - literally following what they published in their paper.
+#  this routine uses similar values for the parameters, but not quite the same
 optimizer = torch.optim.AdamW(model.parameters(), lr=3e-4, betas=(0.9, 0.95), eps=1e-8)
 
 print(f'train_loader.B * train_loader.T: {train_loader.B * train_loader.T}')
@@ -634,6 +637,18 @@ for i in range(50):
         # forward
         logits, loss = model(x, y)
     loss.backward()
+
+    '''
+    using hyperparameters from GPT3 - literally following what they published in their paper.
+     this routine uses similar values for the parameters, but not quite the same    
+    Calculate the global norm of the parameters - every gradient from the parameters are squared,
+      sum all up, then take the square root 
+    In the example below we define that the max_norm is no bigger than 1.0
+    One of the reasons to use this, is in the case of bad data batches we would get a high loss, 
+      which leads to a high gradient. This is a case of 'model shock'.
+    Ideally we want the learning process to be more on the smooth side and not too peaky which can
+     lead to instabilities and low convergence
+    '''
     norm = torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
     optimizer.step()
 
