@@ -672,6 +672,10 @@ for step in range(max_steps):
     # determine and set the learning rate for this iteration
     lr = get_lr(step)
     for param_group in optimizer.param_groups:
+        if 'lr' not in param_group:
+            print(f'*** NOTE - LR IS NOT PRESENT in param_group')
+        else:
+            print(f"param_group['lr']: { param_group['lr'] } - new LR: {lr}")
         param_group['lr'] = lr
     
     optimizer.step()
