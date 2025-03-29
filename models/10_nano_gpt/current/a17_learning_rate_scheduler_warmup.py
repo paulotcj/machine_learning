@@ -616,6 +616,14 @@ max_lr = 6e-4
 min_lr = max_lr * 0.1 # 0.000059999999999999995
 warmup_steps = 10
 max_steps = 50    
+
+'''
+With a LR scheduler we acknowledge that are different stages during the training process. Initially
+  the model is in an almost useless state where it lears more about what tokens are not used. Then after
+  it warms up we can make faster (macro) corrections with a larger LR, but once it has achieved a 
+  certain level of stability we want to gradually fine tune its learning rate to something smaller
+  so corrections are smoother (micro)
+'''
 #-------------------------------------------------------------------------
 def get_lr(it:int): # it -> steps from the training process
 
