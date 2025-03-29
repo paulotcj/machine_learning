@@ -502,23 +502,43 @@ class GPT(nn.Module):
         #-------------------
 
 
-
-
-
-
-
         return model
     #-------------------------------------------------------------------------
     #-------------------------------------------------------------------------
     def configure_optimizers(self, weight_decay, learning_rate, device):
+
         # start with all of the candidate parameters (that require grad)
-        param_dict = {pn: p for pn, p in self.named_parameters()}
-        param_dict = {pn: p for pn, p in param_dict.items() if p.requires_grad}
+        '''
+        these are params like:
+            transformer.wte.weight torch.Size([50304, 768])
+            transformer.wpe.weight torch.Size([1024, 768])
+            transformer.h.0.ln_1.weight torch.Size([768])
+            transformer.h.0.ln_1.bias torch.Size([768])
+            transformer.h.0.attn.c_attn.weight torch.Size([2304, 768])
+        '''
+        param_dict = { param_name: param 
+                      for param_name, param in self.named_parameters()
+                      if param.requires_grad 
+        }
+        
+        # param_dict = {param_name: param 
+        #               for param_name, param in param_dict.items()
+        #               if param.requires_grad
+        # }
+
 
         # create optim groups. Any parameters that is 2D will be weight decayed, otherwise no.
         # i.e. all weight tensors in matmuls + embeddings decay, all biases and layernorms don't.
-        decay_params = [p for n, p in param_dict.items() if p.dim() >= 2]
-        nodecay_params = [p for n, p in param_dict.items() if p.dim() < 2]
+        decay_params = [ param 
+                        for param_name, param in param_dict.items() 
+                        if param.dim() >= 2
+        ]
+
+        nodecay_params = [param 
+                          for param_name, param in param_dict.items() 
+                          if param.dim() < 2
+        ]
+
         optim_groups = [
             {'params': decay_params, 'weight_decay': weight_decay},
             {'params': nodecay_params, 'weight_decay': 0.0}
@@ -539,6 +559,55 @@ class GPT(nn.Module):
     #-------------------------------------------------------------------------
 #-------------------------------------------------------------------------
 
+#-------------------------------------------------------------------------
+def compare_dictionaries(dict1, dict2):
+    """
+    Compares two dictionaries, handling PyTorch tensors.
+
+    Args:
+        dict1: The first dictionary.
+        dict2: The second dictionary.
+
+    Returns:
+        A dictionary containing differences.
+    """
+
+    differences = {
+        "different_values": {},
+        "missing_keys_in_dict1": [],
+        "missing_keys_in_dict2": [],
+        "extra_keys_in_dict1": [],
+        "extra_keys_in_dict2": [],
+    }
+
+    keys1 = set(dict1.keys())
+    keys2 = set(dict2.keys())
+
+    common_keys = keys1.intersection(keys2)
+
+    for key in common_keys:
+        val1 = dict1[key]
+        val2 = dict2[key]
+
+        if isinstance(val1, torch.Tensor) and isinstance(val2, torch.Tensor):
+            if not torch.equal(val1, val2):  # Use torch.equal for tensor comparison
+                differences["different_values"][key] = {
+                    "dict1": val1,
+                    "dict2": val2,
+                }
+        elif val1 != val2: # handles non tensor comparisons.
+            differences["different_values"][key] = {
+                "dict1": val1,
+                "dict2": val2,
+            }
+
+    differences["missing_keys_in_dict1"] = list(keys2 - keys1)
+    differences["missing_keys_in_dict2"] = list(keys1 - keys2)
+    differences["extra_keys_in_dict1"] = list(keys1 - keys2)
+    differences["extra_keys_in_dict2"] = list(keys2 - keys1)
+
+    return differences
+#-------------------------------------------------------------------------
 
 import tiktoken
 #-------------------------------------------------------------------------
@@ -644,6 +713,9 @@ min_lr = max_lr * 0.1 # 0.000059999999999999995
 warmup_steps = 10
 max_steps = 50   
 
+max_steps_minus_warmup_steps = max_steps - warmup_steps
+max_lr_minus_min_lr = max_lr - min_lr
+
 '''
 With a LR scheduler we acknowledge that are different stages during the training process. Initially
   the model is in an almost useless state where it lears more about what tokens are not used. Then after
@@ -671,7 +743,7 @@ def get_lr(it:int): # it -> steps from the training process
     #   (10 - 10) / (50 - 10) = 0 / 40 = 0 
     #   (11 - 10) / (50 - 10) = 1 / 40 = 0.025
     #   ...  -> 0.05 , 0.075 , 0.1, 0.125 , 0.15, ... 0.95 , 0.975
-    decay_ratio = (it - warmup_steps) / (max_steps - warmup_steps)
+    decay_ratio = (it - warmup_steps) / (max_steps_minus_warmup_steps)
 
     assert 0 <= decay_ratio <= 1
 
@@ -691,7 +763,7 @@ def get_lr(it:int): # it -> steps from the training process
     # from the start the values are:
     #   0.0005999999999999998 , 0.0005991676801079444 , 0.0005966758519606872 , 0.0005925398785073725 , 
     #   ... , 0.00006083231989205545
-    return min_lr + coeff * (max_lr - min_lr)
+    return min_lr + coeff * (max_lr_minus_min_lr)
 #-------------------------------------------------------------------------
 #-------------------------------------------------------------------------
 # optimize!
