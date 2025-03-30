@@ -700,8 +700,18 @@ assert total_batch_size % (B * T) == 0, "make sure total_batch_size is divisible
 
 
 grad_accum_steps = total_batch_size // (B * T)
+
+
+print('\n\n-------------------------')
+
+print(f'B: {B}\t T: {T}')
+print(f'total_batch_size: {total_batch_size}\t(B * T): {(B * T)}\ntotal_batch_size // (B * T): {grad_accum_steps}\n')
+
+
 print(f"total desired batch size: {total_batch_size}")
 print(f"=> calculated gradient accumulation steps: {grad_accum_steps}")
+print('-------------------------\n\n')
+
 
 train_loader = DataLoaderLite(B=B, T=T)
 #------------------------------
