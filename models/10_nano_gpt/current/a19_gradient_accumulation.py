@@ -689,19 +689,22 @@ torch.manual_seed(1337)
 if torch.cuda.is_available():
     torch.cuda.manual_seed(1337)
 
-
+#------------------------------
 total_batch_size = 524288 # 2**19, ~0.5M, in number of tokens
 B = 16 # micro batch size
 T = 1024 # sequence length
 # B = 4
 # T = 32 # sequence length
+
 assert total_batch_size % (B * T) == 0, "make sure total_batch_size is divisible by B * T"
+
+
 grad_accum_steps = total_batch_size // (B * T)
 print(f"total desired batch size: {total_batch_size}")
 print(f"=> calculated gradient accumulation steps: {grad_accum_steps}")
 
 train_loader = DataLoaderLite(B=B, T=T)
-
+#------------------------------
 
 
 
@@ -793,14 +796,20 @@ def get_lr(it:int): # it -> steps from the training process
 optimizer = model.configure_optimizers(weight_decay=0.1, learning_rate=6e-4, device=device)
 
 print(f'train_loader.B * train_loader.T: {train_loader.B * train_loader.T}')
+
+#-------------------------------------------------------------------------
 for step in range(max_steps):
     t0 = time.time()
 
     optimizer.zero_grad()
     loss_accum = 0.0
-    for micro_step in range(grad_accum_steps):
+
+    #-------------------------------------
+    for micro_step in range(grad_accum_steps): # note grad_accum_steps = total_batch_size // (B * T)
         x, y = train_loader.next_batch()
         x, y = x.to(device), y.to(device)
+
+
         '''
         Cast all operatoins within this block (and device, typically a CUDA enabled device) to bfloat16.
         bfloat16 is particularly desiable because it offers a good balance between precision and large
@@ -811,13 +820,27 @@ for step in range(max_steps):
         with torch.autocast(device_type=device, dtype=torch.bfloat16):
             # forward
             logits, loss = model(x, y)
+
         # we have to scale the loss to account for gradient accumulation,
         # because the gradients just add on each successive backward().
         # addition of gradients corresponds to a SUM in the objective, but
         # instead of a SUM we want MEAN. Scale the loss here so it comes out right
         loss = loss / grad_accum_steps
+
+        '''
+        detach() is used to create a tensor that shares the same data as the original 
+        tensor but is detached from the computation graph. 
+        prevents the loss_accum tensor from contributing to the gradient computation
+        Gradient Accumulation: In scenarios where the total batch size is too large to 
+        fit into memory (e.g., due to GPU memory constraints), the training process is 
+        split into smaller "micro-batches." The losses from these micro-batches are 
+        accumulated over several iterations before performing a single optimization 
+        step. The variable loss_accum serves as a running total to accumulate the loss 
+        values from each micro-batch.
+        '''
         loss_accum += loss.detach()
         loss.backward()
+    #-------------------------------------
 
     '''
     using hyperparameters from GPT3 - literally following what they published in their paper.
@@ -850,8 +873,10 @@ for step in range(max_steps):
 
     t1 = time.time()
     dt = t1 - t0 # time difference in seconds
+
     tokens_processed = train_loader.B * train_loader.T * grad_accum_steps
     tokens_per_sec = tokens_processed / dt
+
     print(f"step {step:4d} | loss: {loss_accum.item():.6f} | lr {lr:.4e} | norm: {norm:.4f} | dt: {dt*1000:.2f}ms | tok/sec: {tokens_per_sec:.2f} | {param_summary}")
 #-------------------------------------------------------------------------
 
