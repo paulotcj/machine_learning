@@ -538,7 +538,7 @@ class GPT(nn.Module):
         #-----------------
         num_decay_params = sum( p.numel() for p in decay_params )
         num_nodecay_params = sum( p.numel() for p in nodecay_params )
-        if master_process:
+        if master_process: # we only want to print to console if this is the master process
 
             print(f"num decayed parameter tensors: {len(decay_params)}, with {num_decay_params:,} parameters")
             print(f"num non-decayed parameter tensors: {len(nodecay_params)}, with {num_nodecay_params:,} parameters")
@@ -548,7 +548,7 @@ class GPT(nn.Module):
         fused_available = 'fused' in inspect.signature(torch.optim.AdamW).parameters
 
         use_fused = fused_available and 'cuda' in device
-        if master_process:
+        if master_process: # we only want to print to console if this is the master process
             print(f"using fused AdamW: {use_fused}")
 
         optimizer = torch.optim.AdamW(optim_groups, lr=learning_rate, betas=(0.9, 0.95), eps=1e-8, fused=use_fused)
@@ -569,6 +569,8 @@ class DataLoaderLite:
         self.process_rank = process_rank
         self.num_processes = num_processes
 
+        #--------
+
         # at init load tokens from disk and store them in memory
         # **** DELETE THIS CHANGE ***
         # file_path = './models/10_nano_gpt/current/'
@@ -580,7 +582,7 @@ class DataLoaderLite:
         tokens = enc.encode(text)
         self.tokens = torch.tensor(tokens)
 	
-        if master_process:
+        if master_process: # we only want to print to console if this is the master process
             print(f"loaded {len(self.tokens)} tokens")
 
         # state
@@ -613,10 +615,12 @@ class DataLoaderLite:
     #-------------------------------------------------------------------------
 #-------------------------------------------------------------------------
 
-# simple launch:
+# ***************************************
+# DDP simple launch:
 # python train_gpt2.py
 # DDP launch for e.g. 8 GPUs:
 # torchrun --standalone --nproc_per_node=8 train_gpt2.py
+# ***************************************
 
 # run the training loop
 from torch.distributed import init_process_group, destroy_process_group
@@ -625,23 +629,60 @@ import torch.distributed as dist
 
 # set up DDP (distributed data parallel).
 # torchrun command sets the env variables RANK, LOCAL_RANK, and WORLD_SIZE
-ddp = int(os.environ.get('RANK', -1)) != -1 # is this a ddp run?
+
+# using torch run, the application would return values ranging from 0 to N depending
+#  of which GPU number/ID this script is being executed.
+ddp = int(os.environ.get(key = 'RANK', default = -1)) != -1 # is this a ddp run?
+
 if ddp:
     # use of DDP atm demands CUDA, we set the device appropriately according to rank
     assert torch.cuda.is_available(), "for now i think we need CUDA for DDP"
-    init_process_group(backend='nccl')
+
+    # backend='nccl' argument specifies that the NVIDIA Collective Communications Library (NCCL) 
+    #   will be used as the communication backend. NCCL is optimized for GPU-to-GPU communication 
+    #   and is particularly well-suited for distributed training on NVIDIA GPUs
+    init_process_group(backend='nccl') # from torch.distributed
+
+    '''
+    RANK - global rank of the current process in the distributed training setup.
+      It uniquely identifies each process across all nodes and GPUs in the distributed 
+      system.
+      If you have 2 nodes, each with 4 GPUs, there will be 8 processes in total. 
+      The global ranks will range from 0 to 7.
+
+    LOCAL_RANK - local rank of the current process on a specific node.
+      It identifies which GPU (or device) the process is assigned to on the local 
+      machine (node).
+      On a node with 4 GPUs, the local ranks will range from 0 to 3.
+
+    WORLD_SIZE - total number of processes participating in the distributed training.
+      It defines the size of the distributed system and is used for communication and 
+      synchronization between processes.
+      If you have 2 nodes, each with 4 GPUs, the world size will be 8.
+    '''
     ddp_rank = int(os.environ['RANK'])
     ddp_local_rank = int(os.environ['LOCAL_RANK'])
     ddp_world_size = int(os.environ['WORLD_SIZE'])
+
+
+
     device = f'cuda:{ddp_local_rank}'
+
     torch.cuda.set_device(device)
-    master_process = ddp_rank == 0 # this process will do logging, checkpointing etc.
+
+    master_process = ddp_rank == 0 # IMPORTANT - this process will do logging, checkpointing etc.
 else:
     # vanilla, non-DDP run
     ddp_rank = 0
     ddp_local_rank = 0
     ddp_world_size = 1
-    master_process = True
+    master_process = True # IMPORTANT
+
+print('--------------------------')
+print(f'ddp_rank: {ddp_rank}')
+print(f'ddp_local_rank: {ddp_local_rank}')
+print(f'ddp_world_size: {ddp_world_size}')
+print('--------------------------')
 #-------------------------------------------------------------------------
 def get_device():
     device = 'cpu'
@@ -672,12 +713,15 @@ T = 1024 # sequence length
 # B = 4
 # T = 32 # sequence length
 
+
+# ddp_world_size is 1 on a single system. If you have 2 nodes, each with 4 GPUs, the world 
+#   size will be 8.
 assert total_batch_size % (B * T * ddp_world_size) == 0, "make sure total_batch_size is divisible by B * T * ddp_world_size"
 
 
 grad_accum_steps = total_batch_size // (B * T * ddp_world_size)
 
-if master_process:
+if master_process: # we only want to print to console if this is the master process
     print(f"total desired batch size: {total_batch_size}")
     print(f"=> calculated gradient accumulation steps: {grad_accum_steps}")
 
@@ -861,7 +905,7 @@ for step in range(max_steps):
 
     tokens_processed = train_loader.B * train_loader.T * grad_accum_steps * ddp_world_size
     tokens_per_sec = tokens_processed / dt
-    if master_process:
+    if master_process: # we only want to print to console if this is the master process
         print(f"step {step:4d} | loss: {loss_accum.item():.6f} | lr {lr:.4e} | norm: {norm:.4f} | dt: {dt*1000:.2f}ms | tok/sec: {tokens_per_sec:.2f} | {param_summary}")
 #-------------------------------------------------------------------------
 if ddp:
