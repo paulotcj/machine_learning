@@ -562,7 +562,10 @@ import tiktoken
 #-------------------------------------------------------------------------
 class DataLoaderLite:
     #-------------------------------------------------------------------------
-    def __init__(self, B, T, process_rank, num_processes):
+    # process_rank=ddp_rank -> unique identifier for each process across all nodes and GPUs
+    # num_processes=ddp_world_size -> total number of processes participating in the distributed training.
+    #   If you have 2 nodes, each with 4 GPUs, the world size will be 8.
+    def __init__(self, B, T, process_rank, num_processes): 
         # B - batch size, T - sequence length
         self.B = B
         self.T = T
@@ -659,6 +662,8 @@ if ddp:
       It defines the size of the distributed system and is used for communication and 
       synchronization between processes.
       If you have 2 nodes, each with 4 GPUs, the world size will be 8.
+      Note that WORLD_SIZE is a constant across all processes. If this is running
+      on NODE 2 GPU 3, WORLD_SIZE would still be 8.
     '''
     ddp_rank = int(os.environ['RANK'])
     ddp_local_rank = int(os.environ['LOCAL_RANK'])
@@ -732,7 +737,6 @@ if master_process: # we only want to print to console if this is the master proc
     # print(f"total desired batch size: {total_batch_size}")
     # print(f"=> calculated gradient accumulation steps: {grad_accum_steps}")
     print('-------------------------\n\n')
-    exit()
 
 train_loader = DataLoaderLite(B=B, T=T, process_rank=ddp_rank, num_processes=ddp_world_size)
 #------------------------------
