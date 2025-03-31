@@ -559,10 +559,12 @@ class GPT(nn.Module):
 import tiktoken
 import numpy as np
 #-------------------------------------------------------------------------
+# remember that at this point the dataset was processed by an independent script that
+#   has downloaded the data, tokenized it, and stored as a large shard of numpy tensors
 def load_tokens(filename):
-    npt = np.load(filename)
-    ptt = torch.tensor(npt, dtype=torch.long)
-    return ptt
+    numpy_tensor = np.load(filename)
+    pytorch_tensor = torch.tensor(numpy_tensor, dtype=torch.long)
+    return pytorch_tensor
 #-------------------------------------------------------------------------
 #-------------------------------------------------------------------------
 class DataLoaderLite:
@@ -590,13 +592,21 @@ class DataLoaderLite:
         assert split in {'train', 'val'}
 
         # get the shard filenames
-        data_root = "edu_fineweb10B"
-        shards = os.listdir(data_root)
-        shards = [s for s in shards if split in s]
-        shards = sorted(shards)
-        shards = [os.path.join(data_root, s) for s in shards]
+        data_root = "edu_fineweb10B" 
+        shards = os.listdir(data_root) # ['edufineweb_train_000008.npy', 'edufineweb_train_000020.npy' ...
+
+        shards = [ filename 
+                  for filename in shards 
+                  if split in filename # does the filename contains 'train' or 'val'
+        ]
+
+        shards = sorted(shards) # sort the shards. important in the case of documents being split between shards
+
+        shards = [ os.path.join(data_root, filename)  # ['edu_fineweb10B/edufineweb_train_000001.npy', 'edu_fineweb10B/edufineweb_train_000002.npy', ...
+                  for filename in shards ]
+
+
         self.shards = shards
-	
 	
         assert len(shards) > 0, f"no shards found for split {split}"
 	
@@ -614,7 +624,7 @@ class DataLoaderLite:
         '''
         # state, init at shard zero
         self.current_shard = 0
-        self.tokens = load_tokens(self.shards[self.current_shard])
+        self.tokens = load_tokens(filename = self.shards[self.current_shard])
         self.current_position = self.B * self.T * self.process_rank
     #-------------------------------------------------------------------------
     #-------------------------------------------------------------------------
@@ -639,8 +649,9 @@ class DataLoaderLite:
         # if loading the next batch would be out of bounds, advance to next shard
         if self.current_position + (B * T * self.num_processes + 1) > len(self.tokens):
             # originally this was 0, but with DDP this is its zero. You can double check at the constructor
+            
             self.current_shard = (self.current_shard + 1) % len(self.shards)
-            self.tokens = load_tokens(self.shards[self.current_shard])
+            self.tokens = load_tokens(filename = self.shards[self.current_shard])
             self.current_position = B * T * self.process_rank
 
         return x, y
