@@ -649,7 +649,7 @@ class DataLoaderLite:
         # if loading the next batch would be out of bounds, advance to next shard
         if self.current_position + (B * T * self.num_processes + 1) > len(self.tokens):
             # originally this was 0, but with DDP this is its zero. You can double check at the constructor
-            
+
             self.current_shard = (self.current_shard + 1) % len(self.shards)
             self.tokens = load_tokens(filename = self.shards[self.current_shard])
             self.current_position = B * T * self.process_rank
@@ -817,8 +817,10 @@ raw_model = model.module if ddp else model # always contains the "raw" unwrapped
 
 max_lr = 6e-4
 min_lr = max_lr * 0.1 # 0.000059999999999999995
-warmup_steps = 715
-max_steps = 19073
+# warmup_steps = 715
+# max_steps = 19073
+warmup_steps = 10
+max_steps = 50
 
 max_steps_minus_warmup_steps = max_steps - warmup_steps
 max_lr_minus_min_lr = max_lr - min_lr
