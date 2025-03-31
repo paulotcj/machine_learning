@@ -722,8 +722,17 @@ assert total_batch_size % (B * T * ddp_world_size) == 0, "make sure total_batch_
 grad_accum_steps = total_batch_size // (B * T * ddp_world_size)
 
 if master_process: # we only want to print to console if this is the master process
-    print(f"total desired batch size: {total_batch_size}")
-    print(f"=> calculated gradient accumulation steps: {grad_accum_steps}")
+    print('\n\n-------------------------')
+
+    print(f'B: {B}\t T: {T}\tddp_world_size: {ddp_world_size}')
+    print(f'total_batch_size: {total_batch_size}\t(B * T): {(B * T)}\t(B * T * ddp_world_size):{(B * T * ddp_world_size)}')
+    print(f'grad_accum_steps = total_batch_size // (B * T * ddp_world_size): {grad_accum_steps}\n')
+
+
+    # print(f"total desired batch size: {total_batch_size}")
+    # print(f"=> calculated gradient accumulation steps: {grad_accum_steps}")
+    print('-------------------------\n\n')
+    exit()
 
 train_loader = DataLoaderLite(B=B, T=T, process_rank=ddp_rank, num_processes=ddp_world_size)
 #------------------------------
@@ -830,7 +839,7 @@ for step in range(max_steps):
     loss_accum = 0.0
 
     #-------------------------------------
-    for micro_step in range(grad_accum_steps): # note grad_accum_steps = total_batch_size // (B * T)
+    for micro_step in range(grad_accum_steps): # note grad_accum_steps = total_batch_size // (B * T * ddp_world_size) = 524288 // (16 * 1024 * 1) = 32
         x, y = train_loader.next_batch()
         x, y = x.to(device), y.to(device)
 
