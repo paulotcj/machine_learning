@@ -894,16 +894,28 @@ for step in range(max_steps):
         loss_accum += loss.detach()
 
         if ddp:
-            # micro_step can be, in the range of 0 to 31, and if we use the same example, grad_accum_steps = 32
-            #   therefore at micro_step = 0 -> (micro_step == grad_accum_steps - 1) -> (0 ==  32 - 1) -> 0 == 31 -> False
-            #   and micro_step = 31 -> (31 ==  32 - 1) -> (31 == 31) -> True
+            '''
+            micro_step can be, in the range of 0 to 31, and if we use the same example, grad_accum_steps = 32
+              therefore at micro_step = 0 -> (micro_step == grad_accum_steps - 1) -> (0 ==  32 - 1) -> 0 == 31 -> False
+              and micro_step = 31 -> (31 ==  32 - 1) -> (31 == 31) -> True
+
+            model.require_backward_grad_sync is part of pytorch's DDP module. it is a 
+              boolean flag that determines whether gradient synchronization across 
+              processes should occur during the backward pass
+            '''
             model.require_backward_grad_sync = (micro_step == grad_accum_steps - 1)
 
         loss.backward()
     #-------------------------------------
 
-    exit()
+    
     if ddp:
+        ''' this is a distributed communication operation where multiple processes (often 
+          running on different GPUs or machines) need to share and synchronize data. 
+          specifically, this operation reduces the loss_accum tensor across all 
+          participating processes by applying the specified reduction operation, in this 
+          case, dist.ReduceOp.AVG (average).
+        '''
         dist.all_reduce(loss_accum, op=dist.ReduceOp.AVG)
 
     '''
