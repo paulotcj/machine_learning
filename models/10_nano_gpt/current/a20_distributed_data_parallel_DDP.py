@@ -564,13 +564,13 @@ class DataLoaderLite:
     #-------------------------------------------------------------------------
     # process_rank=ddp_rank -> unique identifier for each process across all nodes and GPUs
     # num_processes=ddp_world_size -> total number of processes participating in the distributed training.
-    #   If you have 2 nodes, each with 4 GPUs, the world size will be 8.
+    #   If you have 2 nodes, each with 4 GPUs, the world size will always be 8.
     def __init__(self, B, T, process_rank, num_processes): 
         # B - batch size, T - sequence length
         self.B = B
         self.T = T
-        self.process_rank = process_rank
-        self.num_processes = num_processes
+        self.process_rank = process_rank   # ddp_rank
+        self.num_processes = num_processes # world size
 
         #--------
 
@@ -588,6 +588,13 @@ class DataLoaderLite:
         if master_process: # we only want to print to console if this is the master process
             print(f"loaded {len(self.tokens)} tokens")
 
+        '''
+        Example of the code below: 
+          B = 16, T = 1024, process_rank = 1 ---> 16,384 (current_position)
+          B = 16, T = 1024, process_rank = 2 ---> 32,768 (current_position)
+          B = 16, T = 1024, process_rank = 3 ---> 49,152 (current_position)
+        As we can see, the position is sliced and reserved accordingly to the process rank 
+        '''
         # state
         self.current_position = self.B * self.T * self.process_rank
     #-------------------------------------------------------------------------
@@ -607,11 +614,13 @@ class DataLoaderLite:
         y = (buf[1:]).view(B, T) # targets - from the idx 1 to the last token
 
         # advance the position in the tensor
-        self.current_position += B * T * self.num_processes
+        #   note that the 'pagination' has to jump by an amount equivalent to the 'world size' 
+        self.current_position += B * T * self.num_processes # world size
 
         # if loading the next batch would be out of bounds, reset
         if self.current_position + (B * T * self.num_processes + 1) > len(self.tokens):
-            self.current_position = self.B * self.T * self.process_rank	    
+            # originally this was 0, but with DDP this is its zero. You can double check at the constructor
+            self.current_position = self.B * self.T * self.process_rank 
 
         return x, y
 
@@ -720,7 +729,7 @@ T = 1024 # sequence length
 
 
 # ddp_world_size is 1 on a single system. If you have 2 nodes, each with 4 GPUs, the world 
-#   size will be 8.
+#   size will always be 8.
 assert total_batch_size % (B * T * ddp_world_size) == 0, "make sure total_batch_size is divisible by B * T * ddp_world_size"
 
 
@@ -764,9 +773,14 @@ model.to(device)
 # compile - this greatly increase the performance
 if torch.cuda.is_available():
     model = torch.compile(model)
+
+#-----
+# dpp check and model conversion
 if ddp:
     model = DDP(model, device_ids=[ddp_local_rank])
+
 raw_model = model.module if ddp else model # always contains the "raw" unwrapped model
+#-----
 
 max_lr = 6e-4
 min_lr = max_lr * 0.1 # 0.000059999999999999995
@@ -844,6 +858,7 @@ for step in range(max_steps):
 
     #-------------------------------------
     for micro_step in range(grad_accum_steps): # note grad_accum_steps = total_batch_size // (B * T * ddp_world_size) = 524288 // (16 * 1024 * 1) = 32
+
         x, y = train_loader.next_batch()
         x, y = x.to(device), y.to(device)
 
@@ -877,10 +892,17 @@ for step in range(max_steps):
         values from each micro-batch.
         '''
         loss_accum += loss.detach()
+
         if ddp:
+            # micro_step can be, in the range of 0 to 31, and if we use the same example, grad_accum_steps = 32
+            #   therefore at micro_step = 0 -> (micro_step == grad_accum_steps - 1) -> (0 ==  32 - 1) -> 0 == 31 -> False
+            #   and micro_step = 31 -> (31 ==  32 - 1) -> (31 == 31) -> True
             model.require_backward_grad_sync = (micro_step == grad_accum_steps - 1)
+
         loss.backward()
     #-------------------------------------
+
+    exit()
     if ddp:
         dist.all_reduce(loss_accum, op=dist.ReduceOp.AVG)
 
