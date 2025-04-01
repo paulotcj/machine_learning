@@ -898,11 +898,17 @@ for step in range(max_steps):
     # once in a while evaluate our validation loss
     if step % 100 == 0:
 
+        # set model to eval, this changes the behavior of certain layers, layers like Dropout 
+        #   and BatchNorm have distinct behaviors depending on the mode. Dropout is disabled 
+        #   (no activations are dropped), and BatchNorm uses the running statistics computed 
+        #   during training instead of recalculating them
         model.eval()
+        
+        
         val_loader.reset()
 
         #-----------------
-        with torch.no_grad():
+        with torch.no_grad(): # disable gradient computation
             val_loss_accum = 0.0
             val_loss_steps = 20
 
