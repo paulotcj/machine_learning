@@ -617,13 +617,7 @@ class DataLoaderLite:
     #-------------------------------------------------------------------------
     #-------------------------------------------------------------------------
     def reset(self):
-        '''
-        Example of the code below: 
-          B = 16, T = 1024, process_rank = 1 ---> 16,384 (current_position)
-          B = 16, T = 1024, process_rank = 2 ---> 32,768 (current_position)
-          B = 16, T = 1024, process_rank = 3 ---> 49,152 (current_position)
-        As we can see, the position is sliced and reserved accordingly to the process rank 
-        '''
+
         # state, init at shard zero
         self.current_shard = 0
         self.tokens = load_tokens(filename = self.shards[self.current_shard])
@@ -784,8 +778,8 @@ if master_process: # we only want to print to console if this is the master proc
     # print(f"=> calculated gradient accumulation steps: {grad_accum_steps}")
     print('-------------------------\n\n')
 
-train_loader = DataLoaderLite(B=B, T=T, process_rank=ddp_rank, num_processes=ddp_world_size, split="train")
-val_loader = DataLoaderLite(B=B, T=T, process_rank=ddp_rank, num_processes=ddp_world_size, split="val")
+train_loader      = DataLoaderLite(B=B, T=T, process_rank=ddp_rank, num_processes=ddp_world_size, split="train")
+validation_loader = DataLoaderLite(B=B, T=T, process_rank=ddp_rank, num_processes=ddp_world_size, split="val")
 #------------------------------
 
 
@@ -895,7 +889,7 @@ for step in range(max_steps):
     
     
     #-------------------------------------------------------------------------
-    # once in a while evaluate our validation loss
+    # once in a while evaluate our validation loss - we don't do the backward pass here
     if step % 100 == 0:
 
         # set model to eval, this changes the behavior of certain layers, layers like Dropout 
@@ -904,8 +898,9 @@ for step in range(max_steps):
         #   during training instead of recalculating them
         model.eval()
         
-        
-        val_loader.reset()
+        # remember that this is the VALIDATION not the TRAINING loader. And that for edufineweb we
+        #   only have 1 file as validation
+        validation_loader.reset() 
 
         #-----------------
         with torch.no_grad(): # disable gradient computation
@@ -914,7 +909,7 @@ for step in range(max_steps):
 
             for _ in range(val_loss_steps):
                 
-                x, y = val_loader.next_batch()
+                x, y = validation_loader.next_batch()
                 x, y = x.to(device), y.to(device)
 
                 with torch.autocast(device_type=device, dtype=torch.bfloat16):
@@ -943,52 +938,64 @@ for step in range(max_steps):
     # if step > 0 and step % 100 == 0 and False:
     if step > 0 and step % 100 == 0:
         model.eval()
+
         num_return_sequences = 4
         max_length = 32
+
         tokens = enc.encode("Hello, I'm a language model,")
         tokens = torch.tensor(tokens, dtype=torch.long)
         tokens = tokens.unsqueeze(0).repeat(num_return_sequences, 1)
-        xgen = tokens.to(device)
-        sample_rng = torch.Generator(device=device)
+        x_gen = tokens.to(device)
+
+        sample_rng = torch.Generator(device=device) # creates a random number generator that is tied to a specific device
         sample_rng.manual_seed(42 + ddp_rank)
 	
 	
-	#-------------------------------------------------------------------------
-        while xgen.size(1) < max_length:
+	    #-------------------------------------------------------------------------
+        while x_gen.size(1) < max_length:
+
+            #--------------
             # forward the model to get the logits
             with torch.no_grad():
-                logits, loss = model(xgen) # (B, T, vocab_size)
+                logits, loss = model(x_gen) # (B, T, vocab_size)
+
                 # take the logits at the last position
                 logits = logits[:, -1, :] # (B, vocab_size)
+
                 # get the probabilities
                 probs = F.softmax(logits, dim=-1)
+
                 # do top-k sampling of 50 (huggingface pipeline default)
                 # topk_probs here becomes (5, 50), topk_indices is (5, 50)
                 topk_probs, topk_indices = torch.topk(probs, 50, dim=-1)
+
                 # select a token from the top-k probabilities
                 # note: multinomial does not demand the input to sum to 1
                 ix = torch.multinomial(topk_probs, 1, generator=sample_rng) # (B, 1)
+
                 # gather the corresponding indices
                 xcol = torch.gather(topk_indices, -1, ix) # (B, 1)
-                # append to the sequence
-                xgen = torch.cat((xgen, xcol), dim=1)
-	#-------------------------------------------------------------------------
 
-	#-------------------------------------------------------------------------		
+                # append to the sequence
+                x_gen = torch.cat((x_gen, xcol), dim=1)
+            #--------------
+	    #-------------------------------------------------------------------------
+
+	    #-------------------------------------------------------------------------		
         # print the generated text
         for i in range(num_return_sequences):
-            tokens = xgen[i, :max_length].tolist()
+            tokens = x_gen[i, :max_length].tolist()
             decoded = enc.decode(tokens)
             print(f"rank {ddp_rank} sample {i}: {decoded}")
-	#-------------------------------------------------------------------------
+	    #-------------------------------------------------------------------------
     #-------------------------------------------------------------------------
+
+
     # training loop
     model.train()
     
-    
     optimizer.zero_grad()
     loss_accum = 0.0
-
     #-------------------------------------
     for micro_step in range(grad_accum_steps): # note grad_accum_steps = total_batch_size // (B * T * ddp_world_size) = 524288 // (16 * 1024 * 1) = 32
 
