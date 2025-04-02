@@ -660,19 +660,35 @@ class DataLoaderLite:
 # takes tokens, mask, and logits, returns the index of the completion with the lowest loss
 #-------------------------------------------------------------------------
 def get_most_likely_row(tokens, mask, logits):
+    # tokens -> the list of all sentences options. The len is the len of the longest sentence, the excess is padded with zeroes
+    # mask -> list of ones and zeroes, where the beginning is filled with 0s representing the len of ctx_tokens and the end filled with 1s representing the len of end_tokens
+    # logits -> model's prediction (from 4 options)
+
+    # the idea in this function is to statistically compare the options with what was genereted from
+    #   logits. The option that most closely matches the answer from logits is the one selected.
+
+    print(f'******** at get_most_likely_row')
+    print(f'logits shape: {logits.shape}')
+    exit()
     # evaluate the autoregressive loss at all positions
-    shift_logits = (logits[..., :-1, :]).contiguous()
+    shift_logits = (logits[..., :-1, :]).contiguous() # ... = all preceding dimensions, select all rows except the last one, and all columns, make it contiguous in memory
     shift_tokens = (tokens[..., 1:]).contiguous()
+
     flat_shift_logits = shift_logits.view(-1, shift_logits.size(-1))
     flat_shift_tokens = shift_tokens.view(-1)
+
     shift_losses = F.cross_entropy(flat_shift_logits, flat_shift_tokens, reduction='none')
+
     shift_losses = shift_losses.view(tokens.size(0), -1)
+    
     # now get the average loss just for the completion region (where mask == 1), in each row
     shift_mask = (mask[..., 1:]).contiguous() # we must shift mask, so we start at the last prompt token
     masked_shift_losses = shift_losses * shift_mask
+    
     # sum and divide by the number of 1s in the mask
     sum_loss = masked_shift_losses.sum(dim=1)
     avg_loss = sum_loss / shift_mask.sum(dim=1)
+   
     # now we have a loss for each of the 4 completions
     # the one with the lowest loss should be the most likely
     pred_norm = avg_loss.argmin().item()
@@ -827,7 +843,7 @@ model = GPT(GPTConfig(vocab_size=50304))
 model.to(device)
 
 # compile - this greatly increase the performance
-use_compile = True # torch.compile interferes with HellaSwag eval and Generation. TODO fix
+use_compile = False # torch.compile interferes with HellaSwag eval and Generation. TODO fix
 if torch.cuda.is_available() and use_compile:
     model = torch.compile(model)
 
@@ -973,7 +989,8 @@ for step in range(max_steps):
 
     #-------------------------------------------------------------------------
     # once in a while evaluate hellaswag
-    if (step % 250 == 0 or last_step) and (not use_compile):
+    # if (step % 250 == 0 or last_step) and (not use_compile):
+    if (step % 2 == 0 or last_step) and (not use_compile):
         num_correct_norm = 0
         num_total = 0
 	
