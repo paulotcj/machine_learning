@@ -980,7 +980,7 @@ for step in range(max_steps):
 	    #-------------------------------------
         ''' from hellaswag.py - this will yield one json line from hellaswag examples. In this case val
         from "https://raw.githubusercontent.com/rowanz/hellaswag/master/data/hellaswag_val.jsonl" ''' 
-        for i, example in enumerate(iterate_examples("val")): 
+        for i, example in enumerate(iterate_examples("val")): # this can be better implemented, we read all lines and just execute something on a few (considering a large pool of GPUs or nodes)
 
             ''' only process examples where i % ddp_world_size == ddp_rank. So take ddp_world_size = 8
             and ddp_rank = 3
@@ -993,19 +993,28 @@ for step in range(max_steps):
             i = 8   ->   8 % 8 != 3   ->   0 != 3 = True
             i = 9   ->   9 % 8 != 3   ->   1 != 3 = True
             '''
-            if i % ddp_world_size != ddp_rank:
+            if i % ddp_world_size != ddp_rank: # we read a line and throw it away here. improve this
                 continue
 		
             # render the example into tokens and labels
+            # the returned data from render_example is:
+            #   data -> the list of options encoded (list of 4 options) with a leading space
+            #   tokens -> the list of all sentences options. The len is the len of the longest sentence, the excess is padded with zeroes
+            #   mask -> list of ones and zeroes, where the beginning is filled with 0s representing the len of ctx_tokens and the end filled with 1s representing the len of end_tokens
+            #   label -> the idx of the correct answer
             _, tokens, mask, label = render_example(example) # from hellaswag.py
+
             tokens = tokens.to(device)
             mask = mask.to(device)
 	    
+            #-------------
             # get the logits
             with torch.no_grad():
                 with torch.autocast(device_type=device, dtype=torch.bfloat16):
                     logits, loss = model(tokens)
+
                 pred_norm = get_most_likely_row(tokens, mask, logits)
+            #-------------
 		
             num_total += 1
             num_correct_norm += int(pred_norm == label)

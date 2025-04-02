@@ -26,9 +26,12 @@ ind: dataset ID
 
 activity_label: The ActivityNet or WikiHow label for this example
 
-context: There are two formats. The full context is in ctx. When the context ends in an (incomplete) 
-    noun phrase, like for ActivityNet, this incomplete noun phrase is in ctx_b, and the context up 
-    until then is in ctx_a. This can be useful for models such as BERT that need the last sentence 
+context: There are two formats. 
+    * The full context is in ctx. 
+    When the context ends in an (incomplete) noun phrase, like for ActivityNet, this 
+    * incomplete noun phrase is in ctx_b, and the 
+    * context up until then is in ctx_a. 
+    This can be useful for models such as BERT that need the last sentence 
     to be complete. However, it's never required. If ctx_b is nonempty, then ctx is the same thing 
     as ctx_a, followed by a space, then ctx_b.
 
@@ -106,16 +109,16 @@ def download(split): # split can be 'train', 'val', or 'test'
         download_file(data_url, data_filename)
 #-------------------------------------------------------------------------
 #-------------------------------------------------------------------------
-def render_example(example):
+def render_example(example): # this is a json read from typically from iterate_examples(...)
     """
     Given the example as a dictionary, render it as three torch tensors:
     - tokens (the tokens of context + completion, of size 4xN, as there are always 4 candidates)
     - mask (is 1 in the region of the candidate completion, where we evaluate likelihoods)
     - label (the index of the correct completion, which we hope has the highest likelihood)
     """
-    ctx = example["ctx"]
-    label = example["label"]
-    endings = example["endings"]
+    ctx = example["ctx"] # full sentence context
+    label = example["label"] # the correct index answer from the array endings
+    endings = example["endings"] # ending sentence options - always 4
 
     # data needed to reproduce this eval on the C size
     data = {
@@ -132,22 +135,41 @@ def render_example(example):
     #--------------------------------
     for end in endings:
         end_tokens = enc.encode(" " + end) # note: prepending " " because GPT-2 tokenizer
-        tok_rows.append(ctx_tokens + end_tokens)
-        mask_rows.append([0]*len(ctx_tokens) + [1]*len(end_tokens))
+
+        tok_rows.append(ctx_tokens + end_tokens) # the original context plus this option
+
+        # creates a list of zeroes and ones where the number of zeros is equal to the len 
+        #   of ctx_tokens, followed by ones where its len is the size of end_tokens
+        mask_rows.append( [0]*len(ctx_tokens) + [1]*len(end_tokens) )
+
         data["ending_tokens"].append(end_tokens)
     #--------------------------------
 
     # have to be careful during the collation because the number of tokens in each row can differ
-    max_len = max(len(row) for row in tok_rows)
-    tokens = torch.zeros((4, max_len), dtype=torch.long)
-    mask = torch.zeros((4, max_len), dtype=torch.long)
+    max_len = max( len(row) for row in tok_rows) # max len of any ctx_tokens + end_tokens
+
+    tokens = torch.zeros((4, max_len), dtype=torch.long) # creates a tensor of zeros shaped [4, max_len]
+    mask   = torch.zeros((4, max_len), dtype=torch.long) #  the shape of 4 is due to the 4 ending options
+
     #--------------------------------
+    # zip merges the 2 lists of tok_rows (original context plus options) and mask_rows (list of ones and
+    #   zeroes, where the beginning is filled with 0s representing the len of ctx_tokens and the end
+    #   filled with 1s representing the len of end_tokens)
     for i, (tok_row, mask_row) in enumerate(zip(tok_rows, mask_rows)):
-        tokens[i, :len(tok_row)] = torch.tensor(tok_row)
-        mask[i, :len(mask_row)] = torch.tensor(mask_row)
+
+        # below we are going to create the tensors with the full sentences options (tok_row), and
+        #   a mask representing which tokens are the important bits of the options. But they all
+        #   have the same length, where the smaller tensors are padded with 0
+        tokens[i, :len(tok_row)] = torch.tensor(tok_row) # row i, from idx 0 to len of tok_row
+        mask[i, :len(mask_row)] = torch.tensor(mask_row) # row i, from idx 0 to len of masked row
+
     #--------------------------------
 
-    return data, tokens, mask, label
+    # data -> the list of options encoded (list of 4 options) with a leading space
+    # tokens -> the list of all sentences options. The len is the len of the longest sentence, the excess is padded with zeroes
+    # mask -> list of ones and zeroes, where the beginning is filled with 0s representing the len of ctx_tokens and the end filled with 1s representing the len of end_tokens
+    # label -> the idx of the correct answer
+    return data, tokens, mask, label 
 #-------------------------------------------------------------------------
 #-------------------------------------------------------------------------
 def iterate_examples(split): # split can be 'train', 'val', or 'test'
