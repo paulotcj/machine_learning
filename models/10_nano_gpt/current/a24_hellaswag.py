@@ -1011,7 +1011,7 @@ for step in range(max_steps):
             # get the logits
             with torch.no_grad():
                 with torch.autocast(device_type=device, dtype=torch.bfloat16):
-                    logits, loss = model(tokens)
+                    logits, loss = model(tokens) # send the 4 sentences options
 
                 pred_norm = get_most_likely_row(tokens, mask, logits)
             #-------------
