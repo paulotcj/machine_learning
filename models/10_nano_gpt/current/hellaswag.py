@@ -4,14 +4,39 @@ https://github.com/rowanz/hellaswag
 
 Example HellaSwag json item:
 
-{"ind": 24, "activity_label": "Roof shingle removal", "ctx_a": "A man is sitting on a roof.", "ctx_b": "he", "ctx": "A man is sitting on a roof. he", "split": "val", "split_type": "indomain", "label": 3, "endings": ["is using wrap to wrap a pair of skis.", "is ripping level tiles off.", "is holding a rubik's cube.", "starts pulling up roofing on a roof."], "source_id": "activitynet~v_-JhWjGDPHMY"}
+{
+   "ind":24,
+   "activity_label":"Roof shingle removal",
+   "ctx_a":"A man is sitting on a roof.",
+   "ctx_b":"he",
+   "ctx":"A man is sitting on a roof. he",
+   "split":"val",
+   "split_type":"indomain",
+   "label":3,
+   "endings":[
+      "is using wrap to wrap a pair of skis.",
+      "is ripping level tiles off.",
+      "is holding a rubik's cube.",
+      "starts pulling up roofing on a roof."
+   ],
+   "source_id":"activitynet~v_-JhWjGDPHMY"
+}
 
 ind: dataset ID
+
 activity_label: The ActivityNet or WikiHow label for this example
-context: There are two formats. The full context is in ctx. When the context ends in an (incomplete) noun phrase, like for ActivityNet, this incomplete noun phrase is in ctx_b, and the context up until then is in ctx_a. This can be useful for models such as BERT that need the last sentence to be complete. However, it's never required. If ctx_b is nonempty, then ctx is the same thing as ctx_a, followed by a space, then ctx_b.
+
+context: There are two formats. The full context is in ctx. When the context ends in an (incomplete) 
+    noun phrase, like for ActivityNet, this incomplete noun phrase is in ctx_b, and the context up 
+    until then is in ctx_a. This can be useful for models such as BERT that need the last sentence 
+    to be complete. However, it's never required. If ctx_b is nonempty, then ctx is the same thing 
+    as ctx_a, followed by a space, then ctx_b.
+
 endings: a list of 4 endings. The correct index is given by label (0,1,2, or 3)
 split: train, val, or test.
+
 split_type: indomain if the activity label is seen during training, else zeroshot
+
 source_id: Which video or WikiHow article this example came from
 
 gpt2 (124M)
@@ -36,21 +61,21 @@ from torch.nn import functional as F
 from transformers import GPT2LMHeadModel
 
 #-------------------------------------------------------------------------
-DATA_CACHE_DIR = os.path.join(os.path.dirname(__file__), "hellaswag")
+DATA_CACHE_DIR = os.path.join(os.path.dirname(__file__), "hellaswag") # [...]/.../.../current/hellaswag
 
 #-------------------------------------------------------------------------
-def download_file(url: str, fname: str, chunk_size=1024):
+def download_file(url: str, fname: str, chunk_size=1024): # this routine is used by 'download' if the file is not already present on disk
     """Helper function to download a file from a given url"""
     resp = requests.get(url, stream=True)
     total = int(resp.headers.get("content-length", 0))
     
     #--------------------------------
-    with open(fname, "wb") as file, tqdm(
+    with open(fname, "wb") as file, tqdm( # progress bar / open for writing in binary
         desc=fname,
         total=total,
-        unit="iB",
-        unit_scale=True,
-        unit_divisor=1024,
+        unit="iB",         # binary bites
+        unit_scale=True,   # scale the unit to a more readable format
+        unit_divisor=1024, # 1 KiB = 1024 bytes
     ) as bar:
         for data in resp.iter_content(chunk_size=chunk_size):
             size = file.write(data)
@@ -60,18 +85,22 @@ def download_file(url: str, fname: str, chunk_size=1024):
 
 hellaswags = {
     "train": "https://raw.githubusercontent.com/rowanz/hellaswag/master/data/hellaswag_train.jsonl",
-    "val": "https://raw.githubusercontent.com/rowanz/hellaswag/master/data/hellaswag_val.jsonl",
-    "test": "https://raw.githubusercontent.com/rowanz/hellaswag/master/data/hellaswag_test.jsonl",
+    "val":   "https://raw.githubusercontent.com/rowanz/hellaswag/master/data/hellaswag_val.jsonl",
+    "test":  "https://raw.githubusercontent.com/rowanz/hellaswag/master/data/hellaswag_test.jsonl",
 }
 
 enc = tiktoken.get_encoding("gpt2")
 
 #-------------------------------------------------------------------------
-def download(split):
+def download(split): # split can be 'train', 'val', or 'test'
     """Downloads HellaSwag DATA_CACHE_DIR"""
-    os.makedirs(DATA_CACHE_DIR, exist_ok=True)
-    data_url = hellaswags[split]
-    data_filename = os.path.join(DATA_CACHE_DIR, f"hellaswag_{split}.jsonl")
+
+    os.makedirs(DATA_CACHE_DIR, exist_ok=True) # [...]/.../.../current/hellaswag
+
+    data_url = hellaswags[split] # 'train', 'val', or 'test'
+
+    data_filename = os.path.join(DATA_CACHE_DIR, f"hellaswag_{split}.jsonl") # hellaswag_train.jsonl , hellaswag_val.jsonl, hellaswag_test.jsonl
+
     if not os.path.exists(data_filename):
         print(f"Downloading {data_url} to {data_filename}...")
         download_file(data_url, data_filename)
@@ -121,23 +150,26 @@ def render_example(example):
     return data, tokens, mask, label
 #-------------------------------------------------------------------------
 #-------------------------------------------------------------------------
-def iterate_examples(split):
+def iterate_examples(split): # split can be 'train', 'val', or 'test'
+
     # there are 10,042 examples in total in val
-    download(split)
+    download(split) # at this point the file should be present on disk
+
     #--------------------------------
-    with open(os.path.join(DATA_CACHE_DIR, f"hellaswag_{split}.jsonl"), "r") as f:
+    with open(os.path.join(DATA_CACHE_DIR, f"hellaswag_{split}.jsonl"), "r") as f: # open file for read
         for line in f:
-            example = json.loads(line)
-            yield example
+            example = json.loads(line) #load one line
+            yield example # return/yield that line
     #--------------------------------
 #-------------------------------------------------------------------------
 #-------------------------------------------------------------------------
 @torch.no_grad()
-def evaluate(model_type, device):
+def evaluate(model_type = "gpt2", device = "cuda"):
 
     torch.set_float32_matmul_precision('high') # use tf32
-    model = GPT2LMHeadModel.from_pretrained(model_type)
-    model.to(device)
+
+    model = GPT2LMHeadModel.from_pretrained(model_type) # gpt2 | from transformers import GPT2LMHeadModel
+    model.to(device) # cuda
     # model = torch.compile(model) # optionally torch compile the model
 
     num_correct_norm = 0
@@ -196,7 +228,7 @@ def main():
     #  or
     # python hellaswag.py --model_type gpt2 --device cuda
     parser.add_argument("-m", "--model_type", type=str, default="gpt2", help="the model type to use")
-    parser.add_argument("-d", "--device", type=str, default="cuda", help="the device to use")
+    parser.add_argument("-d", "--device",     type=str, default="cuda", help="the device to use")
 
     args = parser.parse_args()
     
