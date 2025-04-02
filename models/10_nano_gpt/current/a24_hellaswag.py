@@ -668,6 +668,8 @@ def get_most_likely_row(tokens, mask, logits):
     #   logits. The option that most closely matches the answer from logits is the one selected.
 
     print(f'******** at get_most_likely_row')
+    print(f'tokens shape: {tokens.shape}')
+    print(f'mask shape: {mask.shape}')
     print(f'logits shape: {logits.shape}')
     exit()
     # evaluate the autoregressive loss at all positions
