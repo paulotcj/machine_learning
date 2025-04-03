@@ -717,11 +717,15 @@ def get_most_likely_row(tokens, mask, logits):
     shift_mask = ( mask[ ... , 1: ] ).contiguous() # we must shift mask, so we start at the last prompt token
     
     # e.g.: [1, 2, 3, 4, 5, 6] * [0,0,0, 1, 1, 1] = [1*0, 2*0, 3*0, 4*1, 5*1, 6*1] = [0, 0, 0, 4, 5, 6]
-    masked_shift_losses = shift_losses * shift_mask 
+    masked_shift_losses = shift_losses * shift_mask # [4, 19]
     
     # sum and divide by the number of 1s in the mask
-    sum_loss = masked_shift_losses.sum(dim=1)
-    avg_loss = sum_loss / shift_mask.sum(dim=1)
+    sum_loss = masked_shift_losses.sum(dim=1)   # [4]
+    avg_loss = sum_loss / shift_mask.sum(dim=1) # [4]
+
+    # masked_shift_losses shape: torch.Size([4, 19])
+    # sum_loss shape: torch.Size([4])
+    # avg_loss shape: torch.Size([4])
 
     print(f'masked_shift_losses shape: {masked_shift_losses.shape}')
     print(f'sum_loss shape: {sum_loss.shape}')
