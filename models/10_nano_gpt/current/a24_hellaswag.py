@@ -1102,7 +1102,12 @@ for step in range(max_steps):
 
 
         if master_process:
+            print('\n\n')
+            print('------------------')
             print(f"HellaSwag accuracy: {num_correct_norm}/{num_total}={acc_norm:.4f}")
+            print('------------------')
+            print('\n')
+
             with open(log_file, "a") as f:
                 f.write(f"{step} hella {acc_norm:.4f}\n")
 
