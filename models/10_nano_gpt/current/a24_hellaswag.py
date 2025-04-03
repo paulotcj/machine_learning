@@ -704,22 +704,31 @@ def get_most_likely_row(tokens, mask, logits):
     flat_shift_tokens = shift_tokens.view( -1 ) # from 2d to 1d tensor [ 76 ]
 
 
-    shift_losses = F.cross_entropy(flat_shift_logits, flat_shift_tokens, reduction='none')
-    print(f'shift_losses shape: {shift_losses.shape}')
+    shift_losses = F.cross_entropy(flat_shift_logits, flat_shift_tokens, reduction='none') # [76]
 
     # create a view, make it [4 , -1] -> [4, 19] 
     shift_losses = shift_losses.view(tokens.size(0), -1)
 
-    print(f'shift_losses shape: {shift_losses.shape}')
-    exit()
+
     
     # now get the average loss just for the completion region (where mask == 1), in each row
-    shift_mask = (mask[..., 1:]).contiguous() # we must shift mask, so we start at the last prompt token
-    masked_shift_losses = shift_losses * shift_mask
+    #  the mask shiftting is the same idea as from the tokens, we skip the first token to align with model's
+    # [4, 19]
+    shift_mask = ( mask[ ... , 1: ] ).contiguous() # we must shift mask, so we start at the last prompt token
+    
+    # e.g.: [1, 2, 3, 4, 5, 6] * [0,0,0, 1, 1, 1] = [1*0, 2*0, 3*0, 4*1, 5*1, 6*1] = [0, 0, 0, 4, 5, 6]
+    masked_shift_losses = shift_losses * shift_mask 
     
     # sum and divide by the number of 1s in the mask
     sum_loss = masked_shift_losses.sum(dim=1)
     avg_loss = sum_loss / shift_mask.sum(dim=1)
+
+    print(f'masked_shift_losses shape: {masked_shift_losses.shape}')
+    print(f'sum_loss shape: {sum_loss.shape}')
+    print(f'avg_loss shape: {avg_loss.shape}')
+    # print(f'')
+    exit()
+
    
     # now we have a loss for each of the 4 completions
     # the one with the lowest loss should be the most likely
