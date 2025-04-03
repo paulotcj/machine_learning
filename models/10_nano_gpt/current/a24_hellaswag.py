@@ -1056,8 +1056,8 @@ for step in range(max_steps):
                     logits, loss = model(tokens) # send the 4 sentences options
 
                 print(f'*** at hellaswag loop')
-                print(f'tokens:\n{tokens}')
-                print(f'logits:\n{logits}')
+                print(f'tokens shape:\n{tokens.shape}')
+                print(f'logits shape:\n{logits.shape}')
                 exit()
                 pred_norm = get_most_likely_row(tokens, mask, logits)
             #-------------
