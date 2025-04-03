@@ -704,7 +704,7 @@ def get_most_likely_row(tokens, mask, logits):
     flat_shift_tokens = shift_tokens.view( -1 ) # from 2d to 1d tensor [ 76 ]
 
     print(f'flat_shift_logits shape: {flat_shift_logits.shape}')
-    print(f'flat_shift_tokens shape: {flat_shift_tokens}')
+    print(f'flat_shift_tokens shape: {flat_shift_tokens.shape}')
     exit()
 
     shift_losses = F.cross_entropy(flat_shift_logits, flat_shift_tokens, reduction='none')
