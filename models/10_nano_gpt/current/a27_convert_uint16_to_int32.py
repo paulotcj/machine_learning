@@ -557,7 +557,7 @@ import numpy as np
 #   has downloaded the data, tokenized it, and stored as a large shard of numpy tensors
 def load_tokens(filename):
     numpy_tensor = np.load(filename)
-    numpy_tensor = npt.astype(np.int32) # added after video
+    numpy_tensor = npt.astype(np.int32)
     pytorch_tensor = torch.tensor(numpy_tensor, dtype=torch.long)
     return pytorch_tensor
 #-------------------------------------------------------------------------
