@@ -727,16 +727,19 @@ def get_most_likely_row(tokens, mask, logits):
     # sum_loss shape: torch.Size([4])
     # avg_loss shape: torch.Size([4])
 
-    print(f'masked_shift_losses shape: {masked_shift_losses.shape}')
-    print(f'sum_loss shape: {sum_loss.shape}')
-    print(f'avg_loss shape: {avg_loss.shape}')
-    # print(f'')
-    exit()
+
+    
+
 
    
     # now we have a loss for each of the 4 completions
     # the one with the lowest loss should be the most likely
     pred_norm = avg_loss.argmin().item()
+
+    print(f'avg_loss: {avg_loss}')
+    print(f'pred_norm: {pred_norm}')
+    exit()
+
     return pred_norm
 #-------------------------------------------------------------------------
 
