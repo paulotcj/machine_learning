@@ -667,14 +667,37 @@ def get_most_likely_row(tokens, mask, logits):
     # the idea in this function is to statistically compare the options with what was genereted from
     #   logits. The option that most closely matches the answer from logits is the one selected.
 
+    '''
     print(f'******** at get_most_likely_row')
     print(f'tokens shape: {tokens.shape}')
     print(f'mask shape: {mask.shape}')
     print(f'logits shape: {logits.shape}')
-    exit()
+    print('-------')
+      Results: 
+        tokens shape: torch.Size([4, 20])
+        mask shape:   torch.Size([4, 20])
+        logits shape: torch.Size([4, 20, 50304])
+
+    And the next probing commands and their results:
+        print(f'logits:\n {            logits[-1, -2, : ]}')  # [ 0.9023, -0.2373, -0.2871,  ...,  0.1504,  0.5273,  0.6250]
+        print(f'shift_logits:\n {shift_logits[-1, -1 , : ]}') # [ 0.9023, -0.2373, -0.2871,  ...,  0.1504,  0.5273,  0.6250]
+
+    As we can see shift_logits is just skipping the last token prediction made on logits.
+    And shift_tokens is skipping the first token.
+
+    Remember that the result of the model is 1 new token prediction from what was provided
+     so what we should do (and we do) is to clip the last token from logits, 
+
+    These operations align the logits and tokens for autoregressive loss computation. The model predicts the next token based on the previous ones, so the logits (predictions) for position i are compared with the actual token at position i+1. By shifting both tensors, this alignment is achieved.    
+    '''
+
     # evaluate the autoregressive loss at all positions
-    shift_logits = (logits[..., :-1, :]).contiguous() # ... = all preceding dimensions, select all rows except the last one, and all columns, make it contiguous in memory
-    shift_tokens = (tokens[..., 1:]).contiguous()
+    shift_logits = ( logits[ ... ,   : -1 , : ] ).contiguous() # [4, 19, 50304]
+    shift_tokens = ( tokens[ ... , 1 :        ] ).contiguous() # [4, 19]
+
+    # print(f'logits:\n {            logits[-1, -2, : ]}')  # [ 0.9023, -0.2373, -0.2871,  ...,  0.1504,  0.5273,  0.6250]
+    # print(f'shift_logits:\n {shift_logits[-1, -1 , : ]}') # [ 0.9023, -0.2373, -0.2871,  ...,  0.1504,  0.5273,  0.6250]
+
 
     flat_shift_logits = shift_logits.view(-1, shift_logits.size(-1))
     flat_shift_tokens = shift_tokens.view(-1)
@@ -1032,6 +1055,10 @@ for step in range(max_steps):
                 with torch.autocast(device_type=device, dtype=torch.bfloat16):
                     logits, loss = model(tokens) # send the 4 sentences options
 
+                print(f'*** at hellaswag loop')
+                print(f'tokens:\n{tokens}')
+                print(f'logits:\n{logits}')
+                exit()
                 pred_norm = get_most_likely_row(tokens, mask, logits)
             #-------------
 		
