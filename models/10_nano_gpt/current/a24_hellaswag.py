@@ -703,13 +703,15 @@ def get_most_likely_row(tokens, mask, logits):
     flat_shift_logits = shift_logits.view( -1, shift_logits.size(-1) ) # from 3d to 2d tensor [76, 50304]
     flat_shift_tokens = shift_tokens.view( -1 ) # from 2d to 1d tensor [ 76 ]
 
-    print(f'flat_shift_logits shape: {flat_shift_logits.shape}')
-    print(f'flat_shift_tokens shape: {flat_shift_tokens.shape}')
-    exit()
 
     shift_losses = F.cross_entropy(flat_shift_logits, flat_shift_tokens, reduction='none')
+    print(f'shift_losses shape: {shift_losses.shape}')
 
+    # create a view, make it [4 , -1] -> [4, 19] 
     shift_losses = shift_losses.view(tokens.size(0), -1)
+
+    print(f'shift_losses shape: {shift_losses.shape}')
+    exit()
     
     # now get the average loss just for the completion region (where mask == 1), in each row
     shift_mask = (mask[..., 1:]).contiguous() # we must shift mask, so we start at the last prompt token
