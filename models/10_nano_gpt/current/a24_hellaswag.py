@@ -686,17 +686,15 @@ def get_most_likely_row(tokens, mask, logits):
     And shift_tokens is skipping the first token.
 
     Remember that the result of the model is 1 new token prediction from what was provided
-     so what we should do (and we do) is to clip the last token from logits, 
-
-    These operations align the logits and tokens for autoregressive loss computation. The model predicts the next token based on the previous ones, so the logits (predictions) for position i are compared with the actual token at position i+1. By shifting both tensors, this alignment is achieved.    
+     so what we should do (and we do) is to clip the last token from logits, now logits
+     will have 19 tokens, but it will be missing the first token. So we clip it from the
+     tokens list, so they align. 
     '''
 
     # evaluate the autoregressive loss at all positions
     shift_logits = ( logits[ ... ,   : -1 , : ] ).contiguous() # [4, 19, 50304]
     shift_tokens = ( tokens[ ... , 1 :        ] ).contiguous() # [4, 19]
-
-    # print(f'logits:\n {            logits[-1, -2, : ]}')  # [ 0.9023, -0.2373, -0.2871,  ...,  0.1504,  0.5273,  0.6250]
-    # print(f'shift_logits:\n {shift_logits[-1, -1 , : ]}') # [ 0.9023, -0.2373, -0.2871,  ...,  0.1504,  0.5273,  0.6250]
+    #  alignment ------------------^----^
 
 
     flat_shift_logits = shift_logits.view(-1, shift_logits.size(-1))
@@ -1055,10 +1053,18 @@ for step in range(max_steps):
                 with torch.autocast(device_type=device, dtype=torch.bfloat16):
                     logits, loss = model(tokens) # send the 4 sentences options
 
-                print(f'*** at hellaswag loop')
-                print(f'tokens shape:\n{tokens.shape}')
-                print(f'logits shape:\n{logits.shape}')
-                exit()
+                    # #-----
+                    # probs_temp = F.softmax(logits, dim=-1)
+                    # topk_probs, topk_indices = torch.topk(probs_temp, 50, dim=-1)
+                    # ix = torch.multinomial(topk_probs, 1, generator=sample_rng)
+                    # xcol = torch.gather(topk_indices, -1, ix) # (B, 1)
+                    # x_gen = torch.cat((x_gen, xcol), dim=1)
+                    # #-----
+
+
+                print(f'tokens shape:\n{tokens.shape}') # torch.Size([4, 20])
+                print(f'logits shape:\n{logits.shape}') # torch.Size([4, 20, 50304])
+
                 pred_norm = get_most_likely_row(tokens, mask, logits)
             #-------------
 		
