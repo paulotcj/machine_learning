@@ -728,17 +728,15 @@ def get_most_likely_row(tokens, mask, logits):
     # avg_loss shape: torch.Size([4])
 
 
-    
-
 
    
     # now we have a loss for each of the 4 completions
     # the one with the lowest loss should be the most likely
+    #   the data should be something like this:
+    #   avg_loss: tensor([10.8125, 11.0000, 10.8750, 10.8750]
+    #   pred_norm: 0 (idx)
     pred_norm = avg_loss.argmin().item()
 
-    print(f'avg_loss: {avg_loss}')
-    print(f'pred_norm: {pred_norm}')
-    exit()
 
     return pred_norm
 #-------------------------------------------------------------------------
@@ -1037,8 +1035,7 @@ for step in range(max_steps):
 
     #-------------------------------------------------------------------------
     # once in a while evaluate hellaswag
-    # if (step % 250 == 0 or last_step) and (not use_compile):
-    if (step % 2 == 0 or last_step) and (not use_compile):
+    if (step % 250 == 0 or last_step) and (not use_compile):
         num_correct_norm = 0
         num_total = 0
 	
@@ -1081,22 +1078,26 @@ for step in range(max_steps):
                 # print(f'tokens shape:\n{tokens.shape}') # torch.Size([4, 20])
                 # print(f'logits shape:\n{logits.shape}') # torch.Size([4, 20, 50304])
 
-                pred_norm = get_most_likely_row(tokens, mask, logits)
+                pred_norm = get_most_likely_row(tokens, mask, logits) # idx of the most likely answer
             #-------------
 		
-            num_total += 1
-            num_correct_norm += int(pred_norm == label)
+            num_total += 1 # num of tests
+            num_correct_norm += int(pred_norm == label) # if the predicted idx is the same as the answer add 1 to the score
 	    #-------------------------------------
 	    
 
         # reduce the stats across all processes
         if ddp:
-            num_total = torch.tensor(num_total, dtype=torch.long, device=device)
+            num_total = torch.tensor(num_total, dtype=torch.long, device=device) # num of tests
+
             num_correct_norm = torch.tensor(num_correct_norm, dtype=torch.long, device=device)
+
             dist.all_reduce(num_total, op=dist.ReduceOp.SUM)
             dist.all_reduce(num_correct_norm, op=dist.ReduceOp.SUM)
+
             num_total = num_total.item()
             num_correct_norm = num_correct_norm.item()
+
         acc_norm = num_correct_norm / num_total
 
 
