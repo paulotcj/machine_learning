@@ -1202,9 +1202,19 @@ for step in range(max_steps):
 
 
 
-        # added after video, this field is also used by the forward pass.
+        # this field is also used by the forward pass.
         if ddp:
-            model.require_backward_grad_sync = (micro_step == grad_accum_steps - 1)
+            '''
+            micro_step can be, in the range of 0 to 31, and if we use the same example, grad_accum_steps = 32
+              therefore at micro_step = 0 -> (micro_step == grad_accum_steps - 1) -> (0 ==  32 - 1) -> 0 == 31 -> False
+              and micro_step = 31 -> (31 ==  32 - 1) -> (31 == 31) -> True
+
+            model.require_backward_grad_sync is part of pytorch's DDP module. it is a 
+              boolean flag that determines whether gradient synchronization across 
+              processes should occur during the backward pass
+            '''
+            model.require_backward_grad_sync = (micro_step == grad_accum_steps - 1)	    
+	    
         '''
         Cast all operatoins within this block (and device, typically a CUDA enabled device) to bfloat16.
         bfloat16 is particularly desiable because it offers a good balance between precision and large
@@ -1235,17 +1245,7 @@ for step in range(max_steps):
         '''
         loss_accum += loss.detach()
 
-        if ddp:
-            '''
-            micro_step can be, in the range of 0 to 31, and if we use the same example, grad_accum_steps = 32
-              therefore at micro_step = 0 -> (micro_step == grad_accum_steps - 1) -> (0 ==  32 - 1) -> 0 == 31 -> False
-              and micro_step = 31 -> (31 ==  32 - 1) -> (31 == 31) -> True
 
-            model.require_backward_grad_sync is part of pytorch's DDP module. it is a 
-              boolean flag that determines whether gradient synchronization across 
-              processes should occur during the backward pass
-            '''
-            model.require_backward_grad_sync = (micro_step == grad_accum_steps - 1)
 
         loss.backward()
     #-------------------------------------
