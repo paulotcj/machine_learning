@@ -697,8 +697,15 @@ def get_most_likely_row(tokens, mask, logits):
     #  alignment ------------------^----^
 
 
-    flat_shift_logits = shift_logits.view(-1, shift_logits.size(-1))
-    flat_shift_tokens = shift_tokens.view(-1)
+    # the line below uses -1 as to infer/figure out the dimensions, and we give only one
+    #   fixed dimension, shift_logits.size(-1) which is 50304, so final shape [ 4 * 19,  50304]
+    #   [76, 50304]
+    flat_shift_logits = shift_logits.view( -1, shift_logits.size(-1) ) # from 3d to 2d tensor [76, 50304]
+    flat_shift_tokens = shift_tokens.view( -1 ) # from 2d to 1d tensor [ 76 ]
+
+    print(f'flat_shift_logits shape: {flat_shift_logits.shape}')
+    print(f'flat_shift_tokens shape: {flat_shift_tokens}')
+    exit()
 
     shift_losses = F.cross_entropy(flat_shift_logits, flat_shift_tokens, reduction='none')
 
@@ -1053,17 +1060,8 @@ for step in range(max_steps):
                 with torch.autocast(device_type=device, dtype=torch.bfloat16):
                     logits, loss = model(tokens) # send the 4 sentences options
 
-                    # #-----
-                    # probs_temp = F.softmax(logits, dim=-1)
-                    # topk_probs, topk_indices = torch.topk(probs_temp, 50, dim=-1)
-                    # ix = torch.multinomial(topk_probs, 1, generator=sample_rng)
-                    # xcol = torch.gather(topk_indices, -1, ix) # (B, 1)
-                    # x_gen = torch.cat((x_gen, xcol), dim=1)
-                    # #-----
-
-
-                print(f'tokens shape:\n{tokens.shape}') # torch.Size([4, 20])
-                print(f'logits shape:\n{logits.shape}') # torch.Size([4, 20, 50304])
+                # print(f'tokens shape:\n{tokens.shape}') # torch.Size([4, 20])
+                # print(f'logits shape:\n{logits.shape}') # torch.Size([4, 20, 50304])
 
                 pred_norm = get_most_likely_row(tokens, mask, logits)
             #-------------
