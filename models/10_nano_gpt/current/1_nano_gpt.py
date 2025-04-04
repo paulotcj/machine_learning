@@ -1013,10 +1013,18 @@ if master_process:
 
 # max_steps = 19073 # 19,073 steps is ~1 epoch, if data is 10B tokens and batch size 0.5M tokens
 # warmup_steps = 715
+# hellaswag_step_gap = 250
+# sampling_step_gap = 250
+# validation_loss_gap = 250
+# checkpoint_after_steps = 500
 max_steps = 50
 warmup_steps = max_steps // 5
 hellaswag_step_gap = max_steps // 5
 sampling_step_gap = max_steps // 5
+validation_loss_gap = max_steps // 5
+checkpoint_after_steps = max_steps // 5
+
+
 
 
 max_steps_minus_warmup_steps = max_steps - warmup_steps
@@ -1070,9 +1078,10 @@ for step in range(max_steps):
     t0 = time.time()
     last_step = (step == max_steps - 1)
 
+
     #-------------------------------------------------------------------------
     # once in a while evaluate our validation loss - we don't do the backward pass here
-    if step % 250 == 0 or last_step:
+    if step % validation_loss_gap == 0 or last_step:
 
         # set model to eval, this changes the behavior of certain layers, layers like Dropout 
         #   and BatchNorm have distinct behaviors depending on the mode. Dropout is disabled 
@@ -1109,13 +1118,13 @@ for step in range(max_steps):
             case, dist.ReduceOp.AVG (average). '''
             dist.all_reduce(val_loss_accum, op=dist.ReduceOp.AVG)
 	    
-	#-------------------------------------------------------------------------
+	    #-------------------------------------------------------------------------
         if master_process:
             print(f"validation loss: {val_loss_accum.item():.4f}")
             with open(log_file, "a") as f:
                 f.write(f"{step} val {val_loss_accum.item():.4f}\n")
-	    #-------------------------------------------------------------------------
-            if step > 0 and (step % 500 == 0 or last_step):
+	        #-------------------------------------------------------------------------
+            if step > 0 and (step % checkpoint_after_steps == 0 or last_step):
                 # optionally write model checkpoints
                 checkpoint_path = os.path.join(log_dir, f"model_{step:05d}.pt")
                 checkpoint = {
@@ -1127,8 +1136,10 @@ for step in range(max_steps):
                 # you might also want to add optimizer.state_dict() and
                 # rng seeds etc., if you wanted to more exactly resume training
                 torch.save(checkpoint, checkpoint_path)
+	        #-------------------------------------------------------------------------
 	    #-------------------------------------------------------------------------
-	#-------------------------------------------------------------------------
+    #-------------------------------------------------------------------------
+
 
     #-------------------------------------------------------------------------
     # once in a while evaluate hellaswag
