@@ -969,7 +969,7 @@ min_lr = max_lr * 0.1 # 0.000059999999999999995
 # warmup_steps = 715
 # max_steps = 19073 # 19,073 steps is ~1 epoch, if data is 10B tokens and batch size 0.5M tokens
 warmup_steps = 10
-max_steps = 50
+max_steps = 2
 
 max_steps_minus_warmup_steps = max_steps - warmup_steps
 max_lr_minus_min_lr = max_lr - min_lr
@@ -1193,11 +1193,17 @@ for step in range(max_steps):
 	    #-------------------------------------------------------------------------
 
 	    #-------------------------------------------------------------------------		
-        # print the generated text
+        print('------------------')
+        print('print the generated text - start')
+        
         for i in range(num_return_sequences):
             tokens = x_gen[i, :max_length].tolist()
             decoded = enc.decode(tokens)
-            print(f"rank {ddp_rank} sample {i}: {decoded}")
+            print(f"RANK: {ddp_rank}\tSAMPLE: {i}:\t{decoded}")
+            
+        print('print the generated text - end')
+        print('------------------')
+        print('\n\n')
 	    #-------------------------------------------------------------------------
     #-------------------------------------------------------------------------
     
