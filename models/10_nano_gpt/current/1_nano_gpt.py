@@ -7,6 +7,14 @@ import torch
 import torch.nn as nn
 from torch.nn import functional as F
 from hellaswag import render_example, iterate_examples
+import tiktoken
+import numpy as np
+
+from torch.distributed import init_process_group, destroy_process_group
+from torch.nn.parallel import DistributedDataParallel as DDP
+import torch.distributed as dist
+
+import time
 #-------------------------------------------------------------------------
 '''
 Causal: In the context of GPT-2, "causal" means that the attention mechanism is restricted to only 
@@ -549,9 +557,6 @@ class GPT(nn.Module):
     #-------------------------------------------------------------------------
 #-------------------------------------------------------------------------
 
-
-import tiktoken
-import numpy as np
 #-------------------------------------------------------------------------
 # remember that at this point the dataset was processed by an independent script that
 #   has downloaded the data, tokenized it, and stored as a large shard of numpy tensors
@@ -744,9 +749,7 @@ def get_most_likely_row(tokens, mask, logits):
 # ***************************************
 
 # run the training loop
-from torch.distributed import init_process_group, destroy_process_group
-from torch.nn.parallel import DistributedDataParallel as DDP
-import torch.distributed as dist
+
 
 # set up DDP (distributed data parallel).
 # torchrun command sets the env variables RANK, LOCAL_RANK, and WORLD_SIZE
@@ -823,7 +826,7 @@ def get_device():
     return device
 #-------------------------------------------------------------------------
 device = get_device()
-import time
+
 
 
 # pytorch can be serious about it's device vs. device_type distinction
