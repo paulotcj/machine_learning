@@ -979,7 +979,7 @@ model.to(device)
 # compile - this greatly increase the performance
 use_compile   = True # torch.compile interferes with HellaSwag eval and Generation. TODO fix
 use_hellaswag = False
-use_sampling  = False
+use_sampling  = True
 if torch.cuda.is_available() and use_compile:
     model = torch.compile(model)
 
