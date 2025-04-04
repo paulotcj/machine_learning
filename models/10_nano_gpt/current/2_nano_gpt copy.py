@@ -809,6 +809,22 @@ def get_lr(it:int): # it -> steps from the training process
     #   ... , 0.00006083231989205545
     return min_lr + coeff * (max_lr_minus_min_lr)
 #-------------------------------------------------------------------------
+#-------------------------------------------------------------------------
+def restore_checkpoint(path, model, optimizer, device):
+    ckpt = torch.load(path, map_location=device)
+    model.load_state_dict(ckpt['model'])
+
+    optimizer.load_state_dict(ckpt['optimizer'])
+
+    step = ckpt['step']
+
+    val_loss = ckpt['val_loss']
+    
+    print(f"Restored from step {step} with val_loss={val_loss:.4f}")
+    return step, val_loss
+#-------------------------------------------------------------------------
+
+
 ##########################
 ###
 ### AUX FUNCTIONS - END
