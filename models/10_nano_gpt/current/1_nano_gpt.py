@@ -946,7 +946,9 @@ model = GPT(GPTConfig(vocab_size=50304))
 model.to(device)
 
 # compile - this greatly increase the performance
-use_compile = False # torch.compile interferes with HellaSwag eval and Generation. TODO fix
+use_compile   = True # torch.compile interferes with HellaSwag eval and Generation. TODO fix
+use_hellaswag = False
+use_sampling  = False
 if torch.cuda.is_available() and use_compile:
     model = torch.compile(model)
 
@@ -960,10 +962,15 @@ raw_model = model.module if ddp else model # always contains the "raw" unwrapped
 
 max_lr = 6e-4
 min_lr = max_lr * 0.1 # 0.000059999999999999995
-# warmup_steps = 715
+
+
 # max_steps = 19073 # 19,073 steps is ~1 epoch, if data is 10B tokens and batch size 0.5M tokens
+# warmup_steps = 715
 max_steps = 50
 warmup_steps = max_steps // 5
+hellaswag_step_gap = max_steps // 5
+sampling_step_gap = max_steps // 5
+
 
 max_steps_minus_warmup_steps = max_steps - warmup_steps
 max_lr_minus_min_lr = max_lr - min_lr
@@ -1072,7 +1079,7 @@ for step in range(max_steps):
 
     #-------------------------------------------------------------------------
     # once in a while evaluate hellaswag
-    if (step % 250 == 0 or last_step) and (not use_compile):
+    if (step % hellaswag_step_gap == 0 or last_step) and use_hellaswag:
         num_correct_norm = 0
         num_total = 0
 	
@@ -1147,15 +1154,13 @@ for step in range(max_steps):
 
             with open(log_file, "a") as f:
                 f.write(f"{step} hella {acc_norm:.4f}\n")
-
-
     #-------------------------------------------------------------------------
 
 
 
     # once in a while generate from the model (except step 0, which is noise)
     #-------------------------------------------------------------------------
-    if ((step > 0 and step % 250 == 0) or last_step) and (not use_compile):
+    if ((step > 0 and step % sampling_step_gap == 0) or last_step) and use_sampling:
         model.eval()
 
         num_return_sequences = 4
@@ -1327,5 +1332,9 @@ for step in range(max_steps):
         with open(log_file, "a") as f:
             f.write(f"{step} train {loss_accum.item():.6f}\n")
 #-------------------------------------------------------------------------
+
+
+
+
 if ddp:
     destroy_process_group()
