@@ -976,8 +976,6 @@ max_lr_minus_min_lr = max_lr - min_lr
 
 
 
-
-
 # optimize!
 
 # using hyperparameters from GPT3 - literally following what they published in their paper.
