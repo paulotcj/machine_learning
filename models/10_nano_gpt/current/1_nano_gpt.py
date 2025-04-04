@@ -653,7 +653,7 @@ class DataLoaderLite:
 
     #-------------------------------------------------------------------------
 #-------------------------------------------------------------------------
-
+#-------------------------------------------------------------------------
 ##########################
 ###
 ### AUX FUNCTIONS - START
@@ -814,17 +814,13 @@ def get_lr(it:int): # it -> steps from the training process
 ### AUX FUNCTIONS - END
 ###
 ##########################
-
-
-# ***************************************
-# DDP simple launch:
-# python train_gpt2.py
-# DDP launch for e.g. 8 GPUs:
-# torchrun --standalone --nproc_per_node=8 train_gpt2.py
-# ***************************************
-
-# run the training loop
-
+#-------------------------------------------------------------------------
+#-------------------------------------------------------------------------
+##########################
+###
+### GLOBAL VARS - START
+###
+##########################
 
 # set up DDP (distributed data parallel).
 # torchrun command sets the env variables RANK, LOCAL_RANK, and WORLD_SIZE
@@ -887,8 +883,6 @@ print('--------------------------')
 
 device = get_device()
 
-
-
 # pytorch can be serious about it's device vs. device_type distinction
 device_type = "cuda" if device.startswith("cuda") else "cpu"
 
@@ -898,7 +892,6 @@ if torch.cuda.is_available():
     
 enc = tiktoken.get_encoding("gpt2")
 
-#------------------------------
 total_batch_size = 524288 # 2**19, ~0.5M, in number of tokens
 # B = 64 # micro batch size
 B = 16 # micro batch size
@@ -914,6 +907,8 @@ assert total_batch_size % (B * T * ddp_world_size) == 0, "make sure total_batch_
 
 grad_accum_steps = total_batch_size // (B * T * ddp_world_size)
 
+
+#------------------------------
 if master_process: # we only want to print to console if this is the master process
     print('\n\n-------------------------')
 
@@ -929,7 +924,6 @@ if master_process: # we only want to print to console if this is the master proc
 train_loader      = DataLoaderLite(B=B, T=T, process_rank=ddp_rank, num_processes=ddp_world_size, split="train")
 validation_loader = DataLoaderLite(B=B, T=T, process_rank=ddp_rank, num_processes=ddp_world_size, split="val")
 #------------------------------
-
 
 
 '''
@@ -968,12 +962,11 @@ max_lr = 6e-4
 min_lr = max_lr * 0.1 # 0.000059999999999999995
 # warmup_steps = 715
 # max_steps = 19073 # 19,073 steps is ~1 epoch, if data is 10B tokens and batch size 0.5M tokens
-warmup_steps = 10
 max_steps = 50
+warmup_steps = max_steps // 5
 
 max_steps_minus_warmup_steps = max_steps - warmup_steps
 max_lr_minus_min_lr = max_lr - min_lr
-
 
 
 # optimize!
@@ -991,9 +984,25 @@ os.makedirs(log_dir, exist_ok=True)
 log_file = os.path.join(log_dir, f"log.txt")
 
 #--------------------
-with open(log_file, "w") as f: # open for writing to clear the file - not implemented yet
+with open(log_file, "w") as f: # open for writing to clear the file
     pass
 #--------------------
+
+##########################
+###
+### GLOBAL VARS - END
+###
+##########################
+#-------------------------------------------------------------------------
+
+# ***************************************
+# DDP simple launch:
+# python train_gpt2.py
+# DDP launch for e.g. 8 GPUs:
+# torchrun --standalone --nproc_per_node=8 train_gpt2.py
+# ***************************************
+
+# run the training loop
 
 
 #-------------------------------------------------------------------------
