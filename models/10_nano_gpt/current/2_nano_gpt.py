@@ -811,7 +811,20 @@ def get_lr(it:int): # it -> steps from the training process
 #-------------------------------------------------------------------------
 #-------------------------------------------------------------------------
 def restore_checkpoint(path, model, optimizer, device):
+    # call: step, val_loss = restore_checkpoint(checkpoint_path, raw_model, optimizer, 'cuda')
     ckpt = torch.load(path, map_location=device)
+
+
+    print('******')
+    print(f'ckpt:\n{ckpt}')
+    print('******')
+    exit()
+
+    ################################
+    ################################
+    ################################
+
+
     model.load_state_dict(ckpt['model'])
 
     optimizer.load_state_dict(ckpt['optimizer'])
@@ -993,14 +1006,16 @@ model.to(device)
 # Compile and Added metrics section
 
 # compile - this greatly increase the performance
-use_compile   = True # torch.compile interferes with HellaSwag eval and Generation. TODO fix
-use_hellaswag = True
-use_sampling  = True
+use_compile    = True # torch.compile interferes with HellaSwag eval and Generation. TODO fix
+use_hellaswag  = True
+use_sampling   = True
+use_checkpoint = True
 if torch.cuda.is_available() and use_compile:
     model = torch.compile(model)
 
 if master_process:
     print(f'use_compile: {use_compile}\tuse_hellaswag: {use_hellaswag}\tuse_sampling: {use_sampling}')
+    print(f'use_checkpoint: {use_checkpoint}')
     print('-------------------------')
 
 
@@ -1088,11 +1103,31 @@ with open(log_file, "w") as f: # open for writing to clear the file
 
 # run the training loop
 
+#-------------------------------------------------------------------------
+if use_checkpoint:
+
+    most_recent_file = sorted( # sort in reverse order to get from the most recent to the oldest
+        [file for file in os.listdir(log_dir) if file.endswith('.pt')] # only files that are checkpoints (.pt)
+        ,reverse=True)[0] # only get the most recent file at idx 0
+    print(f'most_recent_file:\n {most_recent_file}')
+    
+    checkpoint_path = os.path.join(log_dir, most_recent_file) 
+    print(f'checkpoint_path: {checkpoint_path}')
+
+
+
+    check_point_step, checkpoint_val_loss = restore_checkpoint(checkpoint_path, raw_model, optimizer, device_type)
+#-------------------------------------------------------------------------
 
 #-------------------------------------------------------------------------
 for step in range(max_steps):
     t0 = time.time()
     last_step = (step == max_steps - 1)
+
+    if use_checkpoint and step < check_point_step:
+        step = check_point_step
+        val_loss_accum = checkpoint_val_loss
+        
 
 
     #-------------------------------------------------------------------------

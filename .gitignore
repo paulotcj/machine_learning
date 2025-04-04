@@ -9,7 +9,7 @@ __pycache__/
 .DS_Store # macOS specific
 *.log
 *.npy
-
+*.pt
 
 log.txt
 hellaswag*
