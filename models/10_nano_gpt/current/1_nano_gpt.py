@@ -556,7 +556,6 @@ class GPT(nn.Module):
         return optimizer
     #-------------------------------------------------------------------------
 #-------------------------------------------------------------------------
-
 #-------------------------------------------------------------------------
 # remember that at this point the dataset was processed by an independent script that
 #   has downloaded the data, tokenized it, and stored as a large shard of numpy tensors
@@ -655,6 +654,11 @@ class DataLoaderLite:
     #-------------------------------------------------------------------------
 #-------------------------------------------------------------------------
 
+##########################
+###
+### AUX FUNCTIONS - START
+###
+##########################
 
 # helper function for HellaSwag eval
 # takes tokens, mask, and logits, returns the index of the completion with the lowest loss
@@ -740,6 +744,77 @@ def get_most_likely_row(tokens, mask, logits):
 
     return pred_norm
 #-------------------------------------------------------------------------
+#-------------------------------------------------------------------------
+def get_device():
+    device = 'cpu'
+    if torch.cuda.is_available():
+        device = 'cuda' 
+        print('using cuda acceleration')
+    elif torch.backends.mps.is_built():
+        device = 'mps'
+        print('using mps acceleration')
+    else:
+        device = 'cpu'
+        print('using cpu')
+
+
+    return device
+#-------------------------------------------------------------------------
+'''
+With a LR scheduler we acknowledge that are different stages during the training process. Initially
+  the model is in an almost useless state where it lears more about what tokens are not used. Then after
+  it warms up we can make faster (macro) corrections with a larger LR, but once it has achieved a 
+  certain level of stability we want to gradually fine tune its learning rate to something smaller
+  so corrections are smoother (micro)
+'''
+#-------------------------------------------------------------------------
+def get_lr(it:int): # it -> steps from the training process
+
+    # 1) linear warmup for warmup_iters steps
+    if it < warmup_steps: # usually 10
+        # 6e-4 * (0 + 1)  / 10  = 6e-4 * 1  / 10 = 6e-4    / 10 = 5.9999999999999995e-05
+        # 6e-4 * (1 + 1)  / 10  = 6e-4 * 2  / 10 = 0.0012  / 10 = 0.00011999999999999999
+        # ...
+        # 6e-4 * (9 + 1)  / 10  = 6e-4 * 10 / 10 = 0.00599 / 10 = 0.0006
+        return max_lr * (it+1) / warmup_steps
+    
+    # 2) if it > lr_decay_iters, return min learning rate
+    if it >= max_steps:
+        return min_lr # 0.000059999999999999995
+    
+
+    # 3) in between, use cosine decay down to min learning rate
+    #   (10 - 10) / (50 - 10) = 0 / 40 = 0 
+    #   (11 - 10) / (50 - 10) = 1 / 40 = 0.025
+    #   ...  -> 0.05 , 0.075 , 0.1, 0.125 , 0.15, ... 0.95 , 0.975
+    decay_ratio = (it - warmup_steps) / (max_steps_minus_warmup_steps)
+
+    assert 0 <= decay_ratio <= 1
+
+    # 0.5 * ( 1.0 + math.cos( math.pi * 0.0 ) ) = 0.5 * ( 1.0 + math.cos( 0 ) ) = 
+    #     0.5 * ( 1.0 + 1.0 ) = 0.5 * 2 = 1
+    # 0.5 * ( 1.0 + math.cos( math.pi * 0.025 ) ) = 0.5 * ( 1.0 + math.cos( 0.07853981633974483 ) ) = 
+    #     0.5 * ( 1.0 + 0.996917333733128 ) = 0.5 *  1.996917333733128 = 0.998458666866564
+    # 
+    # so from the start the values are:
+    #   1.0 , 0.998458666866564 , 0.9938441702975689, 0.9861849601988383, ... , 0.001541333133436018
+    coeff = 0.5 * (1.0 + math.cos(math.pi * decay_ratio)) # coeff starts at 1 and goes to 0
+
+    # min_lr + coeff * (max_lr - min_lr) = 5.9999999999999995e-05 + coeff * ( 0.0005399999999999999 )
+    # 5.9999999999999995e-05 + 1.0 * ( 0.0005399999999999999 )               = 0.0005999999999999998
+    # 5.9999999999999995e-05 + 0.998458666866564 * ( 0.0005399999999999999 ) = 0.0005991676801079444
+    # 
+    # from the start the values are:
+    #   0.0005999999999999998 , 0.0005991676801079444 , 0.0005966758519606872 , 0.0005925398785073725 , 
+    #   ... , 0.00006083231989205545
+    return min_lr + coeff * (max_lr_minus_min_lr)
+#-------------------------------------------------------------------------
+##########################
+###
+### AUX FUNCTIONS - END
+###
+##########################
+
 
 # ***************************************
 # DDP simple launch:
@@ -809,22 +884,7 @@ print(f'ddp_rank: {ddp_rank}')
 print(f'ddp_local_rank: {ddp_local_rank}')
 print(f'ddp_world_size: {ddp_world_size}')
 print('--------------------------')
-#-------------------------------------------------------------------------
-def get_device():
-    device = 'cpu'
-    if torch.cuda.is_available():
-        device = 'cuda' 
-        print('using cuda acceleration')
-    elif torch.backends.mps.is_built():
-        device = 'mps'
-        print('using mps acceleration')
-    else:
-        device = 'cpu'
-        print('using cpu')
 
-
-    return device
-#-------------------------------------------------------------------------
 device = get_device()
 
 
@@ -914,55 +974,7 @@ max_steps = 50
 max_steps_minus_warmup_steps = max_steps - warmup_steps
 max_lr_minus_min_lr = max_lr - min_lr
 
-'''
-With a LR scheduler we acknowledge that are different stages during the training process. Initially
-  the model is in an almost useless state where it lears more about what tokens are not used. Then after
-  it warms up we can make faster (macro) corrections with a larger LR, but once it has achieved a 
-  certain level of stability we want to gradually fine tune its learning rate to something smaller
-  so corrections are smoother (micro)
-'''
-#-------------------------------------------------------------------------
-def get_lr(it:int): # it -> steps from the training process
 
-    # 1) linear warmup for warmup_iters steps
-    if it < warmup_steps: # usually 10
-        # 6e-4 * (0 + 1)  / 10  = 6e-4 * 1  / 10 = 6e-4    / 10 = 5.9999999999999995e-05
-        # 6e-4 * (1 + 1)  / 10  = 6e-4 * 2  / 10 = 0.0012  / 10 = 0.00011999999999999999
-        # ...
-        # 6e-4 * (9 + 1)  / 10  = 6e-4 * 10 / 10 = 0.00599 / 10 = 0.0006
-        return max_lr * (it+1) / warmup_steps
-    
-    # 2) if it > lr_decay_iters, return min learning rate
-    if it >= max_steps:
-        return min_lr # 0.000059999999999999995
-    
-
-    # 3) in between, use cosine decay down to min learning rate
-    #   (10 - 10) / (50 - 10) = 0 / 40 = 0 
-    #   (11 - 10) / (50 - 10) = 1 / 40 = 0.025
-    #   ...  -> 0.05 , 0.075 , 0.1, 0.125 , 0.15, ... 0.95 , 0.975
-    decay_ratio = (it - warmup_steps) / (max_steps_minus_warmup_steps)
-
-    assert 0 <= decay_ratio <= 1
-
-    # 0.5 * ( 1.0 + math.cos( math.pi * 0.0 ) ) = 0.5 * ( 1.0 + math.cos( 0 ) ) = 
-    #     0.5 * ( 1.0 + 1.0 ) = 0.5 * 2 = 1
-    # 0.5 * ( 1.0 + math.cos( math.pi * 0.025 ) ) = 0.5 * ( 1.0 + math.cos( 0.07853981633974483 ) ) = 
-    #     0.5 * ( 1.0 + 0.996917333733128 ) = 0.5 *  1.996917333733128 = 0.998458666866564
-    # 
-    # so from the start the values are:
-    #   1.0 , 0.998458666866564 , 0.9938441702975689, 0.9861849601988383, ... , 0.001541333133436018
-    coeff = 0.5 * (1.0 + math.cos(math.pi * decay_ratio)) # coeff starts at 1 and goes to 0
-
-    # min_lr + coeff * (max_lr - min_lr) = 5.9999999999999995e-05 + coeff * ( 0.0005399999999999999 )
-    # 5.9999999999999995e-05 + 1.0 * ( 0.0005399999999999999 )               = 0.0005999999999999998
-    # 5.9999999999999995e-05 + 0.998458666866564 * ( 0.0005399999999999999 ) = 0.0005991676801079444
-    # 
-    # from the start the values are:
-    #   0.0005999999999999998 , 0.0005991676801079444 , 0.0005966758519606872 , 0.0005925398785073725 , 
-    #   ... , 0.00006083231989205545
-    return min_lr + coeff * (max_lr_minus_min_lr)
-#-------------------------------------------------------------------------
 
 
 
