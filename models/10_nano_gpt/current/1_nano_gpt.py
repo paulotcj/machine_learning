@@ -822,6 +822,9 @@ def get_lr(it:int): # it -> steps from the training process
 ###
 ##########################
 
+#-------------------------------
+# DPP section
+
 # set up DDP (distributed data parallel).
 # torchrun command sets the env variables RANK, LOCAL_RANK, and WORLD_SIZE
 
@@ -875,23 +878,41 @@ else:
     ddp_world_size = 1
     master_process = True # IMPORTANT
 
-print('--------------------------')
-print(f'ddp_rank: {ddp_rank}')
-print(f'ddp_local_rank: {ddp_local_rank}')
-print(f'ddp_world_size: {ddp_world_size}')
-print('--------------------------')
+if master_process:
+    print('\n\n')
+    print('--------------------------')
+    print(f'ddp_rank: {ddp_rank}')
+    print(f'ddp_local_rank: {ddp_local_rank}')
+    print(f'ddp_world_size: {ddp_world_size}')
+    print('--------------------------')
+
+
+#-------------------------------
+# device section
 
 device = get_device()
-
 # pytorch can be serious about it's device vs. device_type distinction
 device_type = "cuda" if device.startswith("cuda") else "cpu"
+if master_process: 
+    print(f'device: {device}\tdevice_type: {device_type}')
+    print('--------------------------')
+
+
+#-------------------------------
+# Seed section
 
 torch.manual_seed(1337)
 if torch.cuda.is_available():
     torch.cuda.manual_seed(1337)
     
+
+#-------------------------------
+# Tiktoken section
 enc = tiktoken.get_encoding("gpt2")
 
+
+#-------------------------------
+# Batch, Sequence Len, and dependent variables section
 total_batch_size = 524288 # 2**19, ~0.5M, in number of tokens
 # B = 64 # micro batch size
 B = 16 # micro batch size
@@ -904,28 +925,29 @@ T = 1024 # sequence length
 #   size will always be 8.
 assert total_batch_size % (B * T * ddp_world_size) == 0, "make sure total_batch_size is divisible by B * T * ddp_world_size"
 
-
 grad_accum_steps = total_batch_size // (B * T * ddp_world_size)
 
-
-#------------------------------
-if master_process: # we only want to print to console if this is the master process
-    print('\n\n-------------------------')
+if master_process: 
 
     print(f'B: {B}\t T: {T}\tddp_world_size: {ddp_world_size}')
     print(f'total_batch_size: {total_batch_size}\t(B * T): {(B * T)}\t(B * T * ddp_world_size):{(B * T * ddp_world_size)}')
-    print(f'grad_accum_steps = total_batch_size // (B * T * ddp_world_size): {grad_accum_steps}\n')
+    print(f'grad_accum_steps = total_batch_size // (B * T * ddp_world_size): {grad_accum_steps}')
+
+    print('-------------------------')
 
 
-    # print(f"total desired batch size: {total_batch_size}")
-    # print(f"=> calculated gradient accumulation steps: {grad_accum_steps}")
-    print('-------------------------\n\n')
+#-------------------------------
+# Data Loader section
 
 train_loader      = DataLoaderLite(B=B, T=T, process_rank=ddp_rank, num_processes=ddp_world_size, split="train")
 validation_loader = DataLoaderLite(B=B, T=T, process_rank=ddp_rank, num_processes=ddp_world_size, split="val")
-#------------------------------
+if master_process:
+    print('-------------------------')
 
 
+
+#-------------------------------
+# Matrix Multiplication section
 '''
 The 'high' precision setting allows float32 matrix multiplications to use TensorFloat32, which 
 has 10 mantissa bits explicitly stored, or to treat each float32 number as the sum of two 
@@ -940,10 +962,19 @@ making it a useful option for many machine learning and scientific computing app
 '''
 torch.set_float32_matmul_precision('high')
 
+
+
+#-------------------------------
+# Model section
 # create model
 model = GPT(GPTConfig(vocab_size=50304))
 # model = GPT.from_pretrained("gpt2") # or init from OpenAI GPT-2
 model.to(device)
+
+
+
+#-------------------------------
+# Compile and Added metrics section
 
 # compile - this greatly increase the performance
 use_compile   = True # torch.compile interferes with HellaSwag eval and Generation. TODO fix
@@ -952,17 +983,33 @@ use_sampling  = False
 if torch.cuda.is_available() and use_compile:
     model = torch.compile(model)
 
-#-----
+if master_process:
+    print(f'use_compile: {use_compile}\tuse_hellaswag: {use_hellaswag}\tuse_sampling: {use_sampling}')
+    print('-------------------------')
+
+
+#-------------------------------
+# Model to DDP section
+
 # dpp check and model conversion
 if ddp:
     model = DDP(model, device_ids=[ddp_local_rank])
 
 raw_model = model.module if ddp else model # always contains the "raw" unwrapped model
-#-----
+
+#-------------------------------
+# Max and Min LR section
 
 max_lr = 6e-4
 min_lr = max_lr * 0.1 # 0.000059999999999999995
 
+if master_process:
+    print(f'max_lr: {max_lr}\tmin_lr: {min_lr}')
+    print('-------------------------')
+
+
+#-------------------------------
+# Steps and dependent variables section
 
 # max_steps = 19073 # 19,073 steps is ~1 epoch, if data is 10B tokens and batch size 0.5M tokens
 # warmup_steps = 715
@@ -975,16 +1022,22 @@ sampling_step_gap = max_steps // 5
 max_steps_minus_warmup_steps = max_steps - warmup_steps
 max_lr_minus_min_lr = max_lr - min_lr
 
+if master_process:
+    print(f'max_steps: {max_steps}\twarmup_steps: {warmup_steps}')
+    print(f'hellaswag_step_gap: {hellaswag_step_gap}\tsampling_step_gap: {sampling_step_gap}')
+    print('-------------------------')
 
-# optimize!
+#-------------------------------
+# Optimizer section
 
 # using hyperparameters from GPT3 - literally following what they published in their paper.
 #  this routine uses similar values for the parameters, but not quite the same
 # optimizer = torch.optim.AdamW(model.parameters(), lr=3e-4, betas=(0.9, 0.95), eps=1e-8)
 optimizer = raw_model.configure_optimizers(weight_decay=0.1, learning_rate=6e-4, device_type=device_type)
 
-print(f'train_loader.B * train_loader.T: {train_loader.B * train_loader.T}')
 
+#-------------------------------
+# Log section
 # create the log directory we will write checkpoints to and log to
 log_dir = "log"
 os.makedirs(log_dir, exist_ok=True)
