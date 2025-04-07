@@ -1053,10 +1053,10 @@ if master_process:
 start_step = 0
 max_steps = 19073
 warmup_steps = 715
-hellaswag_step_gap = 250
-sampling_step_gap = 250
-validation_loss_gap = 250
-checkpoint_after_steps = 250
+hellaswag_step_gap = 125
+sampling_step_gap = 125
+validation_loss_gap = 125
+checkpoint_after_steps = 125
 
 check_point_step = 0
 
