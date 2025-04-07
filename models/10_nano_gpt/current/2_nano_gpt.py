@@ -811,23 +811,40 @@ def get_lr(it:int): # it -> steps from the training process
 #-------------------------------------------------------------------------
 #-------------------------------------------------------------------------
 def restore_checkpoint(path, model, optimizer, device):
-    # call: step, val_loss = restore_checkpoint(checkpoint_path, raw_model, optimizer, 'cuda')
-    ckpt = torch.load(path, map_location=device)
+
+    ckpt = torch.load(f = path, map_location=device, weights_only=False)
+
+    # print('******')
+    # print(f"ckpt['config']:\n{ckpt['config']}")
+    # print(f"ckpt['config'] type: {type(ckpt['config'])}")
+    # print('******')
 
 
-    print('******')
-    print(f'ckpt:\n{ckpt}')
-    print('******')
-    exit()
-
-    ################################
-    ################################
-    ################################
-
-
+    #-----------
     model.load_state_dict(ckpt['model'])
+    # ckpt_model = ckpt['model']
+    # model_sd = model.state_dict()
+    
+    # for ckpt_model_keys in ckpt_model:
+    #     with torch.no_grad():
+    #         model_sd[ckpt_model_keys].copy_(ckpt_model[ckpt_model_keys])
+    #-----------
+    model.config = ckpt['config']
+    #-----------
+    # ckpt_optimizer = ckpt['optimizer']
+    # optimizer_sd = optimizer.state_dict()
 
-    optimizer.load_state_dict(ckpt['optimizer'])
+    optimizer.load_state_dict(ckpt["optimizer"])
+
+    # for ckpt_optimizer_key in ckpt_optimizer:
+    #     with torch.no_grad():
+    #         optimizer_sd[ckpt_optimizer_key].copy_(ckpt_optimizer[ckpt_optimizer_key])
+    #-----------
+        
+
+    # model.load_state_dict(ckpt['model'])
+
+    # optimizer.load_state_dict(ckpt['optimizer'])
 
     step = ckpt['step']
 
@@ -944,7 +961,7 @@ enc = tiktoken.get_encoding("gpt2")
 # Batch, Sequence Len, and dependent variables section
 total_batch_size = 524288 # 2**19, ~0.5M, in number of tokens
 # B = 64 # micro batch size
-B = 16 # micro batch size
+B = 8 # micro batch size
 T = 1024 # sequence length
 # B = 4
 # T = 32 # sequence length
@@ -1009,7 +1026,7 @@ model.to(device)
 use_compile    = True # torch.compile interferes with HellaSwag eval and Generation. TODO fix
 use_hellaswag  = True
 use_sampling   = True
-use_checkpoint = True
+use_checkpoint = False
 if torch.cuda.is_available() and use_compile:
     model = torch.compile(model)
 
@@ -1047,14 +1064,16 @@ if master_process:
 # hellaswag_step_gap = 250
 # sampling_step_gap = 250
 # validation_loss_gap = 250
-# checkpoint_after_steps = 500
-max_steps = 50
-warmup_steps = max_steps // 5
-hellaswag_step_gap = max_steps // 5
-sampling_step_gap = max_steps // 5
-validation_loss_gap = max_steps // 5
-checkpoint_after_steps = max_steps // 5
+# checkpoint_after_steps = 50
+start_step = 0
+max_steps = 19073
+warmup_steps = 715
+hellaswag_step_gap = 250
+sampling_step_gap = 250
+validation_loss_gap = 250
+checkpoint_after_steps = 250
 
+check_point_step = 0
 
 
 
@@ -1117,17 +1136,14 @@ if use_checkpoint:
 
 
     check_point_step, checkpoint_val_loss = restore_checkpoint(checkpoint_path, raw_model, optimizer, device_type)
+    start_step = check_point_step
+    val_loss_accum = checkpoint_val_loss
 #-------------------------------------------------------------------------
 
 #-------------------------------------------------------------------------
-for step in range(max_steps):
+for step in range(start_step, max_steps):
     t0 = time.time()
     last_step = (step == max_steps - 1)
-
-    if use_checkpoint and step < check_point_step:
-        step = check_point_step
-        val_loss_accum = checkpoint_val_loss
-        
 
 
     #-------------------------------------------------------------------------
@@ -1175,7 +1191,7 @@ for step in range(max_steps):
             with open(log_file, "a") as f:
                 f.write(f"{step} val {val_loss_accum.item():.4f}\n")
 	        #-------------------------------------------------------------------------
-            if step > 0 and (step % checkpoint_after_steps == 0 or last_step):
+            if step > 0 and step > check_point_step and (step % checkpoint_after_steps == 0 or last_step):
                 # optionally write model checkpoints
                 checkpoint_path = os.path.join(log_dir, f"model_{step:05d}.pt")
                 checkpoint = {
