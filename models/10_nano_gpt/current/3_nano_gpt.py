@@ -810,41 +810,26 @@ def get_lr(it:int): # it -> steps from the training process
     return min_lr + coeff * (max_lr_minus_min_lr)
 #-------------------------------------------------------------------------
 #-------------------------------------------------------------------------
-def restore_checkpoint(path, model, optimizer, device):
+def restore_checkpoint(path, model, optimizer, device, train_dl, val_dl):
 
     ckpt = torch.load(f = path, map_location=device, weights_only=False)
-
-    # print('******')
-    # print(f"ckpt['config']:\n{ckpt['config']}")
-    # print(f"ckpt['config'] type: {type(ckpt['config'])}")
-    # print('******')
 
 
     #-----------
     model.load_state_dict(ckpt['model'])
-    # ckpt_model = ckpt['model']
-    # model_sd = model.state_dict()
-    
-    # for ckpt_model_keys in ckpt_model:
-    #     with torch.no_grad():
-    #         model_sd[ckpt_model_keys].copy_(ckpt_model[ckpt_model_keys])
     #-----------
     model.config = ckpt['config']
     #-----------
-    # ckpt_optimizer = ckpt['optimizer']
-    # optimizer_sd = optimizer.state_dict()
-
     optimizer.load_state_dict(ckpt["optimizer"])
-
-    # for ckpt_optimizer_key in ckpt_optimizer:
-    #     with torch.no_grad():
-    #         optimizer_sd[ckpt_optimizer_key].copy_(ckpt_optimizer[ckpt_optimizer_key])
     #-----------
         
 
-    # model.load_state_dict(ckpt['model'])
+    train_dl.current_shard = ckpt['dataloader']['train_current_shard']
+    train_dl.current_position = ckpt['dataloader']['train_current_position']
+    
+    val_dl.current_shard = ckpt['dataloader']['val_current_shard']
+    val_dl.current_position = ckpt['dataloader']['val_current_position']
 
-    # optimizer.load_state_dict(ckpt['optimizer'])
 
     step = ckpt['step']
 
@@ -1026,7 +1011,7 @@ model.to(device)
 use_compile    = True # torch.compile interferes with HellaSwag eval and Generation. TODO fix
 use_hellaswag  = True
 use_sampling   = True
-use_checkpoint = True
+use_checkpoint = False
 if torch.cuda.is_available() and use_compile:
     model = torch.compile(model)
 
@@ -1135,9 +1120,17 @@ if use_checkpoint:
 
 
 
-    check_point_step, checkpoint_val_loss = restore_checkpoint(checkpoint_path, raw_model, optimizer, device_type)
-    start_step = check_point_step
-    val_loss_accum = checkpoint_val_loss
+
+    check_point_step, checkpoint_val_loss = restore_checkpoint(
+        path        = checkpoint_path, 
+        model       = raw_model, 
+        optimizer   = optimizer, 
+        device      =  device_type,
+        train_dl    = train_loader,
+        val_dl      = validation_loader)
+    
+    start_step      = check_point_step
+    val_loss_accum  = checkpoint_val_loss
 #-------------------------------------------------------------------------
 
 #-------------------------------------------------------------------------
@@ -1199,7 +1192,13 @@ for step in range(start_step, max_steps):
                     'config': raw_model.config,
                     'step': step,
                     'val_loss': val_loss_accum.item(),
-                    'optimizer' : optimizer.state_dict()
+                    'optimizer' : optimizer.state_dict(),
+                    'dataloader' : { 
+                        'train_current_shard'   : train_loader.current_shard,
+                        'train_current_position': train_loader.current_position,
+                        'val_current_shard'     : validation_loader.current_shard,
+                        'val_current_position'  : validation_loader.current_position,
+                    }
                 }
                 # you might also want to add optimizer.state_dict() and
                 # rng seeds etc., if you wanted to more exactly resume training
