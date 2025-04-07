@@ -831,6 +831,7 @@ def restore_checkpoint(path, model, optimizer, device, train_dl, val_dl):
     val_dl.current_position = ckpt['dataloader']['val_current_position']
 
 
+
     step = ckpt['step']
 
     val_loss = ckpt['val_loss']
@@ -1197,12 +1198,14 @@ for step in range(start_step, max_steps):
                         'train_current_shard'   : train_loader.current_shard,
                         'train_current_position': train_loader.current_position,
                         'val_current_shard'     : validation_loader.current_shard,
-                        'val_current_position'  : validation_loader.current_position,
+                        'val_current_position'  : validation_loader.current_position
                     }
                 }
                 # you might also want to add optimizer.state_dict() and
                 # rng seeds etc., if you wanted to more exactly resume training
                 torch.save(checkpoint, checkpoint_path)
+
+                print(f'checkpoint train_next_batch:\n{checkpoint['dataloader']['train_next_batch']}')
 	        #-------------------------------------------------------------------------
 	    #-------------------------------------------------------------------------
     #-------------------------------------------------------------------------
