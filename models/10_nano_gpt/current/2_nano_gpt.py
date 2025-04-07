@@ -1026,7 +1026,7 @@ model.to(device)
 use_compile    = True # torch.compile interferes with HellaSwag eval and Generation. TODO fix
 use_hellaswag  = True
 use_sampling   = True
-use_checkpoint = False
+use_checkpoint = True
 if torch.cuda.is_available() and use_compile:
     model = torch.compile(model)
 
