@@ -1204,8 +1204,6 @@ for step in range(start_step, max_steps):
                 # you might also want to add optimizer.state_dict() and
                 # rng seeds etc., if you wanted to more exactly resume training
                 torch.save(checkpoint, checkpoint_path)
-
-                print(f'checkpoint train_next_batch:\n{checkpoint['dataloader']['train_next_batch']}')
 	        #-------------------------------------------------------------------------
 	    #-------------------------------------------------------------------------
     #-------------------------------------------------------------------------
